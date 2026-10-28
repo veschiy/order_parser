@@ -51,15 +51,26 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
-        "lint": [
+        "phpstan": [
+            "vendor/bin/phpstan analyse --memory-limit=1G"
+        ],
+        "rector": [
+            "vendor/bin/rector process --dry-run"
+        ],
+        "pint": [
             "vendor/bin/pint --test"
         ],
-        "lint:fix": [
+        "pint:fix": [
             "vendor/bin/pint"
         ],
+        "pest": [
+            "vendor/bin/pest"
+        ],
         "check": [
-            "@lint",
-            "@test"
+            "@phpstan",
+            "@rector",
+            "@pint",
+            "@pest"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

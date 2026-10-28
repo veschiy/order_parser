@@ -25,16 +25,30 @@ NativePHP packaging is a later concern; the app must remain a normal Laravel app
 
 ## Quality gates (must pass before/after implementation)
 
-Run all gates with:
+The quality-gate stack is:
+
+- PHPStan at level max (`phpstan.neon`)
+- Rector for PHP 8.5 + Laravel preset (`rector.php`)
+- Pint with Laravel preset (`pint.json`)
+- Pest for tests, using Rector on test files where applicable
+
+Run all configured gates with:
 
 ```sh
 composer check
 ```
 
-Current gates:
+Individual gates:
 
-- `composer lint` — Laravel Pint style check (`vendor/bin/pint --test`)
+- `composer phpstan` — `vendor/bin/phpstan analyse --memory-limit=1G`
+- `composer rector` — `vendor/bin/rector process --dry-run`
+- `composer pint` — `vendor/bin/pint --test`
+- `composer pint:fix` — `vendor/bin/pint`
+- `composer pest` — `vendor/bin/pest`
 - `composer test` — PHPUnit suite (`php artisan test`)
+
+The required tools are not installed in the current offline environment. Install them
+with Composer once network access is available, then run `composer check`.
 
 Implementation must add tests for every new behavior and keep all gates green.
 
