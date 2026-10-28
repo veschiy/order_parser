@@ -9,14 +9,15 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        $connection = DB::connection();
+        try {
+            $connection = DB::connection();
 
-        if ($connection->getDriverName() === 'sqlite') {
+            if ($connection->getDriverName() !== 'sqlite') {
+                return;
+            }
+
             $pdo = $connection->getPdo();
 
             $pdo->sqliteCreateFunction(
@@ -30,6 +31,8 @@ class AppServiceProvider extends ServiceProvider
                 static fn (?string $value): ?string => $value === null ? null : mb_strtoupper($value, 'UTF-8'),
                 1,
             );
+        } catch (\Throwable) {
+            return;
         }
     }
 }
