@@ -12,8 +12,7 @@
         "php": "^8.3",
         "enkot/shevchenko": "dev-main",
         "laravel/framework": "^13.17",
-        "laravel/tinker": "^3.0",
-        "nativephp/desktop": "^2.4"
+        "laravel/tinker": "^3.0"
     },
     "require-dev": {
         "bokhanmax/namecaselib2": "^1.0",
