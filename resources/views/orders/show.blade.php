@@ -42,9 +42,9 @@
                     <tbody class="divide-y divide-slate-800">
                         @foreach ($order->awardees as $awardee)
                             <tr class="hover:bg-slate-800/50">
-                                <td class="px-4 py-3 text-slate-100">{{ $awardee['name'] ?? '' }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $awardee['rank'] ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $awardee['award'] ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-100">{{ $awardee->full_name }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ $awardee->rank ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ $awardee->award ?? '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
