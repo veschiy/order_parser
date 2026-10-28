@@ -27,7 +27,22 @@
 
         <div class="mb-3 flex items-center justify-between gap-3">
             <h3 class="text-lg font-semibold text-white">Нагороджені особи</h3>
-            <a href="{{ route('orders.export', $order->id) }}" class="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-400">Експорт у CSV</a>
+            <div class="flex gap-2">
+                <a href="{{ route('orders.export', $order->id) }}" class="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-400">Експорт у CSV</a>
+                @if ($order->trashed())
+                    <form method="POST" action="{{ route('orders.restore', $order->id) }}">
+                        @csrf
+                        @method('PATCH')
+                        <button type="submit" class="rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400">Відновити</button>
+                    </form>
+                @else
+                    <form method="POST" action="{{ route('orders.destroy', $order->id) }}" onsubmit="return confirm('Видалити наказ і приховати його з пошуку?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="rounded-lg bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-500">Видалити</button>
+                    </form>
+                @endif
+            </div>
         </div>
 
         @if ($order->awardees->isEmpty())

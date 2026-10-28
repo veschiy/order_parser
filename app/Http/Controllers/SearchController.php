@@ -18,6 +18,9 @@ final class SearchController extends Controller
             ? collect()
             : Awardee::query()
                 ->with('order')
+                ->whereHas('order', function ($builder): void {
+                    $builder->whereNull('deleted_at');
+                })
                 ->where(function ($builder) use ($query): void {
                     $pattern = '%'.mb_strtolower($query, 'UTF-8').'%';
 

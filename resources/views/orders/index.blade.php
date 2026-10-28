@@ -30,9 +30,9 @@
                     </thead>
                     <tbody class="divide-y divide-slate-800">
                         @foreach ($orders as $order)
-                            <tr class="hover:bg-slate-800/50">
-                                <td class="px-4 py-3 text-indigo-300">{{ $order->number ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-100">{{ $order->title ?? '—' }}</td>
+                            <tr class="hover:bg-slate-800/50 {{ $order->trashed() ? 'opacity-50' : '' }}">
+                                <td class="px-4 py-3 text-indigo-300 {{ $order->trashed() ? 'line-through' : '' }}">{{ $order->number ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-100 {{ $order->trashed() ? 'line-through' : '' }}">{{ $order->title ?? '—' }}</td>
                                 <td class="px-4 py-3 text-slate-300">{{ $order->awardees_count ?? 0 }}</td>
                                 <td class="px-4 py-3 text-slate-300">{{ optional($order->parsed_at)->toDateTimeString() ?? '—' }}</td>
                                 <td class="px-4 py-3">
