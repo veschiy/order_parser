@@ -44,6 +44,19 @@ final class UkrainianNameNormalizer
 
         if ($isUppercase) {
             if ($index === 0 && $gender === 'male') {
+                foreach ([
+                    'ОГО' => 'ИЙ',
+                    'ЕГО' => 'ИЙ',
+                    'ОВА' => 'ОВ',
+                    'ЄВА' => 'ЄВ',
+                    'ІНА' => 'ІН',
+                    'ИНА' => 'ИН',
+                ] as $ending => $nominativeEnding) {
+                    if (mb_substr($part, -mb_strlen($ending, 'UTF-8'), null, 'UTF-8') === $ending) {
+                        return mb_substr($part, 0, -mb_strlen($ending, 'UTF-8'), 'UTF-8').$nominativeEnding;
+                    }
+                }
+
                 if (mb_substr($part, -2, 2, 'UTF-8') === 'КА') {
                     $stem = mb_substr($part, 0, -2, 'UTF-8');
                     $lastStemCharacter = mb_strtolower(mb_substr($stem, -1, 1, 'UTF-8'), 'UTF-8');
@@ -70,17 +83,6 @@ final class UkrainianNameNormalizer
 
                 if ($candidate !== null) {
                     return mb_strtoupper($candidate, 'UTF-8');
-                }
-
-                foreach ([
-                    'ОВА' => 'ОВ',
-                    'ЄВА' => 'ЄВ',
-                    'ІНА' => 'ІН',
-                    'ИНА' => 'ИН',
-                ] as $ending => $nominativeEnding) {
-                    if (mb_substr($part, -mb_strlen($ending, 'UTF-8'), null, 'UTF-8') === $ending) {
-                        return mb_substr($part, 0, -mb_strlen($ending, 'UTF-8'), 'UTF-8').$nominativeEnding;
-                    }
                 }
             }
 
