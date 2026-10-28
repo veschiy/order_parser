@@ -49,10 +49,10 @@
                     <tbody class="divide-y divide-slate-800">
                         @foreach ($results as $result)
                             <tr class="hover:bg-slate-800/50">
-                                <td class="px-4 py-3 text-slate-100">{{ $result['name'] ?? '' }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $result['rank'] ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $result['award'] ?? '—' }}</td>
-                                <td class="px-4 py-3 text-indigo-300">{{ $result['order_number'] ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-100">{{ $result->full_name }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ $result->rank ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ $result->award ?? '—' }}</td>
+                                <td class="px-4 py-3 text-indigo-300">{{ $result->order?->number ?? '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

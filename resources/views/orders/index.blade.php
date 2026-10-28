@@ -31,12 +31,12 @@
                     <tbody class="divide-y divide-slate-800">
                         @foreach ($orders as $order)
                             <tr class="hover:bg-slate-800/50">
-                                <td class="px-4 py-3 text-indigo-300">{{ $order['number'] ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-100">{{ $order['title'] ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $order['awardees_count'] ?? 0 }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $order['parsed_at'] ?? '—' }}</td>
+                                <td class="px-4 py-3 text-indigo-300">{{ $order->number ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-100">{{ $order->title ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ $order->awardees_count ?? 0 }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ optional($order->parsed_at)->toDateTimeString() ?? '—' }}</td>
                                 <td class="px-4 py-3">
-                                    <a href="{{ route('orders.show', $order['id'] ?? 1) }}" class="text-indigo-300 hover:text-indigo-200">Деталі</a>
+                                    <a href="{{ route('orders.show', $order->id) }}" class="text-indigo-300 hover:text-indigo-200">Деталі</a>
                                 </td>
                             </tr>
                         @endforeach
