@@ -38,7 +38,7 @@
                     <thead class="bg-slate-900">
                         <tr>
                             <th class="px-4 py-3 text-left font-medium text-slate-300">ПІБ</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Ранг</th>
+                            <th class="px-4 py-3 text-left font-medium text-slate-300">Звання</th>
                             <th class="px-4 py-3 text-left font-medium text-slate-300">Нагорода</th>
                         </tr>
                     </thead>

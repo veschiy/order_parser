@@ -49,7 +49,7 @@ final class OrderController extends Controller
             }
 
             fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, ['ПІБ', 'Ранг', 'Нагорода', 'Номер наказу'], ';');
+            fputcsv($handle, ['ПІБ', 'Звання', 'Нагорода', 'Номер наказу'], ';');
 
             foreach ($order->awardees as $awardee) {
                 fputcsv($handle, [
