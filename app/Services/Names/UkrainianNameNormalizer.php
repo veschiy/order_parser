@@ -44,6 +44,28 @@ final class UkrainianNameNormalizer
 
         if ($isUppercase) {
             if ($index === 0 && $gender === 'male') {
+                if (mb_substr($part, -2, 2, 'UTF-8') === 'КА') {
+                    $stem = mb_substr($part, 0, -2, 'UTF-8');
+                    $lastStemCharacter = mb_strtolower(mb_substr($stem, -1, 1, 'UTF-8'), 'UTF-8');
+
+                    if (! in_array($lastStemCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)
+                        && class_exists(Shevchenko::class)) {
+                        try {
+                            $shevchenko = new Shevchenko;
+                            $candidate = mb_strtolower($stem.'КО', 'UTF-8');
+
+                            if ($shevchenko->inAccusative([
+                                'familyName' => $candidate,
+                                'gender' => GrammaticalGender::MASCULINE,
+                            ])['familyName'] === mb_strtolower($part, 'UTF-8')) {
+                                return mb_strtoupper($candidate, 'UTF-8');
+                            }
+                        } catch (\Throwable) {
+                            // Fall through to the generic rules.
+                        }
+                    }
+                }
+
                 $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'familyName', $gender);
 
                 if ($candidate !== null) {
@@ -132,7 +154,7 @@ final class UkrainianNameNormalizer
                 ? GrammaticalGender::FEMININE
                 : GrammaticalGender::MASCULINE;
 
-            foreach ($this->candidateWords($source) as $candidate) {
+            foreach ($this->candidateWords($source, $field) as $candidate) {
                 if ($candidate === $source) {
                     continue;
                 }
@@ -162,7 +184,7 @@ final class UkrainianNameNormalizer
     /**
      * @return list<string>
      */
-    private function candidateWords(string $source): array
+    private function candidateWords(string $source, string $field = 'givenName'): array
     {
         $candidates = [$source];
         $last = mb_substr($source, -1, 1, 'UTF-8');
