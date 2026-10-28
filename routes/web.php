@@ -10,6 +10,7 @@ Route::get('/', [SearchController::class, 'index'])->name('search.index');
 
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
 Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+Route::get('/orders/{id}/export.csv', [OrderController::class, 'export'])->name('orders.export');
 Route::patch('/awardees/{awardee}', [AwardeeController::class, 'update'])->name('awardees.update');
 
 Route::get('/parse', [ParseController::class, 'index'])->name('parse.index');

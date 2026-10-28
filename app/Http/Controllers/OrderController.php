@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use Illuminate\Contracts\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class OrderController extends Controller
 {
@@ -29,6 +30,42 @@ final class OrderController extends Controller
 
         return view('orders.show', [
             'order' => $order,
+        ]);
+    }
+
+    public function export(int $id): StreamedResponse
+    {
+        $order = Order::query()
+            ->with('awardees')
+            ->findOrFail($id);
+
+        $filename = 'order-'.($order->number ?? $order->id).'.csv';
+
+        $callback = function () use ($order): void {
+            $handle = fopen('php://output', 'wb');
+
+            if ($handle === false) {
+                return;
+            }
+
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, ['ПІБ', 'Ранг', 'Нагорода', 'Номер наказу'], ';');
+
+            foreach ($order->awardees as $awardee) {
+                fputcsv($handle, [
+                    $awardee->full_name,
+                    $awardee->rank ?? '',
+                    $awardee->award ?? '',
+                    $order->number ?? $order->id,
+                ], ';');
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 }

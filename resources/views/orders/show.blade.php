@@ -25,7 +25,10 @@
             </div>
         </div>
 
-        <h3 class="mb-3 text-lg font-semibold text-white">Нагороджені особи</h3>
+        <div class="mb-3 flex items-center justify-between gap-3">
+            <h3 class="text-lg font-semibold text-white">Нагороджені особи</h3>
+            <a href="{{ route('orders.export', $order->id) }}" class="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-400">Експорт у CSV</a>
+        </div>
 
         @if ($order->awardees->isEmpty())
             <p class="text-sm text-slate-400">Список нагороджених ще не розібрано.</p>
