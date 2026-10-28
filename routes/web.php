@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AwardeeController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ParseController;
 use App\Http\Controllers\SearchController;
@@ -9,6 +10,7 @@ Route::get('/', [SearchController::class, 'index'])->name('search.index');
 
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
 Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+Route::patch('/awardees/{awardee}', [AwardeeController::class, 'update'])->name('awardees.update');
 
 Route::get('/parse', [ParseController::class, 'index'])->name('parse.index');
 Route::post('/parse', [ParseController::class, 'store'])->name('parse.store');
