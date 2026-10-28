@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0851116b83be939e07ce6d8430a20c91",
+    "content-hash": "40a55c9232eb744ef7424b3f12f6e272",
     "packages": [
         {
             "name": "brick/math",
@@ -510,6 +510,48 @@
                 }
             ],
             "time": "2025-03-06T22:45:56+00:00"
+        },
+        {
+            "name": "enkot/shevchenko",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/enkot/shevchenko-php.git",
+                "reference": "0d6e9faff36d6ebe43a23b3ea74c1aa20547e17c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/enkot/shevchenko-php/zipball/0d6e9faff36d6ebe43a23b3ea74c1aa20547e17c",
+                "reference": "0d6e9faff36d6ebe43a23b3ea74c1aa20547e17c",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "php": "^8.1"
+            },
+            "default-branch": true,
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Shevchenko\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Port of shevchenko-js library to PHP",
+            "keywords": [
+                "declension",
+                "inflection",
+                "names",
+                "ukrainian"
+            ],
+            "support": {
+                "issues": "https://github.com/enkot/shevchenko-php/issues",
+                "source": "https://github.com/enkot/shevchenko-php/tree/main"
+            },
+            "time": "2026-01-24T14:46:09+00:00"
         },
         {
             "name": "fruitcake/php-cors",
@@ -6130,6 +6172,97 @@
     ],
     "packages-dev": [
         {
+            "name": "bokhanmax/namecaselib2",
+            "version": "v1.0.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/BokhanMax/namecaselib2.git",
+                "reference": "51c51d0920718f728179059ece67a37e828532eb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/BokhanMax/namecaselib2/zipball/51c51d0920718f728179059ece67a37e828532eb",
+                "reference": "51c51d0920718f728179059ece67a37e828532eb",
+                "shasum": ""
+            },
+            "require": {
+                "ext-mbstring": "*",
+                "php": "^8.0"
+            },
+            "require-dev": {
+                "illuminate/support": "*",
+                "orchestra/testbench": "*",
+                "phpunit/phpunit": "*"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "NameCase": "NameCaseLib2\\Laravel\\Facades\\NameCase"
+                    },
+                    "providers": [
+                        "NameCaseLib2\\Laravel\\NameCaseLibServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "NameCaseLib2\\": [
+                        "Library/",
+                        "Library/NCL/"
+                    ],
+                    "NameCaseLib2\\Laravel\\": "src/Laravel/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT",
+                "GPL-2.0-only"
+            ],
+            "authors": [
+                {
+                    "name": "Max Bokhan",
+                    "email": "bokhanworks@gmail.com",
+                    "role": "Maintainer"
+                },
+                {
+                    "name": "Andrey Chaika",
+                    "email": "bymer3@gmail.com",
+                    "role": "Original Author"
+                }
+            ],
+            "description": "Laravel-ready fork of seagullua/NameCaseLib — PHP library for inflecting Russian and Ukrainian full names",
+            "keywords": [
+                "NameCaseLib",
+                "anthroponym-declension",
+                "declension",
+                "family-name-declension",
+                "first-name-declension",
+                "given-name-declension",
+                "inflection",
+                "laravel",
+                "linguistics",
+                "namecase",
+                "namecaselib2",
+                "nlp",
+                "patronymic-declension",
+                "patronymic-name-declension",
+                "personal-name-declension",
+                "php",
+                "standwithukraine",
+                "surname-declension",
+                "ukraine",
+                "ukrainian",
+                "word-declension",
+                "word-inflection"
+            ],
+            "support": {
+                "issues": "https://github.com/BokhanMax/namecaselib2/issues",
+                "source": "https://github.com/BokhanMax/namecaselib2/tree/v1.0.3"
+            },
+            "time": "2026-06-22T13:47:46+00:00"
+        },
+        {
             "name": "brianium/paratest",
             "version": "v7.20.0",
             "source": {
@@ -9984,7 +10117,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "enkot/shevchenko": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

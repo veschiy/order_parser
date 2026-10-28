@@ -6,6 +6,7 @@ namespace App\Services\Parsers;
 
 use App\Models\Awardee;
 use App\Models\Order;
+use App\Models\ParseRun;
 use App\Services\Documents\DecreeParser;
 use App\Services\Rss\FeedParser;
 use Illuminate\Support\Facades\DB;
@@ -38,10 +39,27 @@ final readonly class AwardsParserService
             'errors' => [],
         ];
 
+        $run = ParseRun::query()->create([
+            'mode' => 'rss',
+            'source_url' => $url,
+            'status' => 'running',
+            'items_found' => 0,
+            'items_parsed' => 0,
+            'orders_created' => 0,
+            'awardees_created' => 0,
+            'started_at' => now(),
+        ]);
+
         try {
             $items = $this->feedParser->parse($url);
         } catch (Throwable $throwable) {
             $summary['errors'][] = $throwable->getMessage();
+
+            $run->forceFill([
+                'status' => 'failed',
+                'error' => $throwable->getMessage(),
+                'finished_at' => now(),
+            ])->save();
 
             return $summary;
         }
@@ -72,6 +90,16 @@ final readonly class AwardsParserService
             $summary['awardees_created'] += $awardeesCreated;
         }
 
+        $run->forceFill([
+            'items_found' => $summary['items_found'],
+            'items_parsed' => $summary['items_parsed'],
+            'orders_created' => $summary['orders_created'],
+            'awardees_created' => $summary['awardees_created'],
+            'status' => $summary['errors'] === [] ? 'completed' : 'completed_with_errors',
+            'error' => $summary['errors'] === [] ? null : implode('; ', $summary['errors']),
+            'finished_at' => now(),
+        ])->save();
+
         return $summary;
     }
 
@@ -80,9 +108,20 @@ final readonly class AwardsParserService
      */
     public function parseSingle(string $url): array
     {
+        $run = ParseRun::query()->create([
+            'mode' => 'single',
+            'source_url' => $url,
+            'status' => 'running',
+            'items_found' => 1,
+            'items_parsed' => 0,
+            'orders_created' => 0,
+            'awardees_created' => 0,
+            'started_at' => now(),
+        ]);
+
         [$order, $awardeesCreated, $error] = $this->parseAndStoreDocument($url);
 
-        return [
+        $summary = [
             'mode' => 'single',
             'source_url' => $url,
             'items_found' => 1,
@@ -91,6 +130,17 @@ final readonly class AwardsParserService
             'awardees_created' => $awardeesCreated,
             'errors' => $error === null ? [] : [$error],
         ];
+
+        $run->forceFill([
+            'items_parsed' => $summary['items_parsed'],
+            'orders_created' => $summary['orders_created'],
+            'awardees_created' => $summary['awardees_created'],
+            'status' => $error === null ? 'completed' : 'completed_with_errors',
+            'error' => $error,
+            'finished_at' => now(),
+        ])->save();
+
+        return $summary;
     }
 
     /**
