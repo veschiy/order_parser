@@ -65,13 +65,16 @@
             const cell = button.closest('td');
             cell.querySelector('.awardee-name').classList.add('hidden');
             button.classList.add('hidden');
-            cell.querySelector('[data-edit-form="' + id + '"]').classList.remove('hidden');
+            const editForm = cell.querySelector('[data-edit-form="' + id + '"]');
+            editForm.classList.remove('hidden');
+            editForm.style.display = 'flex';
         }
 
         function cancelAwardeeEdit(id) {
             const form = document.querySelector('[data-edit-form="' + id + '"]');
             const cell = form.closest('td');
             form.classList.add('hidden');
+            form.style.display = 'none';
             cell.querySelector('.awardee-name').classList.remove('hidden');
             form.previousElementSibling.classList.remove('hidden');
         }
@@ -100,6 +103,7 @@
             cell.querySelector('.awardee-name').textContent = data.full_name;
             input.value = data.full_name;
             form.classList.add('hidden');
+            form.style.display = 'none';
             cell.querySelector('.awardee-name').classList.remove('hidden');
             form.previousElementSibling.classList.remove('hidden');
         }
