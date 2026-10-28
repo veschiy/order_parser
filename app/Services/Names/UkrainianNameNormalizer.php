@@ -25,6 +25,17 @@ final class UkrainianNameNormalizer
     private function normalizePart(string $part): string
     {
         if (mb_strtoupper($part, 'UTF-8') === $part) {
+            foreach ([
+                'ОВА' => 'ОВ',
+                'ЄВА' => 'ЄВ',
+                'ІНА' => 'ІН',
+                'ИНА' => 'ИН',
+            ] as $ending => $nominativeEnding) {
+                if (mb_substr($part, -mb_strlen($ending, 'UTF-8'), null, 'UTF-8') === $ending) {
+                    return mb_substr($part, 0, -mb_strlen($ending, 'UTF-8'), 'UTF-8').$nominativeEnding;
+                }
+            }
+
             return $part;
         }
 
