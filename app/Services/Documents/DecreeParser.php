@@ -84,7 +84,7 @@ final readonly class DecreeParser
     {
         $entries = [];
 
-        preg_match_all('/[А-ЯІЇЄҐ][А-ЯІЇЄҐЬ]{2,}\s+[А-ЯІЇЄҐ][а-яіїєґ]/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
+        preg_match_all('/[А-ЯІЇЄҐ][А-ЯІЇЄҐЬʼ’]{2,}\s+[А-ЯІЇЄҐ][ʼ’а-яіїєґ-]{1,}/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
         $candidatePositions = [];
 
         foreach ($candidateMatches[0] as $candidateMatch) {
@@ -100,7 +100,7 @@ final readonly class DecreeParser
                 continue;
             }
 
-            if (! preg_match('/^([А-ЯІЇЄҐ][А-ЯІЇЄҐЬ]{2,})\s+([А-ЯІЇЄҐ][а-яіїєґʼ\-\x{2019}\']{2,})(?:\s+([А-ЯІЇЄҐ][а-яіїєґʼ\-\x{2019}\']{2,}))?(?:\s*\(([^)]*)\))?\s*[—–-]\s*(.+)$/us', $chunk, $matches)) {
+            if (! preg_match('/^([А-ЯІЇЄҐ][А-ЯІЇЄҐЬʼ’]{2,})\s+([А-ЯІЇЄҐ][а-яіїєґʼ\-\x{2019}\']{2,})(?:\s+([А-ЯІЇЄҐ][а-яіїєґʼ\-\x{2019}\']{2,}))?(?:\s*\(([^)]*)\))?\s*[—–-]\s*(.+)$/us', $chunk, $matches)) {
                 continue;
             }
 
@@ -114,7 +114,7 @@ final readonly class DecreeParser
                 $rank = trim($rankMatch[1]);
             }
 
-            $rawName = trim($surname.' '.$given.' '.($patronymic));
+            $rawName = trim($surname.' '.$given.' '.($patronymic ?? ''));
             $normalizedName = $this->normalizer->toNominative($rawName);
 
             $entries[] = new ParsedAwardee(
@@ -122,13 +122,55 @@ final readonly class DecreeParser
                 surname: $surname,
                 givenName: $given,
                 patronymic: $patronymic,
-                rank: $rank !== '' ? $rank : null,
+                rank: $rank !== '' ? $this->normalizeRank($rank) : null,
                 award: $award,
                 positionNote: $qualifier,
             );
         }
 
         return $entries;
+    }
+
+    private function normalizeRank(string $rank): string
+    {
+        $rank = trim($rank, " \t\n\r\0\x0B.");
+
+        if ($rank === '') {
+            return '';
+        }
+
+        $parts = preg_split('/\s+/u', $rank) ?: [];
+
+        foreach ($parts as $key => $word) {
+            $parts[$key] = implode('-', array_map(
+                static function (string $segment): string {
+                    $segment = trim($segment, '.');
+
+                    if ($segment === '') {
+                        return '';
+                    }
+
+                    $lower = mb_strtolower($segment, 'UTF-8');
+
+                    if (str_ends_with($lower, 'ого') && mb_strlen($segment, 'UTF-8') > 3) {
+                        return mb_substr($segment, 0, -3, 'UTF-8').'ий';
+                    }
+
+                    if (str_ends_with($lower, 'у')) {
+                        return mb_substr($segment, 0, -1, 'UTF-8').'а';
+                    }
+
+                    if (str_ends_with($lower, 'а')) {
+                        return mb_substr($segment, 0, -1, 'UTF-8');
+                    }
+
+                    return $segment;
+                },
+                explode('-', $word),
+            ));
+        }
+
+        return implode(' ', $parts);
     }
 
     private function extractNumber(string $text, string $url): ?string
