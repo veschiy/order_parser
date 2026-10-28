@@ -10,7 +10,11 @@ return RectorConfig::configure()
         __DIR__.'/tests',
     ])
     ->withPhpSets(php85: true)
+    ->withComposerBased(laravel: true, phpunit: true)
     ->withPreparedSets(
-        laravel: true,
-        phpunit: true,
+        codeQuality: true,
+        codingStyle: true,
+        typeDeclarations: true,
+        phpunitCodeQuality: true,
+        phpunitNarrowAsserts: true,
     );
