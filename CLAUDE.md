@@ -3,12 +3,14 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project
-
 This is a **parser app**. It will fetch a web page (target site to be specified later) and
 extract structured information from it, persisting the results in the database. The data
 should be searchable/browsable through a friendly web UI. The application is built as a
 Laravel web app; desktop packaging via NativePHP is **not** available on the current dev
 machine and `nativephp/desktop` has been removed for now (re-add later when needed).
+
+Implementation roadmap is stored in `PLAN.md`. Run quality gates with `composer check`
+(Pint + PHPUnit) before and after changes.
 
 ## Commands
 
