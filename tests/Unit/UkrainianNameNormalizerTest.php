@@ -16,6 +16,6 @@ final class UkrainianNameNormalizerTest extends TestCase
         $this->assertSame('Олександр Вікторович', $normalizer->toNominative('Олександра Вікторовича'));
         $this->assertSame('Михайло Володимирович', $normalizer->toNominative('Михайла Володимировича'));
         $this->assertSame('Ірина Вікторівна', $normalizer->toNominative('Ірину Вікторівну'));
-        $this->assertSame('БАКАЛА', $normalizer->toNominative('БАКАЛА'));
+        $this->assertSame('БАКАЛ', $normalizer->toNominative('БАКАЛА'));
     }
 }

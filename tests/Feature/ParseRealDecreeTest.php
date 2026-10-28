@@ -33,14 +33,14 @@ final class ParseRealDecreeTest extends TestCase
             $decree->awardees,
         );
 
-        $this->assertContains('АРЕНДАРУКА Михайло Володимирович', $names);
+        $this->assertContains('АРЕНДАРУК Михайло Володимирович', $names);
         $this->assertContains('КУРКО Ірина Вікторівна', $names);
         $this->assertContains('МЮЛЛІ Дженніфер Анне', $names);
 
         $awardeesByName = array_combine($names, $decree->awardees);
 
-        $this->assertSame('капітана', $awardeesByName['АРЕНДАРУКА Михайло Володимирович']->rank);
-        $this->assertStringStartsWith('орденом', $awardeesByName['АРЕНДАРУКА Михайло Володимирович']->award ?? '');
-        $this->assertSame('посмертно', $awardeesByName['БІЛАНА Олександр Григорович']->positionNote);
+        $this->assertSame('капітана', $awardeesByName['АРЕНДАРУК Михайло Володимирович']->rank);
+        $this->assertStringStartsWith('орденом', $awardeesByName['АРЕНДАРУК Михайло Володимирович']->award ?? '');
+        $this->assertSame('посмертно', $awardeesByName['БІЛАН Олександр Григорович']->positionNote);
     }
 }

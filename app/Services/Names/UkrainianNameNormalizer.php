@@ -4,35 +4,61 @@ declare(strict_types=1);
 
 namespace App\Services\Names;
 
+use Shevchenko\Language\GrammaticalGender;
+use Shevchenko\Shevchenko;
+
 final class UkrainianNameNormalizer
 {
     public function toNominative(string $name): string
     {
         $parts = preg_split('/\s+/u', trim($name)) ?: [];
+        $gender = $this->detectGender($parts[2] ?? '');
+
         $normalized = [];
 
-        foreach ($parts as $part) {
+        foreach ($parts as $index => $part) {
             if ($part === '') {
                 continue;
             }
 
-            $normalized[] = $this->normalizePart($part);
+            $normalized[] = $this->normalizePart($part, $index, $gender);
         }
 
         return implode(' ', $normalized);
     }
 
-    private function normalizePart(string $part): string
+    private function detectGender(string $patronymic): string
     {
-        if (mb_strtoupper($part, 'UTF-8') === $part) {
-            foreach ([
-                'ОВА' => 'ОВ',
-                'ЄВА' => 'ЄВ',
-                'ІНА' => 'ІН',
-                'ИНА' => 'ИН',
-            ] as $ending => $nominativeEnding) {
-                if (mb_substr($part, -mb_strlen($ending, 'UTF-8'), null, 'UTF-8') === $ending) {
-                    return mb_substr($part, 0, -mb_strlen($ending, 'UTF-8'), 'UTF-8').$nominativeEnding;
+        $lower = mb_strtolower($patronymic, 'UTF-8');
+
+        if (str_ends_with($lower, 'івна') || str_ends_with($lower, 'овна')) {
+            return 'female';
+        }
+
+        return 'male';
+    }
+
+    private function normalizePart(string $part, int $index = 0, string $gender = 'male'): string
+    {
+        $isUppercase = mb_strtoupper($part, 'UTF-8') === $part;
+
+        if ($isUppercase) {
+            if ($index === 0 && $gender === 'male') {
+                $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'familyName', $gender);
+
+                if ($candidate !== null) {
+                    return mb_strtoupper($candidate, 'UTF-8');
+                }
+
+                foreach ([
+                    'ОВА' => 'ОВ',
+                    'ЄВА' => 'ЄВ',
+                    'ІНА' => 'ІН',
+                    'ИНА' => 'ИН',
+                ] as $ending => $nominativeEnding) {
+                    if (mb_substr($part, -mb_strlen($ending, 'UTF-8'), null, 'UTF-8') === $ending) {
+                        return mb_substr($part, 0, -mb_strlen($ending, 'UTF-8'), 'UTF-8').$nominativeEnding;
+                    }
                 }
             }
 
@@ -68,6 +94,15 @@ final class UkrainianNameNormalizer
                 .mb_substr($converted, 1, null, 'UTF-8');
         }
 
+        if ($index === 1) {
+            $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'givenName', $gender);
+
+            if ($candidate !== null) {
+                return mb_strtoupper(mb_substr($candidate, 0, 1, 'UTF-8'), 'UTF-8')
+                    .mb_substr($candidate, 1, null, 'UTF-8');
+            }
+        }
+
         $last = mb_substr($part, -1, null, 'UTF-8');
 
         if (in_array($last, ['а', 'я'], true)) {
@@ -83,5 +118,76 @@ final class UkrainianNameNormalizer
         }
 
         return $part;
+    }
+
+    private function findNominativeCandidate(string $source, string $field, string $gender): ?string
+    {
+        if (! class_exists(Shevchenko::class)) {
+            return null;
+        }
+
+        try {
+            $shevchenko = new Shevchenko;
+            $grammaticalGender = $gender === 'female'
+                ? GrammaticalGender::FEMININE
+                : GrammaticalGender::MASCULINE;
+
+            foreach ($this->candidateWords($source) as $candidate) {
+                if ($candidate === $source) {
+                    continue;
+                }
+
+                foreach (['inAccusative', 'inGenitive'] as $method) {
+                    try {
+                        $result = $shevchenko->{$method}([
+                            $field => $candidate,
+                            'gender' => $grammaticalGender,
+                        ]);
+
+                        if (is_string($result[$field]) && mb_strtolower($result[$field], 'UTF-8') === $source) {
+                            return $candidate;
+                        }
+                    } catch (\Throwable) {
+                        // Try the next candidate or grammatical case.
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function candidateWords(string $source): array
+    {
+        $candidates = [$source];
+        $last = mb_substr($source, -1, 1, 'UTF-8');
+        $stem = mb_substr($source, 0, -1, 'UTF-8');
+
+        if (in_array($last, ['а', 'я', 'у', 'ю', 'і', 'и'], true)) {
+            $candidates[] = $stem;
+        }
+
+        if ($last === 'у') {
+            $candidates[] = $stem.'а';
+        }
+
+        if ($last === 'ю') {
+            $candidates[] = $stem.'я';
+        }
+
+        if ($last === 'а') {
+            $candidates[] = $stem.'о';
+        }
+
+        if ($last === 'я') {
+            $candidates[] = $stem.'й';
+        }
+
+        return array_values(array_unique($candidates));
     }
 }
