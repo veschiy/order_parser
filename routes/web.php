@@ -1,7 +1,14 @@
 <?php
 
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ParseController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', [SearchController::class, 'index'])->name('search.index');
+
+Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+
+Route::get('/parse', [ParseController::class, 'index'])->name('parse.index');
+Route::post('/parse', [ParseController::class, 'store'])->name('parse.store');
