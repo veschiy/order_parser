@@ -123,7 +123,7 @@ final readonly class DecreeParser
                 givenName: $given,
                 patronymic: $patronymic,
                 rank: $rank !== '' ? $this->normalizeRank($rank) : null,
-                award: $award,
+                award: $this->normalizeAward($award),
                 positionNote: $qualifier,
             );
         }
@@ -171,6 +171,15 @@ final readonly class DecreeParser
         }
 
         return implode(' ', $parts);
+    }
+
+    private function normalizeAward(string $award): string
+    {
+        $normalized = preg_replace('/^орденом\b/u', 'орден', $award) ?? $award;
+        $normalized = preg_replace('/^медаллю\b/u', 'медаль', $normalized) ?? $normalized;
+        $normalized = preg_replace('/^почесною\s+відзнакою\b/u', 'почесна відзнака', $normalized) ?? $normalized;
+
+        return trim($normalized);
     }
 
     private function extractNumber(string $text, string $url): ?string

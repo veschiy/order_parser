@@ -42,7 +42,7 @@ HTML;
 
         $this->assertDatabaseHas('awardees', [
             'full_name' => 'БАКАЛ Олександр Вікторович',
-            'award' => 'орденом «За мужність» III ступеня',
+            'award' => 'орден «За мужність» III ступеня',
         ]);
     }
 

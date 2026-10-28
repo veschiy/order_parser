@@ -40,7 +40,7 @@ final class ParseRealDecreeTest extends TestCase
         $awardeesByName = array_combine($names, $decree->awardees);
 
         $this->assertSame('капітан', $awardeesByName['АРЕНДАРУК Михайло Володимирович']->rank);
-        $this->assertStringStartsWith('орденом', $awardeesByName['АРЕНДАРУК Михайло Володимирович']->award ?? '');
+        $this->assertStringStartsWith('орден', $awardeesByName['АРЕНДАРУК Михайло Володимирович']->award ?? '');
         $this->assertSame('посмертно', $awardeesByName['БІЛАН Олександр Григорович']->positionNote);
     }
 }
