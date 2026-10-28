@@ -178,6 +178,7 @@ final readonly class DecreeParser
         $normalized = preg_replace('/^орденом\b/u', 'орден', $award) ?? $award;
         $normalized = preg_replace('/^медаллю\b/u', 'медаль', $normalized) ?? $normalized;
         $normalized = preg_replace('/^почесною\s+відзнакою\b/u', 'почесна відзнака', $normalized) ?? $normalized;
+        $normalized = preg_replace('/^відзнакою\b/u', 'відзнака', $normalized) ?? $normalized;
 
         return trim($normalized);
     }
