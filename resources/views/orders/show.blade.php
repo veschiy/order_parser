@@ -45,7 +45,7 @@
                                 <td class="px-4 py-3 text-slate-100">
                                     <span class="awardee-name" data-id="{{ $awardee->id }}">{{ $awardee->full_name }}</span>
                                     <button type="button" class="ml-2 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300" onclick="editAwardeeName(this, {{ $awardee->id }})">Редагувати</button>
-                                    <div class="hidden mt-2 flex gap-2" data-edit-form="{{ $awardee->id }}">
+                                    <div class="hidden mt-2 flex gap-2" data-edit-form="{{ $awardee->id }}" style="display:none;">
                                         <input type="text" value="{{ $awardee->full_name }}" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none">
                                         <button type="button" class="rounded-md bg-indigo-500 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-400" onclick="saveAwardeeName({{ $awardee->id }}, this)">Зберегти</button>
                                         <button type="button" class="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" onclick="cancelAwardeeEdit({{ $awardee->id }})">Скасувати</button>
