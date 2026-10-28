@@ -19,10 +19,12 @@ final class SearchController extends Controller
             : Awardee::query()
                 ->with('order')
                 ->where(function ($builder) use ($query): void {
+                    $pattern = '%'.mb_strtolower($query, 'UTF-8').'%';
+
                     $builder
-                        ->where('full_name', 'like', '%'.$query.'%')
-                        ->orWhere('surname', 'like', '%'.$query.'%')
-                        ->orWhere('given_name', 'like', '%'.$query.'%');
+                        ->whereRaw('mb_lower(full_name) like ?', [$pattern])
+                        ->orWhereRaw("mb_lower(coalesce(surname, '')) like ?", [$pattern])
+                        ->orWhereRaw("mb_lower(coalesce(given_name, '')) like ?", [$pattern]);
                 })
                 ->orderBy('full_name')
                 ->limit(100)
