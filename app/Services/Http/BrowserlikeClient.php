@@ -15,64 +15,68 @@ final class BrowserlikeClient
      */
     public function fetch(string $url, array $headers): array
     {
-        try {
-            $response = Http::withHeaders($headers)
-                ->timeout(30)
-                ->get($url);
+        if (! str_contains($url, 'president.gov.ua')) {
+            try {
+                $response = Http::withHeaders($headers)
+                    ->timeout(30)
+                    ->get($url);
 
-            if ($response->successful()) {
-                return [$response->status(), (string) $response->body()];
-            }
-        } catch (RuntimeException $throwable) {
-            if (! str_contains($url, 'president.gov.ua')) {
-                throw $throwable;
-            }
-        } catch (\Throwable $throwable) {
-            if (! str_contains($url, 'president.gov.ua')) {
+                if ($response->successful()) {
+                    return [$response->status(), (string) $response->body()];
+                }
+            } catch (\Throwable $throwable) {
                 throw new RuntimeException($throwable->getMessage(), 0, $throwable);
             }
-        }
 
-        if (! str_contains($url, 'president.gov.ua')) {
             throw new RuntimeException('HTTP request failed.');
         }
 
-        $handle = curl_init($url);
+        $status = 0;
+        $body = '';
 
-        if ($handle === false) {
-            throw new RuntimeException('Unable to initialize cURL.');
-        }
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $handle = curl_init($url);
 
-        $headerLines = [];
+            if ($handle === false) {
+                throw new RuntimeException('Unable to initialize cURL.');
+            }
 
-        foreach ($headers as $name => $value) {
-            $headerLines[] = $name.': '.$value;
-        }
+            $headerLines = [];
 
-        $cookieFile = sys_get_temp_dir().'/parser-cookies.txt';
+            foreach ($headers as $name => $value) {
+                $headerLines[] = $name.': '.$value;
+            }
 
-        curl_setopt_array($handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTPHEADER => $headerLines,
-            CURLOPT_ENCODING => '',
-            CURLOPT_COOKIEJAR => $cookieFile,
-            CURLOPT_COOKIEFILE => $cookieFile,
-        ]);
+            curl_setopt_array($handle, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTPHEADER => $headerLines,
+                CURLOPT_ENCODING => '',
+            ]);
 
-        $body = curl_exec($handle);
+            $result = curl_exec($handle);
 
-        if ($body === false) {
-            $error = curl_error($handle);
+            if ($result === false) {
+                $error = curl_error($handle);
+                curl_close($handle);
+
+                throw new RuntimeException('cURL request failed: '.$error);
+            }
+
+            $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
+            $body = (string) $result;
             curl_close($handle);
 
-            throw new RuntimeException('cURL request failed: '.$error);
+            if ($status >= 200 && $status < 300 && ! str_contains($body, 'sec-if-cpt-container')) {
+                return [$status, $body];
+            }
+
+            if ($attempt < 2) {
+                sleep(2);
+            }
         }
 
-        $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
-        curl_close($handle);
-
-        return [$status, (string) $body];
+        return [$status, $body];
     }
 }
