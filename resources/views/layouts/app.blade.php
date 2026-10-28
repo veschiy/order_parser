@@ -7,6 +7,8 @@
     <title>@yield('title', 'Нагороди Президента України')</title>
     @if (file_exists(public_path('build/manifest.json')))
         @vite(['resources/css/app.css'])
+    @else
+        <script src="https://cdn.tailwindcss.com"></script>
     @endif
 </head>
 <body class="min-h-full bg-slate-950 text-slate-100 antialiased">
