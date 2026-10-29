@@ -373,6 +373,12 @@ final class UkrainianNameNormalizer
     {
         $candidates = [$source];
 
+        // Some Ukrainian masculine surnames change -е- to -а- in the
+        // genitive (e.g. Орел -> Орла).
+        if (mb_substr($source, -2, 2, 'UTF-8') === 'ла') {
+            $candidates[] = mb_substr($source, 0, -2, 'UTF-8').'ел';
+        }
+
         // Some Ukrainian surnames lose the stem vowel before -ць in the
         // genitive/accusative (e.g. Ємець -> Ємця); try the restored form
         // before the more aggressive synthetic candidates.
