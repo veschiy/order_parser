@@ -77,7 +77,7 @@ final readonly class AwardsParserService
                 continue;
             }
 
-            [$order, $awardeesCreated, $error] = $this->parseAndStoreDocument($item->link);
+            [$order, $awardeesCreated, $error] = $this->parseAndStoreDocument($item->link, $item->publishedAt);
 
             if ($error !== null) {
                 $summary['errors'][] = $error;
@@ -146,10 +146,20 @@ final readonly class AwardsParserService
     /**
      * @return array{0: ?Order, 1: int, 2: ?string}
      */
-    private function parseAndStoreDocument(string $url): array
+    private function parseAndStoreDocument(string $url, ?string $publishedAt = null): array
     {
+        $publicationDate = null;
+
+        if ($publishedAt !== null) {
+            try {
+                $publicationDate = new \DateTimeImmutable($publishedAt);
+            } catch (Throwable) {
+                // Fall back to the date extracted from the document itself.
+            }
+        }
+
         try {
-            $decree = $this->decreeParser->parse($url);
+            $decree = $this->decreeParser->parse($url, $publicationDate);
         } catch (Throwable $throwable) {
             return [null, 0, $throwable->getMessage()];
         }

@@ -64,6 +64,18 @@
         </section>
     </div>
 
+    <section class="mt-6 rounded-2xl border border-rose-900/60 bg-rose-950/20 p-6 shadow-2xl shadow-slate-950/30">
+        <h3 class="text-lg font-semibold text-white">Очищення бази даних</h3>
+        <p class="mt-1 text-sm text-slate-400">Видалити всі збережені накази, нагороджених і записи розбору з локальної бази даних.</p>
+        <form method="POST" action="{{ route('parse.clear') }}" class="mt-4" onsubmit="return confirm('Ви впевнені? Усі накази, нагороджених і результати розбору буде видалено без можливості відновлення.');">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="rounded-xl bg-rose-600 px-5 py-3 font-medium text-white transition hover:bg-rose-500">
+                Очистити базу даних
+            </button>
+        </form>
+    </section>
+
     <section class="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
         <h3 class="text-lg font-semibold text-white">Підказки</h3>
         <ul class="mt-3 list-inside list-disc space-y-1 text-sm text-slate-400">

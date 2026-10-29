@@ -52,7 +52,7 @@
                                 <td class="px-4 py-3 text-slate-100">{{ $result->full_name }}</td>
                                 <td class="px-4 py-3 text-slate-300">{{ $result->rank ?? '—' }}</td>
                                 <td class="px-4 py-3 text-slate-300">{{ $result->award ?? '—' }}</td>
-                                <td class="px-4 py-3 text-indigo-300">{{ $result->order?->number ?? '—' }}</td>
+                                <td class="px-4 py-3 text-indigo-300">{{ $result->order?->displayNumber() ?? '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

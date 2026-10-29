@@ -20,7 +20,7 @@ final readonly class DecreeParser
         $this->client = $client ?? new BrowserlikeClient;
     }
 
-    public function parse(string $url): ParsedDecree
+    public function parse(string $url, ?\DateTimeInterface $publishedAt = null): ParsedDecree
     {
         [$status, $body] = $this->request($url);
 
@@ -31,10 +31,13 @@ final readonly class DecreeParser
         $html = $body;
         $text = $this->htmlToText($html);
 
+        $publishedAt ??= $this->extractPublishedAt($html, $text);
+
         return new ParsedDecree(
             documentUrl: $url,
             number: $this->extractNumber($text, $url),
             title: $this->extractTitle($html),
+            publishedAt: $publishedAt,
             rawText: mb_substr($text, 0, 100000, 'UTF-8'),
             awardees: $this->extractAwardees($text),
         );
@@ -225,6 +228,68 @@ final readonly class DecreeParser
         return trim($text);
     }
 
+    private function extractPublishedAt(string $html, string $text): ?\DateTimeInterface
+    {
+        foreach ([
+            '/property=["\']article:published_time["\'][^>]*content=["\']([^"\']+)["\']/iu',
+            '/content=["\']([^"\']+)["\'][^>]*property=["\']article:published_time["\']/iu',
+            '/<time[^>]*datetime=["\']([^"\']+)["\'][^>]*>/iu',
+            '/<meta[^>]*name=["\']date["\'][^>]*content=["\']([^"\']+)["\']/iu',
+        ] as $pattern) {
+            if (preg_match($pattern, $html, $matches) === 1) {
+                try {
+                    return new \DateTimeImmutable($matches[1]);
+                } catch (\Throwable) {
+                    // Try the next extraction strategy.
+                }
+            }
+        }
+
+        $months = [
+            'січня' => 1,
+            'лютого' => 2,
+            'березня' => 3,
+            'квітня' => 4,
+            'травня' => 5,
+            'червня' => 6,
+            'липня' => 7,
+            'серпня' => 8,
+            'вересня' => 9,
+            'жовтня' => 10,
+            'листопада' => 11,
+            'грудня' => 12,
+        ];
+
+        if (preg_match('/від\s+(\d{1,2})\s+('.implode('|', array_keys($months)).')\s+(\d{4})/u', $text, $matches) === 1) {
+            $day = (int) $matches[1];
+            $month = $months[$matches[2]];
+            $year = (int) $matches[3];
+
+            try {
+                return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
+            } catch (\Throwable) {
+                // Fall through to the document signing date.
+            }
+        }
+
+        preg_match_all('/(\d{1,2})\s+('.implode('|', array_keys($months)).')\s+(\d{4})/u', $text, $matches, PREG_SET_ORDER);
+
+        if ($matches !== []) {
+            $lastMatch = end($matches);
+            $day = (int) $lastMatch[1];
+            $month = $months[$lastMatch[2]];
+            $year = (int) $lastMatch[3];
+
+            try {
+                return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @return array{0: int, 1: string}
      */
@@ -242,7 +307,7 @@ final readonly class DecreeParser
             'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language' => 'uk,uk-UA;q=0.9,ru;q=0.8,en;q=0.7',
-            'Accept-Encoding' => 'gzip, deflate, br',
+            'Accept-Encoding' => 'gzip, deflate',
             'Referer' => 'https://www.president.gov.ua/',
             'Upgrade-Insecure-Requests' => '1',
             'Sec-Fetch-Dest' => 'document',

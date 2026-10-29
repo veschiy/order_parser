@@ -57,7 +57,7 @@ final class OrderController extends Controller
                     $awardee->full_name,
                     $awardee->rank ?? '',
                     $awardee->award ?? '',
-                    $order->number ?? $order->id,
+                    $order->displayNumber(),
                 ], ';');
             }
 

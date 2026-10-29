@@ -17,3 +17,4 @@ Route::patch('/awardees/{awardee}', [AwardeeController::class, 'update'])->name(
 
 Route::get('/parse', [ParseController::class, 'index'])->name('parse.index');
 Route::post('/parse', [ParseController::class, 'store'])->name('parse.store');
+Route::delete('/parse/database', [ParseController::class, 'clearDatabase'])->name('parse.clear');

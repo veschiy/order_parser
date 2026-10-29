@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ParseRequest;
+use App\Models\Awardee;
+use App\Models\Order;
+use App\Models\ParseRun;
 use App\Services\Parsers\AwardsParserService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -38,6 +41,17 @@ final class ParseController extends Controller
         return redirect()
             ->route('parse.index')
             ->with('status', $this->formatSummary($summary));
+    }
+
+    public function clearDatabase(): RedirectResponse
+    {
+        Awardee::query()->delete();
+        Order::withTrashed()->forceDelete();
+        ParseRun::query()->delete();
+
+        return redirect()
+            ->route('parse.index')
+            ->with('status', 'Базу даних очищено: видалено всі накази, нагороджених і записи розбору.');
     }
 
     /**

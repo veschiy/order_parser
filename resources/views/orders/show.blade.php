@@ -6,7 +6,7 @@
     <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
         <div class="mb-6">
             <a href="{{ route('orders.index') }}" class="text-sm text-indigo-300 hover:text-indigo-200">← Назад до списку</a>
-            <h2 class="mt-2 text-xl font-semibold text-white">Наказ № {{ $order->number ?? $order->id }}</h2>
+            <h2 class="mt-2 text-xl font-semibold text-white">Наказ {{ $order->displayNumber() }}</h2>
             <p class="mt-1 text-sm text-slate-400">{{ $order->title ?? 'Деталі будуть доступні після реалізації зберігання даних.' }}</p>
         </div>
 

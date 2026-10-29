@@ -53,4 +53,17 @@ final class Order extends Model
             'parsed_at' => 'datetime',
         ];
     }
+
+    public function displayNumber(): string
+    {
+        $number = $this->number !== null && $this->number !== '' ? $this->number : (string) $this->id;
+
+        $result = '№'.$number;
+
+        if ($this->published_at !== null) {
+            $result .= ' від '.$this->published_at->format('d.m.Y');
+        }
+
+        return $result;
+    }
 }
