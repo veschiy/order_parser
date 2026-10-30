@@ -263,18 +263,8 @@ final readonly class DecreeParser
             'грудня' => 12,
         ];
 
-        if (preg_match('/від\s+(\d{1,2})\s+('.implode('|', array_keys($months)).')\s+(\d{4})/u', $text, $matches) === 1) {
-            $day = (int) $matches[1];
-            $month = $months[$matches[2]];
-            $year = (int) $matches[3];
-
-            try {
-                return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
-            } catch (\Throwable) {
-                // Fall through to the document signing date.
-            }
-        }
-
+        // Prefer the last Ukrainian date in the document, which is usually
+        // the signing date at the bottom of the decree.
         preg_match_all('/(\d{1,2})\s+('.implode('|', array_keys($months)).')\s+(\d{4})/u', $text, $matches, PREG_SET_ORDER);
 
         if ($matches !== []) {
