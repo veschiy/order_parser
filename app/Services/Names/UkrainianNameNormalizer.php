@@ -187,6 +187,14 @@ final class UkrainianNameNormalizer
                 }
             }
 
+            if ($index !== 0) {
+                $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'givenName', $gender);
+
+                if ($candidate !== null) {
+                    return mb_strtoupper($candidate, 'UTF-8');
+                }
+            }
+
             // The nominative -є- can also surface as -й- in an already
             // normalized surname (e.g. КОЛОМОЙЦЬ -> КОЛОМОЄЦЬ).
             if (mb_substr($part, -3, 3, 'UTF-8') === 'ЙЦЬ') {
