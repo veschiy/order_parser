@@ -112,8 +112,11 @@ final readonly class DecreeParser
             $patronymic = trim($matches[3]) !== '' ? $matches[3] : null;
             $qualifier = trim($matches[4]) !== '' ? trim($matches[4]) : null;
             $rank = trim($matches[5]);
+            $rank = trim($rank, " \t\n\r\0\x0B.");
 
             if (preg_match('/^(.+?)\s+[А-ЯІЇЄҐ]{3,}\s+[А-ЯІЇЄҐ][а-яіїєґ]/u', $rank, $rankMatch)) {
+                $rank = trim($rankMatch[1]);
+            } elseif (preg_match('/^(.+?)\s+[А-ЯІЇЄҐ]{3,}$/u', $rank, $rankMatch)) {
                 $rank = trim($rankMatch[1]);
             }
 
