@@ -88,7 +88,7 @@ final readonly class DecreeParser
     {
         $entries = [];
 
-        preg_match_all('/(?:[А-ЯІЇЄҐʼ’\']{2,}\s+)+[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,}(?:-[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,})?/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:[А-ЯІЇЄҐ\.ʼ’\']{2,}\s+)+[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,}(?:-[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,})?/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
         $candidatePositions = [];
 
         foreach ($candidateMatches[0] as $candidateMatch) {
