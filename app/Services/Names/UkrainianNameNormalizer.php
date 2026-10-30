@@ -40,6 +40,9 @@ final class UkrainianNameNormalizer
 
     private function normalizePart(string $part, int $index = 0, string $gender = 'male'): string
     {
+        $part = preg_replace('/[\x{2010}\x{2011}\x{2012}]/u', '-', $part) ?? $part;
+        $part = preg_replace('/(\p{L})\s*-\s*(\p{L})/u', '\1-\2', $part) ?? $part;
+
         if (str_contains($part, '-')) {
             $segments = explode('-', $part);
             $normalized = [];

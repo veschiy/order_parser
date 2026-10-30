@@ -87,7 +87,7 @@ final readonly class DecreeParser
     {
         $entries = [];
 
-        preg_match_all('/[А-ЯІЇЄҐ][А-ЯІЇЄҐЬʼ’]{2,}\s+[А-ЯІЇЄҐ][ʼ’а-яіїєґ-]{1,}/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
+        preg_match_all('/[А-ЯІЇЄҐ][А-ЯІЇЄҐЬʼ’]{2,}\s+[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,}(?:-[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,})?/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
         $candidatePositions = [];
 
         foreach ($candidateMatches[0] as $candidateMatch) {
@@ -103,7 +103,7 @@ final readonly class DecreeParser
                 continue;
             }
 
-            if (! preg_match('/^([А-ЯІЇЄҐ][А-ЯІЇЄҐЬʼ’]{2,})\s+([А-ЯІЇЄҐ][а-яіїєґʼ\-\x{2019}\']{2,})(?:\s+([А-ЯІЇЄҐ][а-яіїєґʼ\-\x{2019}\']{2,}))?(?:\s*\(([^)]*)\))?\s*[—–-]\s*(.+)$/us', $chunk, $matches)) {
+            if (! preg_match('/^([А-ЯІЇЄҐ][А-ЯІЇЄҐЬʼ’]{2,})\s+([А-ЯІЇЄҐ][а-яіїєґʼ\x{2019}\']{2,}(?:-[А-ЯІЇЄҐ][а-яіїєґʼ\x{2019}\']{2,})?)(?:\s+([А-ЯІЇЄҐ][а-яіїєґʼ\x{2019}\']{2,}))?(?:\s*\(([^)]*)\))?\s*[—–-]\s*(.+)$/us', $chunk, $matches)) {
                 continue;
             }
 
@@ -223,6 +223,9 @@ final readonly class DecreeParser
         $text = preg_replace('/<style\b[^>]*>.*?<\/style>/us', ' ', $text) ?? $text;
         $text = strip_tags($text);
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // Keep hyphenated names compact when markup inserts whitespace around them.
+        $text = preg_replace('/[\x{2010}\x{2011}\x{2012}]/u', '-', $text) ?? $text;
+        $text = preg_replace('/(\p{L})\s*-\s*(\p{L})/u', '\1-\2', $text) ?? $text;
         $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
 
         return trim($text);
