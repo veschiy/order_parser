@@ -39,6 +39,7 @@ final readonly class DecreeParser
             title: $this->extractTitle($html),
             publishedAt: $publishedAt,
             rawText: mb_substr($text, 0, 100000, 'UTF-8'),
+            rawHtml: $body,
             awardees: $this->extractAwardees($text),
         );
     }

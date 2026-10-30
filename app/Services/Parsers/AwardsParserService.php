@@ -178,6 +178,7 @@ final readonly class AwardsParserService
                         'published_at' => $decree->publishedAt,
                         'parsed_at' => now(),
                         'raw_text' => $decree->rawText,
+                        'raw_html' => $decree->rawHtml,
                     ]
                 );
 

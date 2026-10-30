@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $published_at
  * @property Carbon $parsed_at
  * @property string|null $raw_text
+ * @property string|null $raw_html
  * @property-read Collection<int, Awardee> $awardees
  */
 #[Fillable([
@@ -30,6 +31,7 @@ use Illuminate\Support\Carbon;
     'published_at',
     'parsed_at',
     'raw_text',
+    'raw_html',
 ])]
 final class Order extends Model
 {

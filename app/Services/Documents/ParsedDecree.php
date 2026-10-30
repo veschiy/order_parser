@@ -15,6 +15,7 @@ final readonly class ParsedDecree
         public ?string $title = null,
         public ?\DateTimeInterface $publishedAt = null,
         public ?string $rawText = null,
+        public ?string $rawHtml = null,
         public array $awardees = [],
     ) {}
 }
