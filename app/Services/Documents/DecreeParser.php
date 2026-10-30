@@ -118,11 +118,18 @@ final readonly class DecreeParser
             $rank = trim($matches[2]);
             $rank = trim($rank);
 
-            if (preg_match('/^(.+?)\s+[А-ЯІЇЄҐ]{3,}\s+[А-ЯІЇЄҐ][а-яіїєґ]/u', $rank, $rankMatch)) {
-                $rank = trim($rank);
-            } elseif (preg_match('/^(.+?)\s+[А-ЯІЇЄҐ]{3,}$/u', $rank, $rankMatch)) {
-                $rank = trim($rank);
+            $rankParts = preg_split('/\s+/u', $rank) ?: [];
+            $cleanRankParts = [];
+
+            foreach ($rankParts as $rankPart) {
+                if ($cleanRankParts !== [] && preg_match('/^[А-ЯІЇЄҐ]{3,}$/u', $rankPart) === 1) {
+                    break;
+                }
+
+                $cleanRankParts[] = $rankPart;
             }
+
+            $rank = trim(implode(' ', $cleanRankParts));
 
             $nameTokens = preg_split('/\s+/u', $namePart) ?: [];
             $surname = $nameTokens[0] ?? '';
