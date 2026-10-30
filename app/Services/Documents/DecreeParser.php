@@ -131,6 +131,8 @@ final readonly class DecreeParser
             }
 
             $rank = trim(implode(' ', $cleanRankParts));
+            $rank = preg_replace('/\s+(?:а|у)\s+(?:Національній|Державній|Спеціальній|Державній\s+прикордонній).+$/u', '', $rank) ?? $rank;
+            $rank = trim($rank);
 
             $nameTokens = preg_split('/\s+/u', $namePart) ?: [];
             $surname = $nameTokens[0] ?? '';
