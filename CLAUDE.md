@@ -3,14 +3,10 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project
-This is a **parser app**. It will fetch a web page (target site to be specified later) and
-extract structured information from it, persisting the results in the database. The data
-should be searchable/browsable through a friendly web UI. The application is built as a
-Laravel web app; desktop packaging via NativePHP is **not** available on the current dev
-machine and `nativephp/desktop` has been removed for now (re-add later when needed).
 
-Implementation roadmap is stored in `PLAN.md`. Run quality gates with `composer check`
-(Pint + PHPUnit) before and after changes.
+This is **Order Parser 1.0.0**, a Laravel 13 web app (PHP `^8.3`; currently running 8.5) for parsing Ukrainian presidential award decrees. It monitors a configurable RSS feed (default `https://www.president.gov.ua/rss/documents/all.rss`), keeps only items whose description is `Про відзначення державними нагородами України`, fetches linked decree pages with browser-like headers, extracts order number/title/date and awarded people (rank, award), normalizes person names to the nominative case, stores results in SQLite, and provides search, order listings/detail, CSV export, soft-delete/restore, and awardee-name editing through a Blade UI.
+
+Implementation details and design rationale live in `PLAN.md`; Windows/desktop packaging notes in `BUILD_NATIVE_WINDOWS.md`. The project is still structured as a normal Laravel web app. NativePHP is a declared dependency and its scaffold/config exists, but desktop builds are a separate concern (see that doc).
 
 ## Commands
 
@@ -20,38 +16,83 @@ Initial setup (installs PHP/JS deps, creates `.env`, generates app key, runs mig
 composer setup
 ```
 
-Equivalent manual steps: `composer install`, copy `.env.example` to `.env` if missing, `php artisan key:generate`, `php artisan migrate`, `npm install --ignore-scripts`, `npm run build`.
+Manual equivalent: `composer install`, copy `.env.example` to `.env` if missing, `php artisan key:generate`, `php artisan migrate --force`, `npm install --ignore-scripts`, `npm run build`.
 
 Development:
-- Web app (server, queue, logs, and Vite together): `composer dev` (runs `php artisan dev`).
-- Frontend dev server: `npm run dev`; production build: `npm run build`.
 
-Database (SQLite by default):
-- `php artisan migrate`, `php artisan migrate:fresh`, `php artisan db:wipe`, `php artisan db:seed`.
+- Web app (server, queue, logs, and Vite together): `composer dev`
+- Frontend dev server: `npm run dev`; production build: `npm run build`
 
-Building (none for desktop at present — `nativephp/desktop` is not installed).
+Database (SQLite by default, `database/database.sqlite`):
 
-Testing (PHPUnit 12):
-- All tests: `composer test` (clears cached config first) or `php artisan test`.
-- Single suite/file: `php artisan test tests/Feature/ExampleTest.php`.
-- Single test: `php artisan test --filter=TestName` (or `vendor/bin/phpunit --filter TestName`).
-- Tests use in-memory SQLite, array cache/session, sync queue (see `phpunit.xml`).
+- `php artisan migrate`, `php artisan migrate:fresh`, `php artisan db:wipe`, `php artisan db:seed`
 
-Linting/formatting (Laravel Pint):
-- Apply fixes: `vendor/bin/pint`.
-- Check without changes: `vendor/bin/pint --test`.
+Testing and quality gates (dev deps must be installed first):
+
+- All configured gates: `composer check` (PHPStan, Rector dry-run, Pint, Pest)
+- Individual gates: `composer phpstan`, `composer rector`, `composer pint`, `composer pint:fix`, `composer pest`
+- PHPUnit suite (clears cached config first): `composer test` or `php artisan test`
+- Single test file: `php artisan test tests/Feature/ParseDecreeTest.php`
+- Single test: `php artisan test --filter=TestName` (or `vendor/bin/phpunit --filter TestName` once installed)
+- Tests use in-memory SQLite, array cache/session, sync queue (`phpunit.xml`). HTTP calls are faked with `Http::fake()`; no real network calls in tests.
+
+Linting/formatting (Laravel Pint, Laravel preset in `pint.json`):
+
+- Apply fixes: `vendor/bin/pint` (or `composer pint:fix`)
+- Check without changes: `vendor/bin/pint --test` (or `composer pint`)
+
+Static analysis/rector:
+
+- PHPStan at level max over `app` and `tests`: `composer phpstan`
+- Rector (PHP 8.4 set + Laravel preset, dry-run): `composer rector`
 
 ## Architecture
 
-This is a Laravel 13 application (PHP `^8.3`).
+This is a Laravel 13 application with an app-specific domain layered under `app/`.
 
-- `app/Providers/AppServiceProvider.php` is the standard (currently mostly empty) Laravel provider.
-- Routing: `routes/web.php` defines `/` returning the `welcome` view; `routes/console.php` defines the `inspire` command. Domain models/controllers for the parser are not yet built.
-- Frontend: Vite 8 + Tailwind CSS 4. Entries `resources/js/app.js` and `resources/css/app.css`; Blade views live in `resources/views`. Production rendering depends on `public/build/manifest.json` (built by `npm run build`).
-- Database: SQLite by default (`DB_CONNECTION=sqlite`); migrations in `database/migrations`, factory in `database/factories/UserFactory.php`, seeder in `database/seeders/DatabaseSeeder.php`.
-- Testing: PHPUnit 12 with `tests/Unit` and `tests/Feature` suites, base `tests/TestCase.php`; env overrides in `phpunit.xml` (in-memory SQLite, array stores, sync queue).
-- Code style: `.editorconfig` uses 4-space indentation (2 for YAML) and LF line endings. Laravel Pint is the formatter; no custom `pint.json` exists.
+Routing (`routes/web.php`):
 
-Notes:
-- Target website for parsing is not yet specified; add parser services/HTTP client calls under `app/` (e.g. an `app/Parsers/` or `app/Services/` namespace) and models for stored results under `app/Models/`.
-- NativePHP desktop config, provider, and binary runtime have been removed; restore `nativephp/desktop` and reintroduce `config/nativephp.php` + a `NativeAppServiceProvider` when desktop building is needed again.
+- `/` — search page (`SearchController`)
+- `/orders`, `/orders/{id}`, `/orders/{id}/export.csv` — order listing/detail/CSV export
+- `/orders/{id}` (DELETE) and `/orders/{id}/restore` (PATCH) — soft delete / restore
+- `/awardees/{awardee}` (PATCH) — inline awardee name edit (JSON)
+- `/parse`, `/parse` (POST), `/parse/database` (DELETE) — parse UI/store/clear DB
+
+Controllers (`app/Http/Controllers/`):
+
+- `SearchController` — name search over active orders only
+- `OrderController` — listing, detail, CSV export, soft delete/restore
+- `AwardeeController` — validates and updates `full_name`
+- `ParseController` — dispatches RSS or single-document parse, formats summary status
+
+Services (`app/Services/`):
+
+- `Rss\FeedParser` — fetches RSS, keeps items whose description exactly matches the target string
+- `Http\BrowserlikeClient` — browser-like headers; uses Laravel HTTP for foreign URLs, cURL with retry/backoff for `president.gov.ua` (handles its anti-bot checkpoint)
+- `Documents\DecreeParser` — fetches decree HTML, converts to text, extracts number/title/published date and awardees
+- `Parsers\AwardsParserService` — orchestrates RSS/single parse, transactions, duplicate handling, and `ParseRun` tracking
+- `Names\UkrainianNameNormalizer` — converts awarded names to nominative case (uses `Shevchenko` library plus heuristics)
+
+Models (`app/Models/`):
+
+- `Order` — soft-deleted; unique by `document_url`; casts `published_at`/`parsed_at`; `displayNumber()`
+- `Awardee` — belongs to order; unique on `order_id + full_name + award`
+- `ParseRun` — records mode, source, status, counts, errors, timing
+
+Persistence (`database/migrations/`): `orders` (incl. `raw_text`, `raw_html`, soft deletes), `awardees`, `parse_runs`, plus standard sessions/cache/jobs migrations. Default DB is SQLite.
+
+Frontend: Vite 8 + Tailwind CSS 4; Blade views in `resources/views` (`layouts/app`, `search/index`, `orders/index`, `orders/show`, `parse/index`).
+
+Tests:
+
+- `tests/Feature/*` — HTTP/parse/search behavior using `Http::fake()`
+- `tests/Unit/UkrainianNameNormalizerTest.php`
+- Fixtures: `tests/Fixtures/rss.xml`, `tests/Fixtures/decree_107.html`
+
+Key invariants to preserve when changing code:
+
+- RSS item filtering is by exact description string.
+- Decree fetching must keep browser-like User-Agent/Accept/Accept-Language (and retries on president.gov.ua).
+- Names are normalized to nominative before storage; raw surname/given/patronymic are stored as parsed.
+- Re-parsing the same document upserts the order by `document_url` and dedups awardees by `order_id + full_name + award`; `ParseRun` rows still record each attempt.
+- Orders are soft-deleted; search and listing behavior depends on active-state filtering.
