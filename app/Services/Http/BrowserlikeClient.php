@@ -9,13 +9,46 @@ use RuntimeException;
 
 final class BrowserlikeClient
 {
+    private const int MAX_ATTEMPTS = 5;
+
+    private const int BASE_DELAY_MICROSECONDS = 2_000_000;
+
+    private const int MAX_DELAY_MICROSECONDS = 16_000_000;
+
+    /** @var callable(int): void */
+    private $sleeper;
+
+    private ?float $lastRequestAt = null;
+
+    /** @var non-empty-string|null */
+    private ?string $cookieFile = null;
+
+    public function __construct(
+        ?callable $sleeper = null,
+        private readonly int $minIntervalMs = 1000,
+        private readonly bool $useCookies = true,
+    ) {
+        $this->sleeper = $sleeper ?? static function (int $microseconds): void {
+            usleep($microseconds);
+        };
+
+        // Cookie file is created lazily, only when fetching from president.gov.ua.
+    }
+
+    public function __destruct()
+    {
+        if ($this->cookieFile !== null && is_file($this->cookieFile)) {
+            @unlink($this->cookieFile);
+        }
+    }
+
     /**
      * @param  array<string, string>  $headers
      * @return array{0: int, 1: string}
      */
     public function fetch(string $url, array $headers): array
     {
-        if (! str_contains($url, 'president.gov.ua')) {
+        if (! str_contains(strtolower($url), 'president.gov.ua')) {
             try {
                 $response = Http::withHeaders($headers)
                     ->timeout(30)
@@ -28,13 +61,15 @@ final class BrowserlikeClient
                 throw new RuntimeException($throwable->getMessage(), 0, $throwable);
             }
 
-            throw new RuntimeException('HTTP request failed.');
+            throw new RuntimeException('HTTP request failed with status '.$response->status().'.');
         }
+
+        $this->throttle();
 
         $status = 0;
         $body = '';
 
-        for ($attempt = 0; $attempt < 3; $attempt++) {
+        for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
             $handle = curl_init($url);
 
             if ($handle === false) {
@@ -47,19 +82,39 @@ final class BrowserlikeClient
                 $headerLines[] = $name.': '.$value;
             }
 
-            curl_setopt_array($handle, [
+            $options = [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_TIMEOUT => 30,
                 CURLOPT_HTTPHEADER => $headerLines,
                 CURLOPT_ENCODING => '',
-            ]);
+            ];
+
+            $cookieFile = $this->cookieFile();
+
+            if ($cookieFile !== null) {
+                $options[CURLOPT_COOKIEJAR] = $cookieFile;
+                $options[CURLOPT_COOKIEFILE] = $cookieFile;
+            }
+
+            if (curl_setopt_array($handle, $options) === false) {
+                $error = curl_error($handle) ?: 'Unable to configure cURL.';
+                curl_close($handle);
+
+                throw new RuntimeException('cURL configuration failed: '.$error);
+            }
 
             $result = curl_exec($handle);
 
             if ($result === false) {
                 $error = curl_error($handle);
                 curl_close($handle);
+
+                if ($attempt < self::MAX_ATTEMPTS - 1) {
+                    $this->backoff($attempt);
+
+                    continue;
+                }
 
                 throw new RuntimeException('cURL request failed: '.$error);
             }
@@ -68,15 +123,70 @@ final class BrowserlikeClient
             $body = (string) $result;
             curl_close($handle);
 
-            if ($status >= 200 && $status < 300 && ! str_contains($body, 'sec-if-cpt-container')) {
+            if (! $this->isBlocked($status, $body)) {
                 return [$status, $body];
             }
 
-            if ($attempt < 2) {
-                sleep(2);
+            if ($attempt < self::MAX_ATTEMPTS - 1) {
+                $this->backoff($attempt);
             }
         }
 
         return [$status, $body];
+    }
+
+    private function isBlocked(int $status, string $body): bool
+    {
+        if (in_array($status, [429, 403, 503], true)) {
+            return true;
+        }
+
+        $lowerBody = strtolower($body);
+
+        return str_contains($lowerBody, 'sec-if-cpt-container')
+            || str_contains($lowerBody, 'checkpoint')
+            || str_contains($lowerBody, 'cf-challenge');
+    }
+
+    /** @return non-empty-string|null */
+    private function cookieFile(): ?string
+    {
+        if (! $this->useCookies) {
+            return null;
+        }
+
+        if ($this->cookieFile === null) {
+            $path = tempnam(sys_get_temp_dir(), 'president_cookies_');
+
+            $this->cookieFile = $path === false ? null : $path;
+        }
+
+        return $this->cookieFile;
+    }
+
+    private function throttle(): void
+    {
+        if ($this->lastRequestAt === null || $this->minIntervalMs <= 0) {
+            $this->lastRequestAt = microtime(true);
+
+            return;
+        }
+
+        $elapsedMs = (microtime(true) - $this->lastRequestAt) * 1000;
+        $waitMs = $this->minIntervalMs - $elapsedMs;
+
+        if ($waitMs > 0) {
+            ($this->sleeper)((int) ceil($waitMs * 1000));
+        }
+
+        $this->lastRequestAt = microtime(true);
+    }
+
+    private function backoff(int $attempt): void
+    {
+        $base = self::BASE_DELAY_MICROSECONDS * (1 << $attempt);
+        $delay = min($base, self::MAX_DELAY_MICROSECONDS);
+        $jitter = random_int(0, 500_000);
+        ($this->sleeper)(min($delay + $jitter, self::MAX_DELAY_MICROSECONDS));
     }
 }
