@@ -42,7 +42,7 @@ final class OrderController extends Controller
             ->findOrFail($id);
 
         $safeNumber = preg_replace('/[\/\\\\\x00-\x1f\x7f%]/', '-', (string) ($order->number ?? $order->id));
-        $filename = 'order-'.($safeNumber === null ? (string) $order->id : $safeNumber).'.csv';
+        $filename = 'order-'.(($safeNumber === null || $safeNumber === '') ? (string) $order->id : $safeNumber).'.csv';
 
         $callback = function () use ($order): void {
             $handle = fopen('php://output', 'wb');

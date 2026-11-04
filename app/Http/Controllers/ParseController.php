@@ -11,6 +11,7 @@ use App\Models\ParseRun;
 use App\Services\Parsers\AwardsParserService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 
 final class ParseController extends Controller
 {
@@ -45,9 +46,11 @@ final class ParseController extends Controller
 
     public function clearDatabase(): RedirectResponse
     {
-        Awardee::query()->delete();
-        Order::withTrashed()->forceDelete();
-        ParseRun::query()->delete();
+        DB::transaction(function (): void {
+            Awardee::query()->delete();
+            Order::withTrashed()->forceDelete();
+            ParseRun::query()->delete();
+        });
 
         return redirect()
             ->route('parse.index')

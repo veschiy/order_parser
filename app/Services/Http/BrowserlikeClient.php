@@ -66,6 +66,11 @@ final class BrowserlikeClient
             throw new RuntimeException('HTTP request failed with status '.$response->status().'.');
         }
 
+        // The retry/backoff sleeps below can exceed PHP's default 30s limit,
+        // especially in the packaged Electron app where max_execution_time cannot
+        // easily be changed via php.ini.
+        set_time_limit(0);
+
         $this->throttle();
 
         $reprimed = false;

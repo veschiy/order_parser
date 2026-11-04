@@ -165,6 +165,10 @@ final readonly class AwardsParserService
         $existingOrder = Order::withTrashed()->where('document_url', $url)->first();
 
         if ($existingOrder !== null && $existingOrder->awardees()->exists()) {
+            if ($existingOrder->trashed()) {
+                $existingOrder->restore();
+            }
+
             return [$existingOrder, 0, null];
         }
 

@@ -12,25 +12,41 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         try {
-            $connection = DB::connection();
+            $connections = config('database.connections', []);
 
-            if ($connection->getDriverName() !== 'sqlite') {
+            if (! is_array($connections)) {
                 return;
             }
 
-            $pdo = $connection->getPdo();
+            foreach ($connections as $name => $configuration) {
+                if (! is_string($name)) {
+                    continue;
+                }
 
-            $pdo->sqliteCreateFunction(
-                'mb_lower',
-                static fn (?string $value): ?string => $value === null ? null : mb_strtolower($value, 'UTF-8'),
-                1,
-            );
+                try {
+                    $connection = DB::connection($name);
 
-            $pdo->sqliteCreateFunction(
-                'mb_upper',
-                static fn (?string $value): ?string => $value === null ? null : mb_strtoupper($value, 'UTF-8'),
-                1,
-            );
+                    if ($connection->getDriverName() !== 'sqlite') {
+                        continue;
+                    }
+
+                    $pdo = $connection->getPdo();
+
+                    $pdo->sqliteCreateFunction(
+                        'mb_lower',
+                        static fn (?string $value): ?string => $value === null ? null : mb_strtolower($value, 'UTF-8'),
+                        1,
+                    );
+
+                    $pdo->sqliteCreateFunction(
+                        'mb_upper',
+                        static fn (?string $value): ?string => $value === null ? null : mb_strtoupper($value, 'UTF-8'),
+                        1,
+                    );
+                } catch (\Throwable) {
+                    continue;
+                }
+            }
         } catch (\Throwable) {
             return;
         }
