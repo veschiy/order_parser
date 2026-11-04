@@ -158,9 +158,9 @@ final readonly class AwardsParserService
             }
         }
 
-        $existingOrder = Order::query()->where('document_url', $url)->first();
+        $existingOrder = Order::withTrashed()->where('document_url', $url)->first();
 
-        if ($existingOrder !== null && $existingOrder->awardees()->exists()) {
+        if ($existingOrder !== null && $existingOrder->trashed() === false && $existingOrder->awardees()->exists()) {
             return [$existingOrder, 0, null];
         }
 
@@ -175,7 +175,7 @@ final readonly class AwardsParserService
 
         try {
             DB::transaction(function () use ($decree, &$order, &$awardeesCreated): void {
-                $order = Order::query()->updateOrCreate(
+                $order = Order::withTrashed()->updateOrCreate(
                     ['document_url' => $decree->documentUrl],
                     [
                         'number' => $decree->number,

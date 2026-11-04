@@ -78,7 +78,7 @@ final readonly class DecreeParser
             }
         }
 
-        if ($awardees === [] && preg_match('/Нагородити/u', $text) === 1) {
+        if ($awardees === []) {
             throw new RuntimeException('Decree parsing incomplete: no awardees were extracted.');
         }
 

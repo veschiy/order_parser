@@ -94,5 +94,5 @@ Key invariants to preserve when changing code:
 - RSS item filtering is by exact description string.
 - Decree fetching must keep browser-like User-Agent/Accept/Accept-Language (and retries on president.gov.ua).
 - Names are normalized to nominative before storage; raw surname/given/patronymic are stored as parsed.
-- Re-parsing the same document upserts the order by `document_url` and dedups awardees by `order_id + full_name + award`; `ParseRun` rows still record each attempt.
+- Fully imported documents are not re-fetched or re-imported, preserving manual awardee edits. Incomplete documents upsert the order by `document_url` and dedup awardees by `order_id + full_name + award`; `ParseRun` rows still record each attempt.
 - Orders are soft-deleted; search and listing behavior depends on active-state filtering.
