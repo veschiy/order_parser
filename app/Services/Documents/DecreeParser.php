@@ -66,12 +66,12 @@ final readonly class DecreeParser
         foreach ($segments as $segmentMatch) {
             $body = $segmentMatch[1];
 
-            if (! preg_match('/^(.*?)(?=\s+[А-ЯІЇЄҐ][А-ЯІЇЄҐЬ]{2,}\s+[А-ЯІЇЄҐ][а-яіїєґ])/us', $body, $awardMatch)) {
+            if (! preg_match('/^(.*?)(?=\s+[А-ЯІЇЄҐ][А-ЯІЇЄҐЬ]{2,}\s+[А-ЯІЇЄҐ][а-яіїєґ])/us', $body, $awardMatch, PREG_OFFSET_CAPTURE)) {
                 continue;
             }
 
-            $award = trim($awardMatch[1]);
-            $namesText = trim(substr($body, strlen($award)));
+            $award = trim($awardMatch[1][0]);
+            $namesText = trim(substr($body, $awardMatch[1][1] + strlen($awardMatch[1][0])));
 
             foreach ($this->parseNameEntries($namesText, $award) as $awardee) {
                 $awardees[] = $awardee;
