@@ -160,7 +160,7 @@ final readonly class AwardsParserService
 
         $existingOrder = Order::withTrashed()->where('document_url', $url)->first();
 
-        if ($existingOrder !== null && $existingOrder->trashed() === false && $existingOrder->awardees()->exists()) {
+        if ($existingOrder !== null && $existingOrder->awardees()->exists()) {
             return [$existingOrder, 0, null];
         }
 
@@ -187,6 +187,10 @@ final readonly class AwardsParserService
                         'raw_html' => $decree->rawHtml,
                     ]
                 );
+
+                if ($order->trashed()) {
+                    $order->restore();
+                }
 
                 foreach ($decree->awardees as $awardee) {
                     $created = Awardee::query()->firstOrCreate(
