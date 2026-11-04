@@ -28,3 +28,8 @@ Thumbs.db
 
 .phpstan-cache/
 
+
+# NativePHP/Electron build artifacts
+/nativephp/electron/dist/
+*.exe
+*.asar
