@@ -15,6 +15,8 @@ final class BrowserlikeClient
 
     private const int MAX_DELAY_MICROSECONDS = 16_000_000;
 
+    private const string PRIME_URL = 'https://www.president.gov.ua/';
+
     /** @var callable(int): void */
     private $sleeper;
 
@@ -22,6 +24,8 @@ final class BrowserlikeClient
 
     /** @var non-empty-string|null */
     private ?string $cookieFile = null;
+
+    private bool $primed = false;
 
     public function __construct(
         ?callable $sleeper = null,
@@ -31,8 +35,6 @@ final class BrowserlikeClient
         $this->sleeper = $sleeper ?? static function (int $microseconds): void {
             usleep($microseconds);
         };
-
-        // Cookie file is created lazily, only when fetching from president.gov.ua.
     }
 
     public function __destruct()
@@ -66,65 +68,39 @@ final class BrowserlikeClient
 
         $this->throttle();
 
+        $reprimed = false;
+
+        if (! $this->primed) {
+            $this->prime($headers);
+            $this->primed = true;
+        }
+
         $status = 0;
         $body = '';
 
         for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
-            $handle = curl_init($url);
-
-            if ($handle === false) {
-                throw new RuntimeException('Unable to initialize cURL.');
-            }
-
-            $headerLines = [];
-
-            foreach ($headers as $name => $value) {
-                $headerLines[] = $name.': '.$value;
-            }
-
-            $options = [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_TIMEOUT => 30,
-                CURLOPT_HTTPHEADER => $headerLines,
-                CURLOPT_ENCODING => '',
-            ];
-
-            $cookieFile = $this->cookieFile();
-
-            if ($cookieFile !== null) {
-                $options[CURLOPT_COOKIEJAR] = $cookieFile;
-                $options[CURLOPT_COOKIEFILE] = $cookieFile;
-            }
-
-            if (curl_setopt_array($handle, $options) === false) {
-                $error = curl_error($handle) ?: 'Unable to configure cURL.';
-                curl_close($handle);
-
-                throw new RuntimeException('cURL configuration failed: '.$error);
-            }
-
-            $result = curl_exec($handle);
-
-            if ($result === false) {
-                $error = curl_error($handle);
-                curl_close($handle);
-
-                if ($attempt < self::MAX_ATTEMPTS - 1) {
-                    $this->backoff($attempt);
-
-                    continue;
+            try {
+                [$status, $body] = $this->perform($url, $headers);
+            } catch (\Throwable $throwable) {
+                if ($attempt >= self::MAX_ATTEMPTS - 1) {
+                    throw $throwable;
                 }
 
-                throw new RuntimeException('cURL request failed: '.$error);
-            }
+                $this->backoff($attempt);
 
-            $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
-            $body = (string) $result;
-            curl_close($handle);
+                continue;
+            }
 
             if (! $this->isBlocked($status, $body)) {
                 return [$status, $body];
+            }
+
+            // Re-prime cookies once if the edge still blocks us, then retry.
+            if (! $reprimed && $attempt === 1) {
+                $this->primed = false;
+                $this->prime($headers);
+                $this->primed = true;
+                $reprimed = true;
             }
 
             if ($attempt < self::MAX_ATTEMPTS - 1) {
@@ -135,6 +111,74 @@ final class BrowserlikeClient
         if ($this->isBlocked($status, $body)) {
             throw new RuntimeException('Request blocked by president.gov.ua after '.self::MAX_ATTEMPTS.' attempts.');
         }
+
+        return [$status, $body];
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function prime(array $headers): void
+    {
+        try {
+            $this->perform(self::PRIME_URL, $headers);
+        } catch (\Throwable) {
+            // Priming is best-effort; continue with the real request.
+        }
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     * @return array{0: int, 1: string}
+     */
+    private function perform(string $url, array $headers): array
+    {
+        $handle = curl_init($url);
+
+        if ($handle === false) {
+            throw new RuntimeException('Unable to initialize cURL.');
+        }
+
+        $headerLines = [];
+
+        foreach ($headers as $name => $value) {
+            $headerLines[] = $name.': '.$value;
+        }
+
+        $options = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTPHEADER => $headerLines,
+            CURLOPT_ENCODING => '',
+        ];
+
+        $cookieFile = $this->cookieFile();
+
+        if ($cookieFile !== null) {
+            $options[CURLOPT_COOKIEJAR] = $cookieFile;
+            $options[CURLOPT_COOKIEFILE] = $cookieFile;
+        }
+
+        if (curl_setopt_array($handle, $options) === false) {
+            $error = curl_error($handle) ?: 'Unable to configure cURL.';
+            curl_close($handle);
+
+            throw new RuntimeException('cURL configuration failed: '.$error);
+        }
+
+        $result = curl_exec($handle);
+
+        if ($result === false) {
+            $error = curl_error($handle);
+            curl_close($handle);
+
+            throw new RuntimeException('cURL request failed: '.$error);
+        }
+
+        $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
+        $body = (string) $result;
+        curl_close($handle);
 
         return [$status, $body];
     }

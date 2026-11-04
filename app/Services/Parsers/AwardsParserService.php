@@ -8,6 +8,7 @@ use App\Models\Awardee;
 use App\Models\Order;
 use App\Models\ParseRun;
 use App\Services\Documents\DecreeParser;
+use App\Services\Http\BrowserlikeClient;
 use App\Services\Rss\FeedParser;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -18,10 +19,13 @@ final readonly class AwardsParserService
 
     private DecreeParser $decreeParser;
 
-    public function __construct(?FeedParser $feedParser = null, ?DecreeParser $decreeParser = null)
+    private BrowserlikeClient $client;
+
+    public function __construct(?FeedParser $feedParser = null, ?DecreeParser $decreeParser = null, ?BrowserlikeClient $client = null)
     {
-        $this->feedParser = $feedParser ?? new FeedParser;
-        $this->decreeParser = $decreeParser ?? new DecreeParser;
+        $this->client = $client ?? new BrowserlikeClient;
+        $this->feedParser = $feedParser ?? new FeedParser($this->client);
+        $this->decreeParser = $decreeParser ?? new DecreeParser(null, $this->client);
     }
 
     /**
