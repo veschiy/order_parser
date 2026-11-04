@@ -51,7 +51,7 @@ final class ParseController extends Controller
 
         return redirect()
             ->route('parse.index')
-            ->with('status', 'Базу даних очищено: видалено всі накази, нагороджених і записи розбору.');
+            ->with('status', 'Базу даних очищено: видалено всі укази, нагороджених і записи розбору.');
     }
 
     /**
@@ -60,7 +60,7 @@ final class ParseController extends Controller
     private function formatSummary(array $summary): string
     {
         $message = sprintf(
-            'Режим: %s. Знайдено: %d, розібрано: %d, наказів: %d, нагороджених: %d.',
+            'Режим: %s. Знайдено: %d, розібрано: %d, указів: %d, нагороджених: %d.',
             $summary['mode'],
             $summary['items_found'],
             $summary['items_parsed'],

@@ -17,11 +17,11 @@
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight text-white">Нагороди Президента України</h1>
-                    <p class="text-sm text-slate-400">Пошук нагороджених осіб, накази та розбір RSS-стрічки</p>
+                    <p class="text-sm text-slate-400">Пошук нагороджених осіб, укази та розбір RSS-стрічки</p>
                 </div>
                 <nav class="flex flex-wrap gap-2 text-sm">
                     <a href="{{ route('search.index') }}" class="rounded-lg px-3 py-2 font-medium {{ request()->routeIs('search.*') ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Пошук</a>
-                    <a href="{{ route('orders.index') }}" class="rounded-lg px-3 py-2 font-medium {{ request()->routeIs('orders.*') ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Накази</a>
+                    <a href="{{ route('orders.index') }}" class="rounded-lg px-3 py-2 font-medium {{ request()->routeIs('orders.*') ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Укази</a>
                     <a href="{{ route('parse.index') }}" class="rounded-lg px-3 py-2 font-medium {{ request()->routeIs('parse.*') ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Розбір</a>
                 </nav>
             </div>

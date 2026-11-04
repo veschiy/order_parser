@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Накази')
+@section('title', 'Укази')
 
 @section('content')
     <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
         <div class="mb-6 flex items-center justify-between">
             <div>
-                <h2 class="text-xl font-semibold text-white">Розібрані накази</h2>
+                <h2 class="text-xl font-semibold text-white">Розібрані укази</h2>
                 <p class="mt-1 text-sm text-slate-400">Список документов, які вже збережені у базі.</p>
             </div>
             <a href="{{ route('parse.index') }}" class="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400">
@@ -15,7 +15,7 @@
         </div>
 
         @if ($orders->isEmpty())
-            <p class="text-sm text-slate-400">Поки що жодного наказу не розібрано.</p>
+            <p class="text-sm text-slate-400">Поки що жодного указу не розібрано.</p>
         @else
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-800 text-sm">

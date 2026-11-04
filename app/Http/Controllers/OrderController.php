@@ -51,7 +51,7 @@ final class OrderController extends Controller
             }
 
             fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, ['ПІБ', 'Звання', 'Нагорода', 'Номер наказу'], ';');
+            fputcsv($handle, ['ПІБ', 'Звання', 'Нагорода', 'Номер указу'], ';');
 
             foreach ($order->awardees as $awardee) {
                 fputcsv($handle, [
@@ -76,7 +76,7 @@ final class OrderController extends Controller
         $order = Order::withTrashed()->findOrFail($id);
         $order->delete();
 
-        return redirect()->route('orders.index')->with('status', 'Наказ позначено як видалений.');
+        return redirect()->route('orders.index')->with('status', 'Указ позначено як видалений.');
     }
 
     public function restore(int $id): RedirectResponse
@@ -84,6 +84,6 @@ final class OrderController extends Controller
         $order = Order::withTrashed()->findOrFail($id);
         $order->restore();
 
-        return redirect()->route('orders.show', $order->id)->with('status', 'Наказ відновлено.');
+        return redirect()->route('orders.show', $order->id)->with('status', 'Указ відновлено.');
     }
 }

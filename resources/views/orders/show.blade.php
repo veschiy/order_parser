@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Деталі наказу')
+@section('title', 'Деталі указу')
 
 @section('content')
     <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
         <div class="mb-6">
             <a href="{{ route('orders.index') }}" class="text-sm text-indigo-300 hover:text-indigo-200">← Назад до списку</a>
-            <h2 class="mt-2 text-xl font-semibold text-white">Наказ {{ $order->displayNumber() }}</h2>
+            <h2 class="mt-2 text-xl font-semibold text-white">Указ {{ $order->displayNumber() }}</h2>
             <p class="mt-1 text-sm text-slate-400">{{ $order->title ?? 'Деталі будуть доступні після реалізації зберігання даних.' }}</p>
         </div>
 
@@ -36,7 +36,7 @@
                         <button type="submit" class="rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400">Відновити</button>
                     </form>
                 @else
-                    <form method="POST" action="{{ route('orders.destroy', $order->id) }}" onsubmit="return confirm('Видалити наказ і приховати його з пошуку?');">
+                    <form method="POST" action="{{ route('orders.destroy', $order->id) }}" onsubmit="return confirm('Видалити указ і приховати його з пошуку?');">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="rounded-lg bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-500">Видалити</button>

@@ -43,7 +43,7 @@
                             <th class="px-4 py-3 text-left font-medium text-slate-300">ПІБ</th>
                             <th class="px-4 py-3 text-left font-medium text-slate-300">Звання/ранг</th>
                             <th class="px-4 py-3 text-left font-medium text-slate-300">Нагорода</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Номер наказу</th>
+                            <th class="px-4 py-3 text-left font-medium text-slate-300">Номер указу</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">
