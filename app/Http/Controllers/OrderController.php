@@ -41,7 +41,8 @@ final class OrderController extends Controller
             ->with('awardees')
             ->findOrFail($id);
 
-        $filename = 'order-'.($order->number ?? $order->id).'.csv';
+        $safeNumber = preg_replace('/[\/\\\\\x00-\x1f\x7f%]/', '-', (string) ($order->number ?? $order->id));
+        $filename = 'order-'.($safeNumber === null ? (string) $order->id : $safeNumber).'.csv';
 
         $callback = function () use ($order): void {
             $handle = fopen('php://output', 'wb');
@@ -50,19 +51,21 @@ final class OrderController extends Controller
                 return;
             }
 
-            fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, ['ПІБ', 'Звання', 'Нагорода', 'Номер указу'], ';');
+            try {
+                fwrite($handle, "\xEF\xBB\xBF");
+                fputcsv($handle, ['ПІБ', 'Звання', 'Нагорода', 'Номер указу'], ';');
 
-            foreach ($order->awardees as $awardee) {
-                fputcsv($handle, [
-                    $awardee->full_name,
-                    $awardee->rank ?? '',
-                    $awardee->award ?? '',
-                    $order->displayNumber(),
-                ], ';');
+                foreach ($order->awardees as $awardee) {
+                    fputcsv($handle, [
+                        $awardee->full_name,
+                        $awardee->rank ?? '',
+                        $awardee->award ?? '',
+                        $order->displayNumber(),
+                    ], ';');
+                }
+            } finally {
+                fclose($handle);
             }
-
-            fclose($handle);
         };
 
         return response()->stream($callback, 200, [
