@@ -158,6 +158,12 @@ final readonly class AwardsParserService
             }
         }
 
+        $existingOrder = Order::query()->where('document_url', $url)->first();
+
+        if ($existingOrder !== null && $existingOrder->awardees()->exists()) {
+            return [$existingOrder, 0, null];
+        }
+
         try {
             $decree = $this->decreeParser->parse($url, $publicationDate);
         } catch (Throwable $throwable) {

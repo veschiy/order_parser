@@ -132,6 +132,10 @@ final class BrowserlikeClient
             }
         }
 
+        if ($this->isBlocked($status, $body)) {
+            throw new RuntimeException('Request blocked by president.gov.ua after '.self::MAX_ATTEMPTS.' attempts.');
+        }
+
         return [$status, $body];
     }
 
