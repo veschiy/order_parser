@@ -102,6 +102,17 @@ final class BrowserlikeClient
 
             // Re-prime cookies once if the edge still blocks us, then retry.
             if (! $reprimed && $attempt === 1) {
+                // Drop any stale/checkpoint cookies before re-priming so the
+                // retry starts from a clean (or empty) jar. Prefer unlinking;
+                // fall back to emptying the file if deletion fails.
+                if ($this->cookieFile !== null && is_file($this->cookieFile)) {
+                    if (@unlink($this->cookieFile)) {
+                        $this->cookieFile = null;
+                    } else {
+                        @file_put_contents($this->cookieFile, '');
+                    }
+                }
+
                 $this->primed = false;
                 $this->prime($headers);
                 $this->primed = true;
