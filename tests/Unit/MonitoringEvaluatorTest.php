@@ -232,6 +232,43 @@ final class MonitoringEvaluatorTest extends TestCase
         $this->assertCount(2, $evaluation->matches);
     }
 
+    public function test_bulk_evaluation_preserves_matching_and_order(): void
+    {
+        $order = Order::query()->create([
+            'document_url' => 'https://example.com/order-1',
+            'published_at' => '2026-11-10',
+            'parsed_at' => now(),
+        ]);
+
+        foreach (['Бакал Олександр Вікторович', 'Франко Іван Якович', 'БАКАЛ  Олександр Вікторович'] as $name) {
+            Awardee::query()->create([
+                'order_id' => $order->id,
+                'full_name' => $name,
+                'award' => 'орден «За мужність» III ступеня',
+            ]);
+        }
+
+        $records = collect([
+            new MonitoringRecord(['full_name' => 'Бакал Олександр Вікторович', 'award' => 'орден «За мужність» III ступеня', 'submission_date' => '2026-11-01']),
+            new MonitoringRecord(['full_name' => 'Франко Іван Якович']),
+            new MonitoringRecord(['full_name' => 'Невідомий Іван Іванович']),
+            new MonitoringRecord(['full_name' => '']),
+        ]);
+
+        $bulk = $this->evaluator->evaluateAll($records);
+
+        foreach ($records as $index => $record) {
+            $individual = $this->evaluator->evaluate($record);
+            $this->assertSame($individual->score, $bulk[$index]->score);
+            $this->assertSame(
+                array_map(fn ($match) => $match->awardee->id, $individual->matches),
+                array_map(fn ($match) => $match->awardee->id, $bulk[$index]->matches),
+            );
+        }
+
+        $this->assertCount(2, $bulk[0]->matches);
+    }
+
     public function test_matches_awards_with_various_degrees_and_abbreviations(): void
     {
         $this->assertTrue($this->evaluator->awardsMatch('орден “Б.ХМЕЛЬНИЦЬКОГО” ІІІ ступеня', 'орден Богдана Хмельницького III ступеня'));

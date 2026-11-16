@@ -15,6 +15,7 @@
 /.vscode
 /.zed
 /.mcp.json
+/.ai/mcp/mcp.json
 /boost.json
 /auth.json
 /node_modules

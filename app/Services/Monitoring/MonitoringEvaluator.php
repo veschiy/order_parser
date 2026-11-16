@@ -33,13 +33,50 @@ final readonly class MonitoringEvaluator
             })
             ->get();
 
+        $nameIndex = [];
+
+        foreach ($awardees as $index => $awardee) {
+            foreach ($this->nameKeys($awardee->full_name) as $key) {
+                $nameIndex[$key][$index] = $awardee;
+            }
+        }
+
         $evaluations = new Collection;
 
         foreach ($records as $record) {
-            $evaluations->push($this->evaluate($record, $awardees));
+            $candidates = [];
+
+            foreach ($this->nameKeys($record->full_name) as $key) {
+                foreach ($nameIndex[$key] ?? [] as $index => $awardee) {
+                    $candidates[$index] = $awardee;
+                }
+            }
+
+            ksort($candidates);
+            $evaluations->push($this->evaluate($record, $candidates));
         }
 
         return $evaluations;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function nameKeys(string $name): array
+    {
+        $name = trim($name);
+
+        if ($name === '') {
+            return [];
+        }
+
+        $lower = mb_strtolower($name, 'UTF-8');
+        $clean = preg_replace('/\s+/u', ' ', $lower) ?? $lower;
+        $normalized = mb_strtolower($this->normalizer->toNominative($name), 'UTF-8');
+        $tokens = preg_split('/\s+/u', $normalized) ?: [];
+        sort($tokens);
+
+        return ['exact:'.$clean, 'normalized:'.implode(' ', $tokens)];
     }
 
     /**
