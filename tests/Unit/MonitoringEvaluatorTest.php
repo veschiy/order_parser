@@ -8,6 +8,7 @@ use App\Models\Awardee;
 use App\Models\MonitoringRecord;
 use App\Models\Order;
 use App\Services\Monitoring\MonitoringEvaluator;
+use App\Services\Monitoring\MonitoringMatch;
 use App\Services\Names\UkrainianNameNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -189,6 +190,7 @@ final class MonitoringEvaluatorTest extends TestCase
             $evaluation = $this->evaluator->evaluate($record, [$awardee]);
 
             $this->assertSame($expectedScore, $evaluation->score, $publishedAt);
+            $this->assertInstanceOf(MonitoringMatch::class, $evaluation->bestMatch);
             $this->assertSame($expectedScore === 3, $evaluation->bestMatch->dateMatched, $publishedAt);
         }
     }
@@ -287,8 +289,8 @@ final class MonitoringEvaluatorTest extends TestCase
             $individual = $this->evaluator->evaluate($record);
             $this->assertSame($individual->score, $bulk[$index]->score);
             $this->assertSame(
-                array_map(fn ($match) => $match->awardee->id, $individual->matches),
-                array_map(fn ($match) => $match->awardee->id, $bulk[$index]->matches),
+                array_map(fn (MonitoringMatch $match) => $match->awardee->id, $individual->matches),
+                array_map(fn (MonitoringMatch $match) => $match->awardee->id, $bulk[$index]->matches),
             );
         }
 

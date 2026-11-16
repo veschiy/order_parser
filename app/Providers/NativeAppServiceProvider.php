@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Artisan;
 use Native\Desktop\Contracts\ProvidesPhpIni;
 use Native\Desktop\Facades\Window;
 
@@ -15,8 +16,10 @@ class NativeAppServiceProvider implements ProvidesPhpIni
      */
     public function boot(): void
     {
+        Artisan::call('migrate', ['--force' => true]);
+
         Window::open()
-            ->title('Order Parser 1.0')
+            ->title('Order Parser 2.0')
             ->width(1600)
             ->height(1000)
             ->minWidth(960)

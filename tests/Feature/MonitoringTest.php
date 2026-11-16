@@ -26,6 +26,7 @@ final class MonitoringTest extends TestCase
         $response->assertSee('Розбір');
 
         $content = $response->getContent();
+        $this->assertIsString($content);
         $posSearch = mb_strpos($content, '>Пошук<');
         $posMonitoring = mb_strpos($content, '>Моніторинг<');
         $posOrders = mb_strpos($content, '>Укази<');
@@ -33,8 +34,8 @@ final class MonitoringTest extends TestCase
         $this->assertNotFalse($posSearch);
         $this->assertNotFalse($posMonitoring);
         $this->assertNotFalse($posOrders);
-        $this->assertTrue($posSearch < $posMonitoring);
-        $this->assertTrue($posMonitoring < $posOrders);
+        $this->assertLessThan($posMonitoring, $posSearch);
+        $this->assertLessThan($posOrders, $posMonitoring);
     }
 
     public function test_can_view_monitoring_page_and_empty_state(): void
@@ -211,6 +212,7 @@ CSV;
 
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
         $content = $response->streamedContent();
 
         $this->assertStringContainsString('Тестова Особа', $content);
@@ -230,6 +232,7 @@ CSV;
 
         $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
         $stream = fopen('php://memory', 'r+');
+        $this->assertIsResource($stream);
         fwrite($stream, substr($content, 3));
         rewind($stream);
 

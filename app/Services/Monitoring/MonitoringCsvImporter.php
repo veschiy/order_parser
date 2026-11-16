@@ -54,7 +54,7 @@ final class MonitoringCsvImporter
         rewind($stream);
 
         $firstRow = fgetcsv($stream, 0, $delimiter, '"', '\\');
-        if ($firstRow === false || $firstRow === null) {
+        if ($firstRow === false) {
             fclose($stream);
 
             return 0;
@@ -78,7 +78,7 @@ final class MonitoringCsvImporter
         $imported = 0;
 
         while (($row = fgetcsv($stream, 0, $delimiter, '"', '\\')) !== false) {
-            if ($row === null || $this->isRowEmpty($row)) {
+            if ($this->isRowEmpty($row)) {
                 continue;
             }
 
@@ -134,7 +134,7 @@ final class MonitoringCsvImporter
         // Convert encoding if not UTF-8
         if (! mb_check_encoding($content, 'UTF-8')) {
             $converted = @mb_convert_encoding($content, 'UTF-8', 'Windows-1251');
-            if ($converted !== false && mb_check_encoding($converted, 'UTF-8')) {
+            if (mb_check_encoding($converted, 'UTF-8')) {
                 $content = $converted;
             }
         }
@@ -189,7 +189,7 @@ final class MonitoringCsvImporter
                 str_contains($normalized, 'full name') ||
                 str_contains($normalized, 'особа') ||
                 $normalized === 'name' ||
-                $normalized === 'ім\'я' ||
+                $normalized === "ім'я" ||
                 $normalized === 'імя' ||
                 $normalized === 'прізвище'
             ) {
@@ -232,13 +232,7 @@ final class MonitoringCsvImporter
      */
     private function isRowEmpty(array $row): bool
     {
-        foreach ($row as $cell) {
-            if ($cell !== null && trim($cell) !== '') {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($row, fn ($cell): bool => $cell === null || trim($cell) === '');
     }
 
     /**

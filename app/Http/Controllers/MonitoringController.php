@@ -11,6 +11,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class MonitoringController extends Controller
@@ -19,7 +20,7 @@ final class MonitoringController extends Controller
     {
         $search = trim($request->string('q')->toString());
 
-        $records = $this->filteredRecords($search)->orderBy('id')->get();
+        $records = $this->filteredRecords($search)->get();
         $evaluations = $evaluator->evaluateAll($records);
 
         return view('monitoring.index', [
@@ -29,6 +30,9 @@ final class MonitoringController extends Controller
         ]);
     }
 
+    /**
+     * @return Builder<MonitoringRecord>
+     */
     private function filteredRecords(string $search): Builder
     {
         $query = MonitoringRecord::query();
@@ -44,6 +48,8 @@ final class MonitoringController extends Controller
             });
         }
 
+        $query->orderBy('id');
+
         return $query;
     }
 
@@ -57,9 +63,11 @@ final class MonitoringController extends Controller
             'award' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $fullName = is_string($validated['full_name']) ? trim($validated['full_name']) : '';
+
         MonitoringRecord::query()->create([
             'sheet' => $validated['sheet'] ?? null,
-            'full_name' => trim($validated['full_name']),
+            'full_name' => $fullName,
             'tax_id' => $validated['tax_id'] ?? null,
             'submission_date' => $validated['submission_date'] ?? null,
             'award' => $validated['award'] ?? null,
@@ -80,9 +88,11 @@ final class MonitoringController extends Controller
             'award' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $fullName = is_string($validated['full_name']) ? trim($validated['full_name']) : '';
+
         $record->update([
             'sheet' => $validated['sheet'] ?? null,
-            'full_name' => trim($validated['full_name']),
+            'full_name' => $fullName,
             'tax_id' => $validated['tax_id'] ?? null,
             'submission_date' => $validated['submission_date'] ?? null,
             'award' => $validated['award'] ?? null,
@@ -114,7 +124,7 @@ final class MonitoringController extends Controller
 
         $file = $request->file('csv_file');
 
-        if ($file === null) {
+        if (! $file instanceof UploadedFile) {
             return redirect()->route('monitoring.index')->withErrors(['csv_file' => 'Файл не завантажено.']);
         }
 
@@ -128,13 +138,14 @@ final class MonitoringController extends Controller
         $query = $this->filteredRecords(trim($request->string('q')->toString()));
 
         if ($request->isMethod('post')) {
-            $validated = $request->validate(['record_ids' => ['required', 'json']]);
-            $ids = json_decode($validated['record_ids'], true);
-            abort_unless(is_array($ids) && array_is_list($ids) && count(array_filter($ids, fn ($id) => ! is_int($id) || $id < 1)) === 0, 422);
+            $validated = $request->validate(['record_ids' => ['required', 'string', 'json']]);
+            $rawIds = is_string($validated['record_ids']) ? $validated['record_ids'] : '[]';
+            $ids = json_decode($rawIds, true);
+            abort_unless(is_array($ids) && array_is_list($ids) && count(array_filter($ids, fn ($id): bool => ! is_int($id) || $id < 1)) === 0, 422);
             $query->whereKey($ids);
         }
 
-        $records = $query->orderBy('id')->get();
+        $records = $query->get();
         $evaluations = $evaluator->evaluateAll($records);
 
         $headers = [
@@ -165,8 +176,7 @@ final class MonitoringController extends Controller
                 $matchedDecrees = [];
                 foreach ($evaluation->matches as $match) {
                     $order = $match->awardee->order;
-                    $matchedDecrees[] = ($order ? $order->displayNumber() : 'Указ #'.$match->awardee->order_id)
-                        .' (бал: '.$match->score.')';
+                    $matchedDecrees[] = $order->displayNumber().' (бал: '.$match->score.')';
                 }
 
                 fputcsv($handle, [

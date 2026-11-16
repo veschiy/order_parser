@@ -84,21 +84,19 @@ final readonly class MonitoringEvaluator
      */
     public function evaluate(MonitoringRecord $record, ?iterable $awardees = null): MonitoringEvaluation
     {
-        if ($awardees === null) {
-            $awardees = Awardee::query()
-                ->with('order')
-                ->whereHas('order', function ($builder): void {
-                    $builder->whereNull('deleted_at');
-                })
-                ->get();
-        }
+        $awardees ??= Awardee::query()
+            ->with('order')
+            ->whereHas('order', function ($builder): void {
+                $builder->whereNull('deleted_at');
+            })
+            ->get();
 
         $matches = [];
         $bestScore = 0;
         $bestMatch = null;
 
         foreach ($awardees as $awardee) {
-            if ($awardee->order === null || $awardee->order->trashed()) {
+            if ($awardee->order->trashed()) {
                 continue;
             }
 
@@ -107,7 +105,7 @@ final readonly class MonitoringEvaluator
             }
 
             $awardMatched = $this->awardsMatch($record->award, $awardee->award);
-            $dateMatched = $this->dateIsWithinSixMonths($awardee->order?->published_at, $record->submission_date);
+            $dateMatched = $this->dateIsWithinSixMonths($awardee->order->published_at, $record->submission_date);
 
             $matchScore = 1;
 
@@ -179,11 +177,7 @@ final readonly class MonitoringEvaluator
         sort($monitoredTokens);
         sort($awardeeTokens);
 
-        if ($monitoredTokens !== [] && $monitoredTokens === $awardeeTokens) {
-            return true;
-        }
-
-        return false;
+        return $monitoredTokens !== [] && $monitoredTokens === $awardeeTokens;
     }
 
     public function awardsMatch(?string $monitoredAward, ?string $awardeeAward): bool
@@ -203,11 +197,7 @@ final readonly class MonitoringEvaluator
             return true;
         }
 
-        if (str_contains($normAwardee, $normMonitored) || str_contains($normMonitored, $normAwardee)) {
-            return true;
-        }
-
-        return false;
+        return str_contains($normAwardee, $normMonitored) || str_contains($normMonitored, $normAwardee);
     }
 
     public function normalizeAward(string $award): string
@@ -217,7 +207,7 @@ final readonly class MonitoringEvaluator
 
         // Replace Cyrillic 'і' and Latin 'i' variants for degree numerals (III, II, I, 3, 2, 1)
         // Convert Cyrillic 'і' to Latin 'i' in Roman numerals
-        $award = preg_replace_callback('/\b[iіIІ]{1,3}\b/u', static function ($matches): string {
+        $award = preg_replace_callback('/\b[iіIІ]{1,3}\b/u', static function (array $matches): string {
             $len = mb_strlen(str_replace(['і', 'І'], 'i', $matches[0]));
 
             return (string) $len;
@@ -245,7 +235,7 @@ final readonly class MonitoringEvaluator
 
     public function dateIsWithinSixMonths(?DateTimeInterface $orderDate, ?DateTimeInterface $submissionDate): bool
     {
-        if ($orderDate === null || $submissionDate === null) {
+        if (! $orderDate instanceof DateTimeInterface || ! $submissionDate instanceof DateTimeInterface) {
             return false;
         }
 
