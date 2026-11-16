@@ -167,6 +167,32 @@ final class MonitoringEvaluatorTest extends TestCase
         $this->assertTrue($evaluation->matches[0]->dateMatched);
     }
 
+    public function test_date_score_requires_a_date_within_six_calendar_months(): void
+    {
+        $record = new MonitoringRecord([
+            'full_name' => 'Бакал Олександр Вікторович',
+            'award' => 'орден «За мужність» III ступеня',
+            'submission_date' => '2025-08-31',
+        ]);
+
+        foreach ([
+            ['2025-08-30', 2],
+            ['2025-08-31', 2],
+            ['2025-09-01', 3],
+            ['2026-02-28', 3],
+            ['2026-03-01', 2],
+        ] as [$publishedAt, $expectedScore]) {
+            $order = new Order(['published_at' => $publishedAt]);
+            $awardee = new Awardee(['full_name' => $record->full_name, 'award' => $record->award]);
+            $awardee->setRelation('order', $order);
+
+            $evaluation = $this->evaluator->evaluate($record, [$awardee]);
+
+            $this->assertSame($expectedScore, $evaluation->score, $publishedAt);
+            $this->assertSame($expectedScore === 3, $evaluation->bestMatch->dateMatched, $publishedAt);
+        }
+    }
+
     public function test_soft_deleted_orders_are_ignored(): void
     {
         $order = Order::query()->create([

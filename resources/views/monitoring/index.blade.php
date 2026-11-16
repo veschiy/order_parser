@@ -239,7 +239,7 @@
                                         2
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center rounded-full bg-emerald-950/80 border border-emerald-600/60 px-2.5 py-1 text-xs font-bold text-emerald-300" title="ПІБ + Нагорода + Дата після подання (+3 бали)">
+                                    <span class="inline-flex items-center rounded-full bg-emerald-950/80 border border-emerald-600/60 px-2.5 py-1 text-xs font-bold text-emerald-300" title="ПІБ + Нагорода + Дата протягом 6 місяців після подання (+3 бали)">
                                         {{ $score }}
                                     </span>
                                 @endif
@@ -277,7 +277,7 @@
                                                         <span class="rounded px-1.5 py-0.5 bg-emerald-900/40 text-emerald-300">Нагорода ✓</span>
                                                     @endif
                                                     @if ($match->dateMatched)
-                                                        <span class="rounded px-1.5 py-0.5 bg-blue-900/40 text-blue-300">Дата після подання ✓</span>
+                                                        <span class="rounded px-1.5 py-0.5 bg-blue-900/40 text-blue-300">Дата протягом 6 місяців після подання ✓</span>
                                                     @endif
                                                 </div>
                                             </div>
@@ -342,10 +342,10 @@
                 <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
                     <div class="flex items-center gap-2 font-semibold text-emerald-300">
                         <span class="rounded-full bg-emerald-950 px-2 py-0.5 text-xs border border-emerald-700/60">+1 бал</span>
-                        <span>Дата указу > Дата подання</span>
+                        <span>Дата указу після подання, не пізніше 6 місяців</span>
                     </div>
                     <p class="mt-2 text-xs text-slate-400">
-                        Якщо дата публікації знайденого указу є пізнішою за вказану «Дату подання», до оцінки додається ще +1 бал (досягаючи 3 балів).
+                        Якщо дата публікації знайденого указу є пізнішою за вказану «Дату подання» та не перевищує 6 місяців після неї, до оцінки додається ще +1 бал (досягаючи 3 балів).
                     </p>
                 </div>
             </div>

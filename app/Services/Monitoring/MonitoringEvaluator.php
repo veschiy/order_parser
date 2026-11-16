@@ -107,7 +107,7 @@ final readonly class MonitoringEvaluator
             }
 
             $awardMatched = $this->awardsMatch($record->award, $awardee->award);
-            $dateMatched = $this->dateIsAfter($awardee->order?->published_at, $record->submission_date);
+            $dateMatched = $this->dateIsWithinSixMonths($awardee->order?->published_at, $record->submission_date);
 
             $matchScore = 1;
 
@@ -243,7 +243,7 @@ final readonly class MonitoringEvaluator
         return trim(preg_replace('/\s+/u', ' ', $award) ?? $award);
     }
 
-    public function dateIsAfter(?DateTimeInterface $orderDate, ?DateTimeInterface $submissionDate): bool
+    public function dateIsWithinSixMonths(?DateTimeInterface $orderDate, ?DateTimeInterface $submissionDate): bool
     {
         if ($orderDate === null || $submissionDate === null) {
             return false;
@@ -252,6 +252,7 @@ final readonly class MonitoringEvaluator
         $orderCarbon = Carbon::parse($orderDate)->startOfDay();
         $submissionCarbon = Carbon::parse($submissionDate)->startOfDay();
 
-        return $orderCarbon->isAfter($submissionCarbon);
+        return $orderCarbon->isAfter($submissionCarbon)
+            && $orderCarbon->lessThanOrEqualTo($submissionCarbon->copy()->addMonthsNoOverflow(6));
     }
 }
