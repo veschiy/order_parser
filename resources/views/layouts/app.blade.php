@@ -21,6 +21,7 @@
                 </div>
                 <nav class="flex flex-wrap gap-2 text-sm">
                     <a href="{{ route('search.index') }}" class="rounded-lg px-3 py-2 font-medium {{ request()->routeIs('search.*') ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Пошук</a>
+                    <a href="{{ route('monitoring.index') }}" class="rounded-lg px-3 py-2 font-medium {{ request()->routeIs('monitoring.*') ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Моніторинг</a>
                     <a href="{{ route('orders.index') }}" class="rounded-lg px-3 py-2 font-medium {{ request()->routeIs('orders.*') ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Укази</a>
                     <a href="{{ route('parse.index') }}" class="rounded-lg px-3 py-2 font-medium {{ request()->routeIs('parse.*') ? 'bg-indigo-500 text-white' : 'text-slate-300 hover:bg-slate-800' }}">Розбір</a>
                 </nav>
@@ -51,5 +52,10 @@
             MVP-інтерфейс. Дані зберігаються в локальній базі даних.
         </footer>
     </div>
+
+    <script src="{{ asset('js/excel-table.js') }}"></script>
+    <script src="{{ asset('js/monitoring.js') }}"></script>
+    <script src="{{ asset('js/order-details.js') }}"></script>
+    @stack('scripts')
 </body>
 </html>

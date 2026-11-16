@@ -36,28 +36,23 @@
         @elseif ($results->isEmpty())
             <p class="text-sm text-rose-300">Нічого не знайдено. Особа може не бути нагородженою, або дані ще не розібрані.</p>
         @else
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-800 text-sm">
-                    <thead class="bg-slate-900">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">ПІБ</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Звання/ранг</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Нагорода</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Номер указу</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800">
-                        @foreach ($results as $result)
-                            <tr class="hover:bg-slate-800/50">
-                                <td class="px-4 py-3 text-slate-100">{{ $result->full_name }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $result->rank ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $result->award ?? '—' }}</td>
-                                <td class="px-4 py-3 text-indigo-300">{{ $result->order?->displayNumber() ?? '—' }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+            <x-excel-table id="searchResultsTable" :total="$results->count()">
+                <x-slot:header>
+                    <x-excel-table.th col="0" type="text">ПІБ</x-excel-table.th>
+                    <x-excel-table.th col="1" type="text">Звання/ранг</x-excel-table.th>
+                    <x-excel-table.th col="2" type="text">Нагорода</x-excel-table.th>
+                    <x-excel-table.th col="3" type="text">Номер указу</x-excel-table.th>
+                </x-slot:header>
+
+                @foreach ($results as $result)
+                    <tr class="hover:bg-slate-800/50" data-row="{{ $result->id }}">
+                        <td class="px-4 py-3 text-slate-100" data-value="{{ $result->full_name }}">{{ $result->full_name }}</td>
+                        <td class="px-4 py-3 text-slate-300" data-value="{{ $result->rank ?? '' }}">{{ $result->rank ?? '—' }}</td>
+                        <td class="px-4 py-3 text-slate-300" data-value="{{ $result->award ?? '' }}">{{ $result->award ?? '—' }}</td>
+                        <td class="px-4 py-3 text-indigo-300" data-value="{{ $result->order?->displayNumber() ?? '' }}">{{ $result->order?->displayNumber() ?? '—' }}</td>
+                    </tr>
+                @endforeach
+            </x-excel-table>
         @endif
     </section>
 @endsection

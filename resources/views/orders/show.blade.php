@@ -62,11 +62,11 @@
                             <tr class="hover:bg-slate-800/50">
                                 <td class="px-4 py-3 text-slate-100">
                                     <span class="awardee-name" data-id="{{ $awardee->id }}">{{ $awardee->full_name }}</span>
-                                    <button type="button" class="ml-2 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300" onclick="editAwardeeName(this, {{ $awardee->id }})">Редагувати</button>
+                                    <button type="button" class="ml-2 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300" data-edit-awardee data-id="{{ $awardee->id }}">Редагувати</button>
                                     <div class="hidden mt-2 flex gap-2" data-edit-form="{{ $awardee->id }}" style="display:none;">
                                         <input type="text" value="{{ $awardee->full_name }}" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none">
-                                        <button type="button" class="rounded-md bg-indigo-500 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-400" onclick="saveAwardeeName({{ $awardee->id }}, this)">Зберегти</button>
-                                        <button type="button" class="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" onclick="cancelAwardeeEdit({{ $awardee->id }})">Скасувати</button>
+                                        <button type="button" class="rounded-md bg-indigo-500 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-400" data-save-awardee-edit data-id="{{ $awardee->id }}">Зберегти</button>
+                                        <button type="button" class="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" data-cancel-awardee-edit data-id="{{ $awardee->id }}">Скасувати</button>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 text-slate-300">{{ $awardee->rank ?? '—' }}</td>
@@ -78,52 +78,4 @@
             </div>
         @endif
     </section>
-    <script>
-        function editAwardeeName(button, id) {
-            const cell = button.closest('td');
-            cell.querySelector('.awardee-name').classList.add('hidden');
-            button.classList.add('hidden');
-            const editForm = cell.querySelector('[data-edit-form="' + id + '"]');
-            editForm.classList.remove('hidden');
-            editForm.style.display = 'flex';
-        }
-
-        function cancelAwardeeEdit(id) {
-            const form = document.querySelector('[data-edit-form="' + id + '"]');
-            const cell = form.closest('td');
-            form.classList.add('hidden');
-            form.style.display = 'none';
-            cell.querySelector('.awardee-name').classList.remove('hidden');
-            form.previousElementSibling.classList.remove('hidden');
-        }
-
-        async function saveAwardeeName(id, button) {
-            const form = button.closest('[data-edit-form]');
-            const cell = form.closest('td');
-            const input = form.querySelector('input');
-            const name = input.value.trim();
-
-            if (!name) { return; }
-
-            const response = await fetch('/awardees/' + id, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify({ full_name: name }),
-            });
-
-            if (!response.ok) { return; }
-
-            const data = await response.json();
-            cell.querySelector('.awardee-name').textContent = data.full_name;
-            input.value = data.full_name;
-            form.classList.add('hidden');
-            form.style.display = 'none';
-            cell.querySelector('.awardee-name').classList.remove('hidden');
-            form.previousElementSibling.classList.remove('hidden');
-        }
-    </script>
 @endsection

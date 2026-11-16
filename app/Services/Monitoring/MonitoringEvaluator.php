@@ -1,0 +1,220 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Monitoring;
+
+use App\Models\Awardee;
+use App\Models\MonitoringRecord;
+use App\Services\Names\UkrainianNameNormalizer;
+use DateTimeInterface;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+
+final readonly class MonitoringEvaluator
+{
+    private UkrainianNameNormalizer $normalizer;
+
+    public function __construct(?UkrainianNameNormalizer $normalizer = null)
+    {
+        $this->normalizer = $normalizer ?? new UkrainianNameNormalizer;
+    }
+
+    /**
+     * @param  iterable<MonitoringRecord>  $records
+     * @return Collection<int, MonitoringEvaluation>
+     */
+    public function evaluateAll(iterable $records): Collection
+    {
+        $awardees = Awardee::query()
+            ->with('order')
+            ->whereHas('order', function ($builder): void {
+                $builder->whereNull('deleted_at');
+            })
+            ->get();
+
+        $evaluations = new Collection;
+
+        foreach ($records as $record) {
+            $evaluations->push($this->evaluate($record, $awardees));
+        }
+
+        return $evaluations;
+    }
+
+    /**
+     * @param  iterable<Awardee>|null  $awardees
+     */
+    public function evaluate(MonitoringRecord $record, ?iterable $awardees = null): MonitoringEvaluation
+    {
+        if ($awardees === null) {
+            $awardees = Awardee::query()
+                ->with('order')
+                ->whereHas('order', function ($builder): void {
+                    $builder->whereNull('deleted_at');
+                })
+                ->get();
+        }
+
+        $matches = [];
+        $bestScore = 0;
+        $bestMatch = null;
+
+        foreach ($awardees as $awardee) {
+            if ($awardee->order === null || $awardee->order->trashed()) {
+                continue;
+            }
+
+            if (! $this->namesMatch($record->full_name, $awardee->full_name)) {
+                continue;
+            }
+
+            $awardMatched = $this->awardsMatch($record->award, $awardee->award);
+            $dateMatched = $this->dateIsAfter($awardee->order?->published_at, $record->submission_date);
+
+            $matchScore = 1;
+
+            if ($awardMatched) {
+                $matchScore++;
+            }
+
+            if ($dateMatched) {
+                $matchScore++;
+            }
+
+            $match = new MonitoringMatch(
+                awardee: $awardee,
+                nameMatched: true,
+                awardMatched: $awardMatched,
+                dateMatched: $dateMatched,
+                score: $matchScore,
+            );
+
+            $matches[] = $match;
+
+            if ($matchScore > $bestScore) {
+                $bestScore = $matchScore;
+                $bestMatch = $match;
+            }
+        }
+
+        return new MonitoringEvaluation(
+            record: $record,
+            score: $bestScore,
+            matches: $matches,
+            bestMatch: $bestMatch,
+        );
+    }
+
+    public function namesMatch(string $monitoredName, string $awardeeName): bool
+    {
+        $monitoredName = trim($monitoredName);
+        $awardeeName = trim($awardeeName);
+
+        if ($monitoredName === '' || $awardeeName === '') {
+            return false;
+        }
+
+        $lowerMonitored = mb_strtolower($monitoredName, 'UTF-8');
+        $lowerAwardee = mb_strtolower($awardeeName, 'UTF-8');
+
+        if ($lowerMonitored === $lowerAwardee) {
+            return true;
+        }
+
+        $cleanMonitored = preg_replace('/\s+/u', ' ', $lowerMonitored) ?? $lowerMonitored;
+        $cleanAwardee = preg_replace('/\s+/u', ' ', $lowerAwardee) ?? $lowerAwardee;
+
+        if ($cleanMonitored === $cleanAwardee) {
+            return true;
+        }
+
+        $normMonitored = mb_strtolower($this->normalizer->toNominative($monitoredName), 'UTF-8');
+        $normAwardee = mb_strtolower($this->normalizer->toNominative($awardeeName), 'UTF-8');
+
+        if ($normMonitored === $normAwardee) {
+            return true;
+        }
+
+        $monitoredTokens = preg_split('/\s+/u', $normMonitored) ?: [];
+        $awardeeTokens = preg_split('/\s+/u', $normAwardee) ?: [];
+
+        sort($monitoredTokens);
+        sort($awardeeTokens);
+
+        if ($monitoredTokens !== [] && $monitoredTokens === $awardeeTokens) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function awardsMatch(?string $monitoredAward, ?string $awardeeAward): bool
+    {
+        if ($monitoredAward === null || $awardeeAward === null) {
+            return false;
+        }
+
+        $normMonitored = $this->normalizeAward($monitoredAward);
+        $normAwardee = $this->normalizeAward($awardeeAward);
+
+        if ($normMonitored === '' || $normAwardee === '') {
+            return false;
+        }
+
+        if ($normMonitored === $normAwardee) {
+            return true;
+        }
+
+        if (str_contains($normAwardee, $normMonitored) || str_contains($normMonitored, $normAwardee)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function normalizeAward(string $award): string
+    {
+        $award = mb_strtolower(trim($award), 'UTF-8');
+        $award = str_replace(['«', '»', '"', "'", '“', '”', '„', '`', 'ʼ', '’'], '', $award);
+
+        // Replace Cyrillic 'і' and Latin 'i' variants for degree numerals (III, II, I, 3, 2, 1)
+        // Convert Cyrillic 'і' to Latin 'i' in Roman numerals
+        $award = preg_replace_callback('/\b[iіIІ]{1,3}\b/u', static function ($matches): string {
+            $len = mb_strlen(str_replace(['і', 'І'], 'i', $matches[0]));
+
+            return (string) $len;
+        }, $award) ?? $award;
+
+        // Normalize Roman numerals / degree designations
+        $award = str_replace(
+            ['3 ступеня', '2 ступеня', '1 ступеня', '3 ст.', '2 ст.', '1 ст.', '3 ст', '2 ст', '1 ст'],
+            ['3 ступеня', '2 ступеня', '1 ступеня', '3 ступеня', '2 ступеня', '1 ступеня', '3 ступеня', '2 ступеня', '1 ступеня'],
+            $award
+        );
+
+        // Strip prefix variations
+        $award = preg_replace('/^орденом\b/u', 'орден', $award) ?? $award;
+        $award = preg_replace('/^медаллю\b/u', 'медаль', $award) ?? $award;
+        $award = preg_replace('/^нагрудним\s+знаком\b/u', 'нагрудний знак', $award) ?? $award;
+        $award = preg_replace('/^почесною\s+відзнакою\b/u', 'почесна відзнака', $award) ?? $award;
+        $award = preg_replace('/^відзнакою\b/u', 'відзнака', $award) ?? $award;
+
+        // Abbreviations
+        $award = preg_replace('/\bб\.?\s*хмельницького\b/u', 'богдана хмельницького', $award) ?? $award;
+
+        return trim(preg_replace('/\s+/u', ' ', $award) ?? $award);
+    }
+
+    public function dateIsAfter(?DateTimeInterface $orderDate, ?DateTimeInterface $submissionDate): bool
+    {
+        if ($orderDate === null || $submissionDate === null) {
+            return false;
+        }
+
+        $orderCarbon = Carbon::parse($orderDate)->startOfDay();
+        $submissionCarbon = Carbon::parse($submissionDate)->startOfDay();
+
+        return $orderCarbon->isAfter($submissionCarbon);
+    }
+}

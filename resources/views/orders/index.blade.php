@@ -17,32 +17,27 @@
         @if ($orders->isEmpty())
             <p class="text-sm text-slate-400">Поки що жодного указу не розібрано.</p>
         @else
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-800 text-sm">
-                    <thead class="bg-slate-900">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Номер</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Назва</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Нагороджених</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Дата розбору</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Дія</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800">
-                        @foreach ($orders as $order)
-                            <tr class="hover:bg-slate-800/50 {{ $order->trashed() ? 'opacity-50' : '' }}">
-                                <td class="px-4 py-3 text-indigo-300 {{ $order->trashed() ? 'line-through' : '' }}">{{ $order->displayNumber() }}</td>
-                                <td class="px-4 py-3 text-slate-100 {{ $order->trashed() ? 'line-through' : '' }}">{{ $order->title ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $order->awardees_count ?? 0 }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ optional($order->parsed_at)->toDateTimeString() ?? '—' }}</td>
-                                <td class="px-4 py-3">
-                                    <a href="{{ route('orders.show', $order->id) }}" class="text-indigo-300 hover:text-indigo-200">Деталі</a>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+            <x-excel-table id="ordersTable" :total="$orders->count()">
+                <x-slot:header>
+                    <x-excel-table.th col="0" type="text">Номер</x-excel-table.th>
+                    <x-excel-table.th col="1" type="text">Назва</x-excel-table.th>
+                    <x-excel-table.th col="2" type="number">Нагороджених</x-excel-table.th>
+                    <x-excel-table.th col="3" type="date">Дата розбору</x-excel-table.th>
+                    <th class="px-4 py-3 text-left font-medium text-slate-300">Дія</th>
+                </x-slot:header>
+
+                @foreach ($orders as $order)
+                    <tr class="hover:bg-slate-800/50 {{ $order->trashed() ? 'opacity-50' : '' }}" data-row="{{ $order->id }}">
+                        <td class="px-4 py-3 text-indigo-300 {{ $order->trashed() ? 'line-through' : '' }}" data-value="{{ $order->displayNumber() }}">{{ $order->displayNumber() }}</td>
+                        <td class="px-4 py-3 text-slate-100 {{ $order->trashed() ? 'line-through' : '' }}" data-value="{{ $order->title ?? '' }}">{{ $order->title ?? '—' }}</td>
+                        <td class="px-4 py-3 text-slate-300" data-value="{{ $order->awardees_count ?? 0 }}">{{ $order->awardees_count ?? 0 }}</td>
+                        <td class="px-4 py-3 text-slate-300" data-value="{{ optional($order->parsed_at)->format('Y-m-d H:i:s') ?? '' }}">{{ optional($order->parsed_at)->toDateTimeString() ?? '—' }}</td>
+                        <td class="px-4 py-3">
+                            <a href="{{ route('orders.show', $order->id) }}" class="text-indigo-300 hover:text-indigo-200">Деталі</a>
+                        </td>
+                    </tr>
+                @endforeach
+            </x-excel-table>
         @endif
     </section>
 @endsection

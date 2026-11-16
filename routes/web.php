@@ -1,12 +1,21 @@
 <?php
 
 use App\Http\Controllers\AwardeeController;
+use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ParseController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [SearchController::class, 'index'])->name('search.index');
+
+Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
+Route::post('/monitoring', [MonitoringController::class, 'store'])->name('monitoring.store');
+Route::post('/monitoring/import', [MonitoringController::class, 'import'])->name('monitoring.import');
+Route::get('/monitoring/export.csv', [MonitoringController::class, 'export'])->name('monitoring.export');
+Route::put('/monitoring/{id}', [MonitoringController::class, 'update'])->name('monitoring.update');
+Route::delete('/monitoring/{id}', [MonitoringController::class, 'destroy'])->name('monitoring.destroy');
+Route::delete('/monitoring', [MonitoringController::class, 'clear'])->name('monitoring.clear');
 
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
 Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
