@@ -165,11 +165,13 @@ return [
      * Define your own scripts to run before and after the build process.
      */
     'prebuild' => [
-        // 'npm run build',
+        'composer install --no-dev --prefer-dist --optimize-autoloader',
+        'npm run build',
     ],
 
     'postbuild' => [
-        // 'rm -rf public/build',
+        'rm -rf public/build',
+        'composer install',
     ],
 
     /**
@@ -185,4 +187,6 @@ return [
      * Custom PHP binary path.
      */
     'binary_path' => env('NATIVEPHP_PHP_BINARY_PATH', null),
+
+    'icon' => public_path('icon.ico')
 ];

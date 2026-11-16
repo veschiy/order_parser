@@ -25,6 +25,7 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             ->minWidth(960)
             ->minHeight(640)
             ->maximized()
+            ->setIcon('public/favicon.ico')
             ->hideMenu();
     }
 
