@@ -8,6 +8,7 @@ use App\Models\MonitoringRecord;
 use App\Services\Monitoring\MonitoringCsvImporter;
 use App\Services\Monitoring\MonitoringEvaluator;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -18,6 +19,18 @@ final class MonitoringController extends Controller
     {
         $search = trim($request->string('q')->toString());
 
+        $records = $this->filteredRecords($search)->orderBy('id')->get();
+        $evaluations = $evaluator->evaluateAll($records);
+
+        return view('monitoring.index', [
+            'evaluations' => $evaluations,
+            'search' => $search,
+            'totalCount' => MonitoringRecord::query()->count(),
+        ]);
+    }
+
+    private function filteredRecords(string $search): Builder
+    {
         $query = MonitoringRecord::query();
 
         if ($search !== '') {
@@ -31,14 +44,7 @@ final class MonitoringController extends Controller
             });
         }
 
-        $records = $query->orderBy('id')->get();
-        $evaluations = $evaluator->evaluateAll($records);
-
-        return view('monitoring.index', [
-            'evaluations' => $evaluations,
-            'search' => $search,
-            'totalCount' => MonitoringRecord::query()->count(),
-        ]);
+        return $query;
     }
 
     public function store(Request $request): RedirectResponse
@@ -117,9 +123,18 @@ final class MonitoringController extends Controller
         return redirect()->route('monitoring.index')->with('status', "Успішно імпортовано {$imported} записів у таблицю моніторингу.");
     }
 
-    public function export(MonitoringEvaluator $evaluator): StreamedResponse
+    public function export(Request $request, MonitoringEvaluator $evaluator): StreamedResponse
     {
-        $records = MonitoringRecord::query()->orderBy('id')->get();
+        $query = $this->filteredRecords(trim($request->string('q')->toString()));
+
+        if ($request->isMethod('post')) {
+            $validated = $request->validate(['record_ids' => ['required', 'json']]);
+            $ids = json_decode($validated['record_ids'], true);
+            abort_unless(is_array($ids) && array_is_list($ids) && count(array_filter($ids, fn ($id) => ! is_int($id) || $id < 1)) === 0, 422);
+            $query->whereKey($ids);
+        }
+
+        $records = $query->orderBy('id')->get();
         $evaluations = $evaluator->evaluateAll($records);
 
         $headers = [
@@ -144,7 +159,7 @@ final class MonitoringController extends Controller
                 'Нагорода',
                 'Бал',
                 'Знайдено в указах',
-            ]);
+            ], ';', '"', '');
 
             foreach ($evaluations as $evaluation) {
                 $matchedDecrees = [];
@@ -161,7 +176,7 @@ final class MonitoringController extends Controller
                     $evaluation->record->award ?? '',
                     $evaluation->score,
                     implode('; ', $matchedDecrees),
-                ]);
+                ], ';', '"', '');
             }
 
             fclose($handle);

@@ -15,7 +15,43 @@ export class ExcelTable {
         this.initDropdown();
         this.initHeaders();
         this.initToolbar();
-        this.updateRowCount();
+        this.restoreFilters();
+        this.renderFilters();
+    }
+
+    restoreFilters() {
+        if (this.tableId !== 'monitoringTable') return;
+
+        try {
+            let session = sessionStorage.getItem('monitoring-filter-session');
+            if (!session) {
+                session = `${Date.now()}-${Math.random()}`;
+                sessionStorage.setItem('monitoring-filter-session', session);
+            }
+            const saved = JSON.parse(localStorage.getItem('monitoring-filters') || 'null');
+            if (saved?.session !== session || !saved.filters || Array.isArray(saved.filters) || typeof saved.filters !== 'object') return;
+            const validColumns = new Set(Array.from(this.table.querySelectorAll('thead th[data-col-index]'), th => th.dataset.colIndex));
+            for (const [column, values] of Object.entries(saved.filters)) {
+                if (validColumns.has(column) && Array.isArray(values) && values.every(value => typeof value === 'string')) {
+                    this.columnFilters[column] = new Set(values);
+                }
+            }
+        } catch (error) {
+            // Filtering still works when browser storage is unavailable or invalid.
+        }
+    }
+
+    saveFilters() {
+        if (this.tableId !== 'monitoringTable') return;
+
+        try {
+            const session = sessionStorage.getItem('monitoring-filter-session');
+            if (!session) return;
+            const filters = Object.fromEntries(Object.entries(this.columnFilters).map(([column, values]) => [column, Array.from(values)]));
+            localStorage.setItem('monitoring-filters', JSON.stringify({ session, filters }));
+        } catch (error) {
+            // Filtering still works when browser storage is unavailable.
+        }
     }
 
     initHeaders() {
@@ -372,6 +408,7 @@ export class ExcelTable {
     }
 
     renderFilters() {
+        this.saveFilters();
         const rows = this.getRows();
         let visibleCount = 0;
         const activeCols = Object.keys(this.columnFilters).map(Number);

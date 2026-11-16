@@ -13,6 +13,7 @@ Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitor
 Route::post('/monitoring', [MonitoringController::class, 'store'])->name('monitoring.store');
 Route::post('/monitoring/import', [MonitoringController::class, 'import'])->name('monitoring.import');
 Route::get('/monitoring/export.csv', [MonitoringController::class, 'export'])->name('monitoring.export');
+Route::post('/monitoring/export.csv', [MonitoringController::class, 'export']);
 Route::put('/monitoring/{id}', [MonitoringController::class, 'update'])->name('monitoring.update');
 Route::delete('/monitoring/{id}', [MonitoringController::class, 'destroy'])->name('monitoring.destroy');
 Route::delete('/monitoring', [MonitoringController::class, 'clear'])->name('monitoring.clear');

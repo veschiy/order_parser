@@ -217,4 +217,69 @@ CSV;
         $this->assertStringContainsString('Аркуш', $content);
         $this->assertStringContainsString('Бал', $content);
     }
+
+    public function test_export_uses_excel_friendly_csv_format(): void
+    {
+        MonitoringRecord::query()->create([
+            'sheet' => 'Аркуш; 1',
+            'full_name' => 'Шевченко Тарас',
+            'award' => 'Нагорода "За відвагу", I ступеня',
+        ]);
+
+        $content = $this->get(route('monitoring.export'))->streamedContent();
+
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, substr($content, 3));
+        rewind($stream);
+
+        $this->assertSame(['Аркуш', 'ПІБ', 'Дата подання', 'Нагорода', 'Бал', 'Знайдено в указах'], fgetcsv($stream, 0, ';', '"', ''));
+        $this->assertSame(['Аркуш; 1', 'Шевченко Тарас', '', 'Нагорода "За відвагу", I ступеня', '0', ''], fgetcsv($stream, 0, ';', '"', ''));
+        fclose($stream);
+    }
+
+    public function test_export_respects_visible_record_selection(): void
+    {
+        $visible = MonitoringRecord::query()->create(['full_name' => 'Visible Person']);
+        MonitoringRecord::query()->create(['full_name' => 'Hidden Person']);
+
+        $response = $this->post(route('monitoring.export'), ['record_ids' => json_encode([$visible->id])]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('Visible Person', $response->streamedContent());
+        $this->assertStringNotContainsString('Hidden Person', $response->streamedContent());
+    }
+
+    public function test_export_with_empty_selection_contains_no_records(): void
+    {
+        MonitoringRecord::query()->create(['full_name' => 'Hidden Person']);
+
+        $response = $this->post(route('monitoring.export'), ['record_ids' => '[]']);
+
+        $response->assertOk();
+        $this->assertStringContainsString('Аркуш', $response->streamedContent());
+        $this->assertStringNotContainsString('Hidden Person', $response->streamedContent());
+    }
+
+    public function test_export_rejects_invalid_record_selection(): void
+    {
+        $this->postJson(route('monitoring.export'), ['record_ids' => '[1, "invalid"]'])
+            ->assertUnprocessable();
+    }
+
+    public function test_export_respects_search_and_links_preserve_it(): void
+    {
+        MonitoringRecord::query()->create(['full_name' => 'Visible Person']);
+        MonitoringRecord::query()->create(['full_name' => 'Hidden Person']);
+
+        $this->get(route('monitoring.index', ['q' => 'visible']))
+            ->assertOk()
+            ->assertSee(route('monitoring.export', ['q' => 'visible']));
+
+        $response = $this->get(route('monitoring.export', ['q' => 'visible']));
+
+        $response->assertOk();
+        $this->assertStringContainsString('Visible Person', $response->streamedContent());
+        $this->assertStringNotContainsString('Hidden Person', $response->streamedContent());
+    }
 }

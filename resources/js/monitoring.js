@@ -2,6 +2,27 @@
  * Monitoring page interaction logic
  */
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-monitoring-export]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const ids = Array.from(document.querySelectorAll('#monitoringTable tbody tr[data-row]'))
+                .filter(row => row.style.display !== 'none')
+                .map(row => Number(row.dataset.row));
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = link.href;
+            for (const [name, value] of [['_token', link.dataset.token], ['record_ids', JSON.stringify(ids)]]) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            }
+            document.body.appendChild(form);
+            form.submit();
+            form.remove();
+        });
+    });
     const editModal = document.getElementById('editModal');
     const editForm = document.getElementById('editForm');
     if (!editModal || !editForm) return;
