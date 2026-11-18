@@ -6,6 +6,8 @@ const appId = process.env.NATIVEPHP_APP_ID;
 const appName = process.env.NATIVEPHP_APP_NAME;
 const isBuilding = process.env.NATIVEPHP_BUILDING;
 const appAuthor = process.env.NATIVEPHP_APP_AUTHOR;
+const repositoryType = process.env.NATIVEPHP_REPOSITORY_TYPE || 'git';
+const repositoryUrl = process.env.NATIVEPHP_REPOSITORY_URL;
 const fileName = process.env.NATIVEPHP_APP_FILENAME;
 const appVersion = process.env.NATIVEPHP_APP_VERSION;
 const appCopyright = process.env.NATIVEPHP_APP_COPYRIGHT;
@@ -112,7 +114,6 @@ export default {
     afterSign: 'build/notarize.js',
     win: {
         executableName: fileName,
-        signAndEditExecutable: false,
         ...(azureEndpoint && azureCertificateProfileName && azureCodeSigningAccountName
             ? {
                   azureSignOptions: {
@@ -125,7 +126,7 @@ export default {
             : {}),
     },
     nsis: {
-        artifactName: 'OrderParser-' + appVersion + '-setup.${ext}',
+        artifactName: appName + '-${version}-setup.${ext}',
         shortcutName: '${productName}',
         uninstallDisplayName: '${productName}',
         createDesktopShortcut: 'always',
@@ -163,6 +164,7 @@ export default {
         homepage: appUrl,
         version: appVersion,
         author: appAuthor,
+        ...(repositoryUrl ? { repository: { type: repositoryType, url: repositoryUrl } } : {}),
     },
     extraResources: [
         {
