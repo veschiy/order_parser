@@ -17,7 +17,7 @@
         @if ($orders->isEmpty())
             <p class="text-sm text-slate-400">Поки що жодного указу не розібрано.</p>
         @else
-            <x-excel-table id="ordersTable" :total="$orders->count()">
+            <x-excel-table id="ordersTable" :total="$orders->total()">
                 <x-slot:header>
                     <x-excel-table.th col="0" type="text">Номер</x-excel-table.th>
                     <x-excel-table.th col="1" type="text">Назва</x-excel-table.th>
@@ -38,6 +38,8 @@
                     </tr>
                 @endforeach
             </x-excel-table>
+
+            <x-pagination :paginator="$orders" />
         @endif
     </section>
 @endsection

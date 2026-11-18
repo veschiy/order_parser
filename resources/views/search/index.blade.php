@@ -36,7 +36,7 @@
         @elseif ($results->isEmpty())
             <p class="text-sm text-rose-300">Нічого не знайдено. Особа може не бути нагородженою, або дані ще не розібрані.</p>
         @else
-            <x-excel-table id="searchResultsTable" :total="$results->count()">
+            <x-excel-table id="searchResultsTable" :total="$results->total()">
                 <x-slot:header>
                     <x-excel-table.th col="0" type="text">ПІБ</x-excel-table.th>
                     <x-excel-table.th col="1" type="text">Звання/ранг</x-excel-table.th>
@@ -53,6 +53,8 @@
                     </tr>
                 @endforeach
             </x-excel-table>
+
+            <x-pagination :paginator="$results" />
         @endif
     </section>
 @endsection

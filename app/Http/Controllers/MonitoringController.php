@@ -20,11 +20,12 @@ final class MonitoringController extends Controller
     {
         $search = trim($request->string('q')->toString());
 
-        $records = $this->filteredRecords($search)->get();
-        $evaluations = $evaluator->evaluateAll($records);
+        $records = $this->filteredRecords($search)->paginate(15);
+        $evaluations = $evaluator->evaluateAll($records->items());
 
         return view('monitoring.index', [
             'evaluations' => $evaluations,
+            'paginator' => $records,
             'search' => $search,
             'totalCount' => MonitoringRecord::query()->count(),
         ]);

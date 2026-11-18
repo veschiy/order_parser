@@ -182,7 +182,7 @@
                     @endif
                 </p>
             @else
-                <x-excel-table id="monitoringTable" :total="$evaluations->count()" :show-toolbar="false">
+                <x-excel-table id="monitoringTable" :total="$paginator->total()" :show-toolbar="false">
                     <x-slot:header>
                         <x-excel-table.th col="0" type="text">Аркуш</x-excel-table.th>
                         <x-excel-table.th col="1" type="text">ПІБ</x-excel-table.th>
@@ -314,6 +314,8 @@
                         </tr>
                     @endforeach
                 </x-excel-table>
+
+                <x-pagination :paginator="$paginator" />
             @endif
         </section>
 

@@ -38,6 +38,31 @@ final class MonitoringTest extends TestCase
         $this->assertLessThan($posOrders, $posMonitoring);
     }
 
+    public function test_monitoring_results_are_paginated_across_pages(): void
+    {
+        for ($i = 1; $i <= 20; $i++) {
+            MonitoringRecord::query()->create(['full_name' => "Особа {$i} Унікальна"]);
+        }
+
+        // Page 1 shows the first record, hides later ones, and offers a next link.
+        $this->get(route('monitoring.index'))
+            ->assertOk()
+            ->assertSee('Особа 1 Унікальна')
+            ->assertDontSee('Особа 20 Унікальна');
+
+        $page1 = $this->get(route('monitoring.index'))->getContent();
+        $this->assertStringContainsString('/monitoring?page=2"', $page1);
+
+        // Page 2 shows the last record and a previous link back to page 1.
+        $this->get(route('monitoring.index', ['page' => 2]))
+            ->assertOk()
+            ->assertSee('Особа 20 Унікальна')
+            ->assertDontSee('Особа 1 Унікальна');
+
+        $page2 = $this->get(route('monitoring.index', ['page' => 2]))->getContent();
+        $this->assertStringContainsString('/monitoring?page=1"', $page2);
+    }
+
     public function test_can_view_monitoring_page_and_empty_state(): void
     {
         $response = $this->get(route('monitoring.index'));

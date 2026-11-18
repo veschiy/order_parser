@@ -30,8 +30,8 @@ final class SearchController extends Controller
                         ->orWhereRaw("mb_lower(coalesce(given_name, '')) like ?", [$pattern]);
                 })
                 ->orderBy('full_name')
-                ->limit(100)
-                ->get();
+                ->paginate(15)
+                ->appends(['q' => $query]);
 
         return view('search.index', [
             'query' => $query,
