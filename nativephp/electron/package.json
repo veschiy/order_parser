@@ -1,5 +1,5 @@
 {
-    "name": "order-parser-100",
+    "name": "order-parser-dev",
     "version": "2.0.0",
     "description": "An awesome app built with NativePHP",
     "main": "./out/main/index.js",
