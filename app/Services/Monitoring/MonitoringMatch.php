@@ -11,6 +11,7 @@ final readonly class MonitoringMatch
     public function __construct(
         public Awardee $awardee,
         public bool $nameMatched,
+        public bool $rankMatched,
         public bool $awardMatched,
         public bool $dateMatched,
         public int $score,

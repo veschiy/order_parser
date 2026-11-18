@@ -103,6 +103,11 @@ final class MonitoringCsvImporter
 
             $submissionDate = $this->parseLatestDate($dateStrings);
 
+            $rank = isset($columnIndices['rank']) && isset($row[$columnIndices['rank']])
+                ? trim((string) $row[$columnIndices['rank']])
+                : null;
+            $rank = $rank !== '' ? $rank : null;
+
             $award = isset($columnIndices['award']) && isset($row[$columnIndices['award']])
                 ? trim((string) $row[$columnIndices['award']])
                 : null;
@@ -113,6 +118,7 @@ final class MonitoringCsvImporter
                 'full_name' => $fullName,
                 'tax_id' => null, // Tax ID skipped per specification
                 'submission_date' => $submissionDate,
+                'rank' => $rank,
                 'award' => $award,
             ]);
 
@@ -210,6 +216,14 @@ final class MonitoringCsvImporter
                 str_contains($normalized, 'дата')
             ) {
                 $map['submission_date'] = $index;
+            } elseif (
+                str_contains($normalized, 'званн') ||
+                str_contains($normalized, 'ранг') ||
+                str_contains($normalized, 'grade') ||
+                str_contains($normalized, 'rank') ||
+                str_contains($normalized, 'должност')
+            ) {
+                $map['rank'] = $index;
             } elseif (
                 str_contains($normalized, 'нагород') ||
                 str_contains($normalized, 'award') ||

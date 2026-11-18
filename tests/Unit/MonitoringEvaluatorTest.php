@@ -168,6 +168,128 @@ final class MonitoringEvaluatorTest extends TestCase
         $this->assertTrue($evaluation->matches[0]->dateMatched);
     }
 
+    public function test_rank_match_adds_one_point_between_name_and_award(): void
+    {
+        $order = Order::query()->create([
+            'document_url' => 'https://example.com/order-1',
+            'published_at' => '2026-10-01', // Before submission date → no date match
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $order->id,
+            'full_name' => 'БАКАЛ Олександр Вікторович',
+            'rank' => 'генерал',
+            'award' => 'медаль «Захиснику Вітчизни»',
+        ]);
+
+        $record = MonitoringRecord::query()->create([
+            'full_name' => 'Бакал Олександр Вікторович',
+            'rank' => 'Генерал', // Different case → still matches (case-insensitive)
+            'award' => 'орден «За мужність» III ступеня',
+            'submission_date' => '2026-10-15',
+        ]);
+
+        $evaluation = $this->evaluator->evaluate($record);
+
+        $this->assertSame(2, $evaluation->score);
+        $this->assertCount(1, $evaluation->matches);
+        $this->assertTrue($evaluation->matches[0]->nameMatched);
+        $this->assertTrue($evaluation->matches[0]->rankMatched);
+        $this->assertFalse($evaluation->matches[0]->awardMatched);
+        $this->assertFalse($evaluation->matches[0]->dateMatched);
+    }
+
+    public function test_rank_mismatch_does_not_add_points(): void
+    {
+        $order = Order::query()->create([
+            'document_url' => 'https://example.com/order-1',
+            'published_at' => '2026-10-01', // Before submission date → no date match
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $order->id,
+            'full_name' => 'БАКАЛ Олександр Вікторович',
+            'rank' => 'генерал',
+            'award' => 'медаль «Захиснику Вітчизни»',
+        ]);
+
+        $record = MonitoringRecord::query()->create([
+            'full_name' => 'Бакал Олександр Вікторович',
+            'rank' => 'полковник', // Different rank → no match
+            'award' => 'орден «За мужність» III ступеня',
+            'submission_date' => '2026-10-15',
+        ]);
+
+        $evaluation = $this->evaluator->evaluate($record);
+
+        $this->assertSame(1, $evaluation->score);
+        $this->assertFalse($evaluation->matches[0]->rankMatched);
+    }
+
+    public function test_score_is_three_when_name_rank_and_award_match_but_date_does_not(): void
+    {
+        $order = Order::query()->create([
+            'document_url' => 'https://example.com/order-1',
+            'published_at' => '2026-10-01', // Before submission date → no date match
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $order->id,
+            'full_name' => 'БАКАЛ Олександр Вікторович',
+            'rank' => 'генерал',
+            'award' => 'орден «За мужність» III ступеня',
+        ]);
+
+        $record = MonitoringRecord::query()->create([
+            'full_name' => 'Бакал Олександр Вікторович',
+            'rank' => 'Генерал',
+            'award' => 'орден «За мужність» III ступеня',
+            'submission_date' => '2026-10-15',
+        ]);
+
+        $evaluation = $this->evaluator->evaluate($record);
+
+        $this->assertSame(3, $evaluation->score);
+        $this->assertTrue($evaluation->matches[0]->nameMatched);
+        $this->assertTrue($evaluation->matches[0]->rankMatched);
+        $this->assertTrue($evaluation->matches[0]->awardMatched);
+        $this->assertFalse($evaluation->matches[0]->dateMatched);
+    }
+
+    public function test_score_is_four_when_name_rank_award_and_date_all_match(): void
+    {
+        $order = Order::query()->create([
+            'document_url' => 'https://example.com/order-1',
+            'published_at' => '2026-11-10', // After submission date → date match
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $order->id,
+            'full_name' => 'БАКАЛ Олександр Вікторович',
+            'rank' => 'генерал',
+            'award' => 'орден «За мужність» III ступеня',
+        ]);
+
+        $record = MonitoringRecord::query()->create([
+            'full_name' => 'Бакал Олександр Вікторович',
+            'rank' => 'Генерал',
+            'award' => 'орден «За мужність» III ступеня',
+            'submission_date' => '2026-11-01',
+        ]);
+
+        $evaluation = $this->evaluator->evaluate($record);
+
+        $this->assertSame(4, $evaluation->score);
+        $this->assertTrue($evaluation->matches[0]->nameMatched);
+        $this->assertTrue($evaluation->matches[0]->rankMatched);
+        $this->assertTrue($evaluation->matches[0]->awardMatched);
+        $this->assertTrue($evaluation->matches[0]->dateMatched);
+    }
+
     public function test_date_score_requires_a_date_within_six_calendar_months(): void
     {
         $record = new MonitoringRecord([

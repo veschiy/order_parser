@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $full_name
  * @property string|null $tax_id
  * @property CarbonInterface|null $submission_date
+ * @property string|null $rank
  * @property string|null $award
  * @property CarbonInterface $created_at
  * @property CarbonInterface $updated_at
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Model;
     'full_name',
     'tax_id',
     'submission_date',
+    'rank',
     'award',
 ])]
 final class MonitoringRecord extends Model

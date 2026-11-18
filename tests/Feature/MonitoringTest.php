@@ -51,6 +51,7 @@ final class MonitoringTest extends TestCase
             ->assertDontSee('Особа 20 Унікальна');
 
         $page1 = $this->get(route('monitoring.index'))->getContent();
+        $this->assertIsString($page1);
         $this->assertStringContainsString('/monitoring?page=2"', $page1);
 
         // Page 2 shows the last record and a previous link back to page 1.
@@ -60,7 +61,66 @@ final class MonitoringTest extends TestCase
             ->assertDontSee('Особа 1 Унікальна');
 
         $page2 = $this->get(route('monitoring.index', ['page' => 2]))->getContent();
+        $this->assertIsString($page2);
         $this->assertStringContainsString('/monitoring?page=1"', $page2);
+    }
+
+    public function test_score_bands_render_distinct_colors_for_scores_3_and_4(): void
+    {
+        // Score 4: name + rank + award + date within six months after submission.
+        $orderFull = Order::query()->create([
+            'number' => '555/2026',
+            'document_url' => 'https://example.com/order-555',
+            'published_at' => '2025-09-01', // Within six months of submission → date match
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $orderFull->id,
+            'full_name' => 'Кравченко Іван Іванович',
+            'rank' => 'генерал',
+            'award' => 'орден «За мужність» III ступеня',
+        ]);
+
+        MonitoringRecord::query()->create([
+            'sheet' => '1',
+            'full_name' => 'Кравченко Іван Іванович',
+            'rank' => 'Генерал', // Case-insensitive match → rank point
+            'submission_date' => '2025-08-31',
+            'award' => 'орден «За мужність» III ступеня',
+        ]);
+
+        // Score 3: name + rank + award, but order published outside the six-month window (no date match).
+        $orderNoDate = Order::query()->create([
+            'number' => '556/2026',
+            'document_url' => 'https://example.com/order-556',
+            'published_at' => '2026-03-01', // Outside six months of submission → no date match
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $orderNoDate->id,
+            'full_name' => 'Довгань Петро Петрович',
+            'rank' => 'генерал',
+            'award' => 'орден «За мужність» III ступеня',
+        ]);
+
+        MonitoringRecord::query()->create([
+            'sheet' => '2',
+            'full_name' => 'Довгань Петро Петрович',
+            'rank' => 'Генерал',
+            'submission_date' => '2025-08-31',
+            'award' => 'орден «За мужність» III ступеня',
+        ]);
+
+        $response = $this->get(route('monitoring.index'));
+
+        $response->assertOk();
+
+        // Score 4 → emerald "максимум" band (reserved for the full match).
+        $response->assertSee('ПІБ + звання + Нагорода + Дата протягом 6 місяців після подання (максимум, +4 бали)');
+        // Score 3 → new intermediate purple band between blue and emerald.
+        $response->assertSee('ПІБ + дві з характеристик: звання, Нагорода, Дата протягом 6 місяців після подання (+3 бали)');
     }
 
     public function test_can_view_monitoring_page_and_empty_state(): void
@@ -156,6 +216,26 @@ CSV;
 
         $response->assertRedirect(route('monitoring.index'));
         $this->assertDatabaseCount('monitoring_records', 2);
+    }
+
+    public function test_csv_import_parses_rank_column(): void
+    {
+        $csvContent = <<<'CSV'
+Аркуш,ПІБ,Звання,Дата подання,Нагорода
+1,Коваленко Іван Васильович,генерал,2026-10-10,орден «За мужність» III ступеня
+CSV;
+
+        $file = UploadedFile::fake()->createWithContent('people.csv', $csvContent);
+
+        $response = $this->post(route('monitoring.import'), [
+            'csv_file' => $file,
+        ]);
+
+        $response->assertRedirect(route('monitoring.index'));
+        $this->assertDatabaseHas('monitoring_records', [
+            'full_name' => 'Коваленко Іван Васильович',
+            'rank' => 'генерал',
+        ]);
     }
 
     public function test_can_update_monitoring_record(): void
@@ -261,8 +341,8 @@ CSV;
         fwrite($stream, substr($content, 3));
         rewind($stream);
 
-        $this->assertSame(['Аркуш', 'ПІБ', 'Дата подання', 'Нагорода', 'Бал', 'Знайдено в указах'], fgetcsv($stream, 0, ';', '"', ''));
-        $this->assertSame(['Аркуш; 1', 'Шевченко Тарас', '', 'Нагорода "За відвагу", I ступеня', '0', ''], fgetcsv($stream, 0, ';', '"', ''));
+        $this->assertSame(['Аркуш', 'ПІБ', 'Звання', 'Дата подання', 'Нагорода', 'Бал', 'Знайдено в указах'], fgetcsv($stream, 0, ';', '"', ''));
+        $this->assertSame(['Аркуш; 1', 'Шевченко Тарас', '', '', 'Нагорода "За відвагу", I ступеня', '0', ''], fgetcsv($stream, 0, ';', '"', ''));
         fclose($stream);
     }
 

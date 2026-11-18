@@ -28,7 +28,7 @@
                         >
                     </div>
 
-                    <div class="grid gap-4 sm:grid-cols-3">
+                    <div class="grid gap-4 sm:grid-cols-4">
                         <div>
                             <label for="sheet" class="mb-1 block text-sm font-medium text-slate-300">Аркуш</label>
                             <input
@@ -48,6 +48,17 @@
                                 name="submission_date"
                                 value="{{ old('submission_date') }}"
                                 class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+                            >
+                        </div>
+                        <div>
+                            <label for="rank" class="mb-1 block text-sm font-medium text-slate-300">Звання</label>
+                            <input
+                                id="rank"
+                                type="text"
+                                name="rank"
+                                value="{{ old('rank') }}"
+                                placeholder="генерал, полковник..."
+                                class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
                             >
                         </div>
                         <div>
@@ -235,11 +246,15 @@
                                         1
                                     </span>
                                 @elseif ($score === 2)
-                                    <span class="inline-flex items-center rounded-full bg-blue-950/80 border border-blue-700/60 px-2.5 py-1 text-xs font-semibold text-blue-300" title="Збіг за ПІБ + Нагорода або Дата (+2 бали)">
+                                    <span class="inline-flex items-center rounded-full bg-blue-950/80 border border-blue-700/60 px-2.5 py-1 text-xs font-semibold text-blue-300" title="Збіг за ПІБ + одна з характеристик: звання, Нагорода або Дата протягом 6 місяців після подання (+2 бали)">
                                         2
                                     </span>
+                                @elseif ($score === 3)
+                                    <span class="inline-flex items-center rounded-full bg-purple-950/80 border border-purple-700/60 px-2.5 py-1 text-xs font-semibold text-purple-300" title="ПІБ + дві з характеристик: звання, Нагорода, Дата протягом 6 місяців після подання (+3 бали)">
+                                        3
+                                    </span>
                                 @else
-                                    <span class="inline-flex items-center rounded-full bg-emerald-950/80 border border-emerald-600/60 px-2.5 py-1 text-xs font-bold text-emerald-300" title="ПІБ + Нагорода + Дата протягом 6 місяців після подання (+3 бали)">
+                                    <span class="inline-flex items-center rounded-full bg-emerald-950/80 border border-emerald-600/60 px-2.5 py-1 text-xs font-bold text-emerald-300" title="ПІБ + звання + Нагорода + Дата протягом 6 місяців після подання (максимум, +4 бали)">
                                         {{ $score }}
                                     </span>
                                 @endif
@@ -273,6 +288,9 @@
                                                 </div>
                                                 <div class="mt-1 flex flex-wrap gap-1 text-[10px]">
                                                     <span class="rounded px-1.5 py-0.5 bg-indigo-900/40 text-indigo-300">ПІБ ✓</span>
+                                                    @if ($match->rankMatched)
+                                                        <span class="rounded px-1.5 py-0.5 bg-purple-900/40 text-purple-300">Звання ✓</span>
+                                                    @endif
                                                     @if ($match->awardMatched)
                                                         <span class="rounded px-1.5 py-0.5 bg-emerald-900/40 text-emerald-300">Нагорода ✓</span>
                                                     @endif
@@ -296,6 +314,7 @@
                                         data-sheet="{{ $rec->sheet ?? '' }}"
                                         data-full-name="{{ $rec->full_name }}"
                                         data-submission-date="{{ $rec->submission_date ? $rec->submission_date->format('Y-m-d') : '' }}"
+                                        data-rank="{{ $rec->rank ?? '' }}"
                                         data-award="{{ $rec->award ?? '' }}"
                                         class="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300 transition"
                                     >
@@ -322,7 +341,7 @@
         <!-- Scoring Rules Section -->
         <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
             <h3 class="text-lg font-semibold text-white">Правила розрахунку колонки «Бал»</h3>
-            <div class="mt-3 grid gap-3 sm:grid-cols-3 text-sm text-slate-300">
+            <div class="mt-3 grid gap-3 sm:grid-cols-2 text-sm text-slate-300">
                 <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
                     <div class="flex items-center gap-2 font-semibold text-amber-300">
                         <span class="rounded-full bg-amber-950 px-2 py-0.5 text-xs border border-amber-700/60">+1 бал</span>
@@ -333,12 +352,21 @@
                     </p>
                 </div>
                 <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                    <div class="flex items-center gap-2 font-semibold text-blue-300">
-                        <span class="rounded-full bg-blue-950 px-2 py-0.5 text-xs border border-blue-700/60">2 бали</span>
-                        <span>Збіг ПІБ + Нагорода</span>
+                    <div class="flex items-center gap-2 font-semibold text-purple-300">
+                        <span class="rounded-full bg-purple-950 px-2 py-0.5 text-xs border border-purple-700/60">+1 бал</span>
+                        <span>Збіг за Званням</span>
                     </div>
                     <p class="mt-2 text-xs text-slate-400">
-                        Якщо окрім збігу імені також збігається назва нагороди, загальний бал стає рівним 2.
+                        Якщо введено «Звання» і він збігається з званням нагородженої особи в указі. Додає +1 бал (до 2).
+                    </p>
+                </div>
+                <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                    <div class="flex items-center gap-2 font-semibold text-blue-300">
+                        <span class="rounded-full bg-blue-950 px-2 py-0.5 text-xs border border-blue-700/60">+1 бал</span>
+                        <span>Збіг за Нагородою</span>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-400">
+                        Якщо окрім збігу імені (та звання) також збігається назва нагороди, додається ще +1 бал.
                     </p>
                 </div>
                 <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
@@ -347,7 +375,7 @@
                         <span>Дата указу після подання, не пізніше 6 місяців</span>
                     </div>
                     <p class="mt-2 text-xs text-slate-400">
-                        Якщо дата публікації знайденого указу є пізнішою за вказану «Дату подання» та не перевищує 6 місяців після неї, до оцінки додається ще +1 бал (досягаючи 3 балів).
+                        Якщо дата публікації знайденого указу є пізнішою за вказану «Дату подання» та не перевищує 6 місяців після неї, додається ще +1 бал (максимум — 4 бали).
                     </p>
                 </div>
             </div>
@@ -386,13 +414,22 @@
                     >
                 </div>
 
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div class="grid gap-4 sm:grid-cols-3">
                     <div>
                         <label for="edit_submission_date" class="mb-1 block text-sm font-medium text-slate-300">Дата подання</label>
                         <input
                             id="edit_submission_date"
                             type="date"
                             name="submission_date"
+                            class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        >
+                    </div>
+                    <div>
+                        <label for="edit_rank" class="mb-1 block text-sm font-medium text-slate-300">Звання</label>
+                        <input
+                            id="edit_rank"
+                            type="text"
+                            name="rank"
                             class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         >
                     </div>

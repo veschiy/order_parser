@@ -39,7 +39,7 @@
             <x-excel-table id="searchResultsTable" :total="$results->total()">
                 <x-slot:header>
                     <x-excel-table.th col="0" type="text">ПІБ</x-excel-table.th>
-                    <x-excel-table.th col="1" type="text">Звання/ранг</x-excel-table.th>
+                    <x-excel-table.th col="1" type="text">Звання</x-excel-table.th>
                     <x-excel-table.th col="2" type="text">Нагорода</x-excel-table.th>
                     <x-excel-table.th col="3" type="text">Номер указу</x-excel-table.th>
                 </x-slot:header>

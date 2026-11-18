@@ -61,6 +61,7 @@ final class MonitoringController extends Controller
             'full_name' => ['required', 'string', 'max:255'],
             'tax_id' => ['nullable', 'string', 'max:255'],
             'submission_date' => ['nullable', 'date'],
+            'rank' => ['nullable', 'string', 'max:255'],
             'award' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -71,6 +72,7 @@ final class MonitoringController extends Controller
             'full_name' => $fullName,
             'tax_id' => $validated['tax_id'] ?? null,
             'submission_date' => $validated['submission_date'] ?? null,
+            'rank' => is_string($validated['rank'] ?? null) ? trim($validated['rank']) : null,
             'award' => $validated['award'] ?? null,
         ]);
 
@@ -86,6 +88,7 @@ final class MonitoringController extends Controller
             'full_name' => ['required', 'string', 'max:255'],
             'tax_id' => ['nullable', 'string', 'max:255'],
             'submission_date' => ['nullable', 'date'],
+            'rank' => ['nullable', 'string', 'max:255'],
             'award' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -96,6 +99,7 @@ final class MonitoringController extends Controller
             'full_name' => $fullName,
             'tax_id' => $validated['tax_id'] ?? null,
             'submission_date' => $validated['submission_date'] ?? null,
+            'rank' => is_string($validated['rank'] ?? null) ? trim($validated['rank']) : null,
             'award' => $validated['award'] ?? null,
         ]);
 
@@ -167,6 +171,7 @@ final class MonitoringController extends Controller
             fputcsv($handle, [
                 'Аркуш',
                 'ПІБ',
+                'Звання',
                 'Дата подання',
                 'Нагорода',
                 'Бал',
@@ -183,6 +188,7 @@ final class MonitoringController extends Controller
                 fputcsv($handle, [
                     $evaluation->record->sheet ?? '',
                     $evaluation->record->full_name,
+                    $evaluation->record->rank ?? '',
                     $evaluation->record->submission_date?->format('d.m.Y') ?? '',
                     $evaluation->record->award ?? '',
                     $evaluation->score,

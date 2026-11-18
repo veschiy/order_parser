@@ -104,10 +104,15 @@ final readonly class MonitoringEvaluator
                 continue;
             }
 
+            $rankMatched = $this->ranksMatch($record->rank, $awardee->rank);
             $awardMatched = $this->awardsMatch($record->award, $awardee->award);
             $dateMatched = $this->dateIsWithinSixMonths($awardee->order->published_at, $record->submission_date);
 
-            $matchScore = 1;
+            $matchScore = 1; // Name match (base)
+
+            if ($rankMatched) {
+                $matchScore++;
+            }
 
             if ($awardMatched) {
                 $matchScore++;
@@ -120,6 +125,7 @@ final readonly class MonitoringEvaluator
             $match = new MonitoringMatch(
                 awardee: $awardee,
                 nameMatched: true,
+                rankMatched: $rankMatched,
                 awardMatched: $awardMatched,
                 dateMatched: $dateMatched,
                 score: $matchScore,
@@ -178,6 +184,15 @@ final readonly class MonitoringEvaluator
         sort($awardeeTokens);
 
         return $monitoredTokens !== [] && $monitoredTokens === $awardeeTokens;
+    }
+
+    public function ranksMatch(?string $monitoredRank, ?string $awardeeRank): bool
+    {
+        if ($monitoredRank === null || $awardeeRank === null) {
+            return false;
+        }
+
+        return trim(mb_strtolower($monitoredRank, 'UTF-8')) === trim(mb_strtolower($awardeeRank, 'UTF-8'));
     }
 
     public function awardsMatch(?string $monitoredAward, ?string $awardeeAward): bool

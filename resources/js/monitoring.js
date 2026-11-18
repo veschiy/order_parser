@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const editSheet = document.getElementById('edit_sheet');
     const editFullName = document.getElementById('edit_full_name');
     const editSubmissionDate = document.getElementById('edit_submission_date');
+    const editRank = document.getElementById('edit_rank');
     const editAward = document.getElementById('edit_award');
 
     // Handle open edit modal via data attributes
@@ -42,12 +43,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const sheet = btn.dataset.sheet || '';
         const fullName = btn.dataset.fullName || '';
         const submissionDate = btn.dataset.submissionDate || '';
+        const rank = btn.dataset.rank || '';
         const award = btn.dataset.award || '';
 
         editForm.action = '/monitoring/' + id;
         if (editSheet) editSheet.value = sheet;
         if (editFullName) editFullName.value = fullName;
         if (editSubmissionDate) editSubmissionDate.value = submissionDate;
+        if (editRank) editRank.value = rank;
         if (editAward) editAward.value = award;
 
         editModal.classList.remove('hidden');
