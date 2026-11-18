@@ -170,7 +170,6 @@ return [
     ],
 
     'postbuild' => [
-        'rm -rf public/build',
         'composer install',
     ],
 
