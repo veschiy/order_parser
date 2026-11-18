@@ -36,5 +36,6 @@ Thumbs.db
 
 # NativePHP/Electron build artifacts
 /nativephp/electron/dist/
+/nativephp/electron/build/
 *.exe
 *.asar
