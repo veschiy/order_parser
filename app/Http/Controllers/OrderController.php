@@ -33,7 +33,10 @@ final class OrderController extends Controller
 
         return view('orders.show', [
             'order' => $order,
-            'paginator' => $this->paginateAwardees($order, (int) request('page', 1)),
+            'paginator' => $this->paginateAwardees(
+                $order,
+                is_string(request('page')) ? (int) request('page') : 1,
+            ),
         ]);
     }
 
@@ -42,6 +45,7 @@ final class OrderController extends Controller
      * The full collection on $order->awardees is left untouched so the total
      * count badge still reflects every awardee, not just the current page.
      */
+    /** @return LengthAwarePaginator<int, mixed> */
     protected function paginateAwardees(Order $order, int $page): LengthAwarePaginator
     {
         $perPage = 25;
