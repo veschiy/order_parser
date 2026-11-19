@@ -348,8 +348,8 @@
             <h3 class="text-lg font-semibold text-white">Правила розрахунку колонки «Бал»</h3>
             <div class="mt-3 grid gap-3 sm:grid-cols-2 text-sm text-slate-300">
                 <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                    <div class="flex items-center gap-2 font-semibold text-amber-300">
-                        <span class="rounded-full bg-amber-950 px-2 py-0.5 text-xs border border-amber-700/60">+1 бал</span>
+                    <div class="flex items-center gap-2 font-semibold text-indigo-300">
+                        <span class="rounded-full bg-indigo-950 px-2 py-0.5 text-xs border border-indigo-700/60">+1 бал</span>
                         <span>Збіг за ПІБ</span>
                     </div>
                     <p class="mt-2 text-xs text-slate-400">
@@ -366,8 +366,8 @@
                     </p>
                 </div>
                 <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                    <div class="flex items-center gap-2 font-semibold text-blue-300">
-                        <span class="rounded-full bg-blue-950 px-2 py-0.5 text-xs border border-blue-700/60">+1 бал</span>
+                    <div class="flex items-center gap-2 font-semibold text-emerald-300">
+                        <span class="rounded-full bg-emerald-950 px-2 py-0.5 text-xs border border-emerald-700/60">+1 бал</span>
                         <span>Збіг за Нагородою</span>
                     </div>
                     <p class="mt-2 text-xs text-slate-400">
@@ -375,8 +375,8 @@
                     </p>
                 </div>
                 <div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                    <div class="flex items-center gap-2 font-semibold text-emerald-300">
-                        <span class="rounded-full bg-emerald-950 px-2 py-0.5 text-xs border border-emerald-700/60">+1 бал</span>
+                    <div class="flex items-center gap-2 font-semibold text-blue-300">
+                        <span class="rounded-full bg-blue-950 px-2 py-0.5 text-xs border border-blue-700/60">+1 бал</span>
                         <span>Дата указу після подання, не пізніше 6 місяців</span>
                     </div>
                     <p class="mt-2 text-xs text-slate-400">
