@@ -187,5 +187,5 @@ return [
      */
     'binary_path' => env('NATIVEPHP_PHP_BINARY_PATH', null),
 
-    'icon' => public_path('icon.ico')
+    'icon' => public_path('icon.ico'),
 ];
