@@ -101,9 +101,14 @@
                         >
                     </div>
 
-                    <p class="text-xs text-slate-400">
-                        Підтримуються колонки: <span class="text-slate-300">Аркуш</span>, <span class="text-slate-300">ПІБ</span>, <span class="text-slate-300">Дата подання</span>, <span class="text-slate-300">Нагорода</span>. Роздільники: кома, крапка з комою або таб.
-                    </p>
+                    <div class="flex items-start gap-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm text-slate-300">
+                        <svg class="mt-0.5 h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <div class="leading-relaxed">
+                            Підтримуються колонки: <span class="font-medium text-slate-200">Аркуш</span>, <span class="font-medium text-slate-200">ПІБ</span>, <span class="font-medium text-slate-200">Дата подання</span>, <span class="font-medium text-slate-200">Нагорода</span>. Роздільники: кома, крапка з комою або таб.
+                        </div>
+                    </div>
 
                     <div class="flex flex-wrap gap-2 pt-2">
                         <button type="submit" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500">
