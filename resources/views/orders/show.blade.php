@@ -58,7 +58,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">
-                        @foreach ($order->awardees as $awardee)
+                        @foreach ($paginator->items() as $awardee)
                             <tr class="hover:bg-slate-800/50">
                                 <td class="px-4 py-3 text-slate-100">
                                     <span class="awardee-name" data-id="{{ $awardee->id }}">{{ $awardee->full_name }}</span>
@@ -77,5 +77,7 @@
                 </table>
             </div>
         @endif
+
+        <x-pagination :paginator="$paginator" />
     </section>
 @endsection

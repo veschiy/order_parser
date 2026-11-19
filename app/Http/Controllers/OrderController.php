@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -32,7 +33,23 @@ final class OrderController extends Controller
 
         return view('orders.show', [
             'order' => $order,
+            'paginator' => $this->paginateAwardees($order, (int) request('page', 1)),
         ]);
+    }
+
+    /**
+     * Slice an order's awardees into a paginated view for the detail page.
+     * The full collection on $order->awardees is left untouched so the total
+     * count badge still reflects every awardee, not just the current page.
+     */
+    protected function paginateAwardees(Order $order, int $page): LengthAwarePaginator
+    {
+        $perPage = 25;
+        $page = max(1, $page);
+        $items = collect($order->awardees)->sortBy('id')->forPage($page, $perPage)->values();
+
+        return (new LengthAwarePaginator($items, $order->awardees->count(), $perPage, $page))
+            ->withPath(route('orders.show', $order->id));
     }
 
     public function export(int $id): StreamedResponse
