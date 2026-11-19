@@ -28,48 +28,48 @@
                         >
                     </div>
 
-                    <div class="grid gap-4 sm:grid-cols-4">
+                    <div class="grid gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-2">
                         <div>
-                            <label for="sheet" class="mb-1 block text-sm font-medium text-slate-300">Аркуш</label>
+                            <label for="sheet" class="mb-1.5 block text-sm font-medium text-slate-300">Аркуш</label>
                             <input
                                 id="sheet"
                                 type="text"
                                 name="sheet"
                                 value="{{ old('sheet') }}"
                                 placeholder="1, Арк. 2 або 12/3"
-                                class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+                                class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
                             >
                         </div>
                         <div>
-                            <label for="submission_date" class="mb-1 block text-sm font-medium text-slate-300">Дата подання</label>
+                            <label for="submission_date" class="mb-1.5 block text-sm font-medium text-slate-300">Дата подання</label>
                             <input
                                 id="submission_date"
                                 type="date"
                                 name="submission_date"
                                 value="{{ old('submission_date') }}"
-                                class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+                                class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
                             >
                         </div>
                         <div>
-                            <label for="rank" class="mb-1 block text-sm font-medium text-slate-300">Звання</label>
+                            <label for="rank" class="mb-1.5 block text-sm font-medium text-slate-300">Звання</label>
                             <input
                                 id="rank"
                                 type="text"
                                 name="rank"
                                 value="{{ old('rank') }}"
                                 placeholder="генерал, полковник..."
-                                class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+                                class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
                             >
                         </div>
                         <div>
-                            <label for="award" class="mb-1 block text-sm font-medium text-slate-300">Нагорода</label>
+                            <label for="award" class="mb-1.5 block text-sm font-medium text-slate-300">Нагорода</label>
                             <input
                                 id="award"
                                 type="text"
                                 name="award"
                                 value="{{ old('award') }}"
                                 placeholder="орден «За мужність» III ступеня"
-                                class="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+                                class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
                             >
                         </div>
                     </div>
