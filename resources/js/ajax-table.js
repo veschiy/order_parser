@@ -28,6 +28,9 @@ export class AjaxTable {
         this.filterColumnMap = config.filterColumnMap || {};
         this.activeFilterColIndex = null;
 
+        // Track all distinct values per column (for "all checked by default" logic)
+        this.columnFilterAllValues = {};
+
         // Merge config methods onto the instance so subclasses can override them via config.
         if (typeof config.getSortColumnMap === 'function') {
             this.getSortColumnMap = config.getSortColumnMap.bind(this);
@@ -64,11 +67,10 @@ export class AjaxTable {
     getActiveFilters() {
         const filters = [];
         for (const [colIndex, selectedValues] of Object.entries(this.columnFilters)) {
-            if (selectedValues && selectedValues.size > 0) {
-                const columnName = this.filterColumnMap[colIndex];
-                if (columnName) {
-                    filters.push(columnName + ':' + Array.from(selectedValues).join(','));
-                }
+            const columnName = this.filterColumnMap[colIndex];
+            if (columnName) {
+                // Send filter even when empty (all unchecked) — server will return no results
+                filters.push(columnName + ':' + Array.from(selectedValues).join(','));
             }
         }
         return filters;
@@ -483,12 +485,17 @@ export class AjaxTable {
 
     renderDistinctCheckboxes(values, listEl) {
         const colIndex = this.activeFilterColIndex;
-        const selected = this.columnFilters[colIndex] || new Set();
-        const totalValues = values.length;
+        const allValues = new Set(values);
 
-        // Initialize empty filter set if not exists
-        if (!this.columnFilters[colIndex]) {
-            this.columnFilters[colIndex] = new Set();
+        // Store all distinct values for this column
+        this.columnFilterAllValues[colIndex] = allValues;
+
+        // Get currently selected values, or default to all values (all checked by default)
+        let selected;
+        if (this.columnFilters[colIndex] !== undefined) {
+            selected = this.columnFilters[colIndex];
+        } else {
+            selected = new Set(values);
         }
 
         if (values.length === 0) {
@@ -542,11 +549,19 @@ export class AjaxTable {
         const selectedValues = new Set();
         checkboxes.forEach(cb => selectedValues.add(cb.value));
 
-        // Only store if there are selections (empty means no filter)
-        if (selectedValues.size > 0) {
-            this.columnFilters[colIndex] = selectedValues;
-        } else {
+        const allValues = this.columnFilterAllValues[colIndex];
+
+        // If all values selected (same as all available) — no filter, show everything
+        if (allValues && selectedValues.size === allValues.size && this.isSubsetOf(selectedValues, allValues)) {
             delete this.columnFilters[colIndex];
+        }
+        // If nothing selected — store empty set (will produce empty table)
+        else if (selectedValues.size === 0) {
+            this.columnFilters[colIndex] = new Set();
+        }
+        // Some values selected — store as filter
+        else {
+            this.columnFilters[colIndex] = selectedValues;
         }
 
         // Update filter button icon to show active filter
@@ -557,9 +572,17 @@ export class AjaxTable {
         this.load();
     }
 
+    isSubsetOf(subset, superset) {
+        for (const item of subset) {
+            if (!superset.has(item)) return false;
+        }
+        return true;
+    }
+
     clearFilterDropdown() {
         const colIndex = this.activeFilterColIndex;
         if (colIndex !== null) {
+            // Clearing a filter means going back to "all checked" (show everything)
             delete this.columnFilters[colIndex];
             this.updateFilterButtons();
         }
@@ -583,10 +606,26 @@ export class AjaxTable {
             const filterBtn = th.querySelector('[data-action="filter"]');
             if (!filterBtn) return;
 
-            const hasFilter = this.columnFilters[colIndex] && this.columnFilters[colIndex].size > 0;
+            const filterSet = this.columnFilters[colIndex];
+            const allValues = this.columnFilterAllValues[colIndex];
 
-            // Toggle an active indicator on the filter button
-            if (hasFilter) {
+            // A filter is "active" (icon colored) when some values are excluded
+            // (i.e., not all values are selected). If no filter entry exists or
+            // all values are selected, the icon should be dull (no filtering).
+            let isActive = false;
+            if (filterSet !== undefined) {
+                if (filterSet.size === 0) {
+                    // All unchecked — active filter (empty result)
+                    isActive = true;
+                } else if (allValues && filterSet.size < allValues.size) {
+                    // Some unchecked — active filter
+                    isActive = true;
+                }
+                // else: all checked — not active (dull icon)
+            }
+            // else: no filter entry — not active (dull icon, all shown)
+
+            if (isActive) {
                 filterBtn.classList.add('text-indigo-400');
                 filterBtn.classList.remove('text-slate-400');
             } else {

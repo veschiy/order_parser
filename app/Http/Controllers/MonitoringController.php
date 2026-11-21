@@ -63,10 +63,24 @@ final class MonitoringController extends Controller
             }
 
             $column = $parts[0];
-            $values = explode(',', $parts[1]);
+            $rawValues = $parts[1];
+
+            // Empty values means all checkboxes unchecked — return no results
+            if ($rawValues === '') {
+                $query->whereRaw('1 = 0');
+
+                continue;
+            }
+
+            $values = explode(',', $rawValues);
 
             if ($column === 'score') {
-                $scoreFilter = array_map('intval', $values);
+                // Empty score filter means all unchecked — return no results
+                if (empty($values) || ($values === [''])) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $scoreFilter = array_map('intval', $values);
+                }
 
                 continue;
             }
