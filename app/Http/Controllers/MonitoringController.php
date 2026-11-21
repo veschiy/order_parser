@@ -72,7 +72,7 @@ final class MonitoringController extends Controller
             }
 
             if (in_array($column, $allowedColumns, true)) {
-                $query->whereIn($column, $values);
+                $this->applyColumnFilter($query, $column, $values);
             }
         }
 
@@ -310,6 +310,38 @@ final class MonitoringController extends Controller
     }
 
     /**
+     * Apply a column filter, handling the '__empty__' sentinel for null/empty values.
+     */
+    private function applyColumnFilter(Builder $query, string $column, array $values): void
+    {
+        $hasEmpty = in_array('__empty__', $values, true);
+        $nonEmptyValues = array_values(array_filter($values, fn ($v) => $v !== '__empty__'));
+
+        if ($hasEmpty && empty($nonEmptyValues)) {
+            // Only empty filter — match null or empty string
+            $query->where(function ($builder) use ($column): void {
+                $builder->whereNull($column)->orWhere($column, '');
+            });
+
+            return;
+        }
+
+        if ($hasEmpty) {
+            // Both empty and non-empty values
+            $query->where(function ($builder) use ($column, $nonEmptyValues): void {
+                $builder->whereIn($column, $nonEmptyValues)->orWhere(function ($inner) use ($column): void {
+                    $inner->whereNull($column)->orWhere($column, '');
+                });
+            });
+
+            return;
+        }
+
+        // Only non-empty values
+        $query->whereIn($column, $nonEmptyValues);
+    }
+
+    /**
      * Return distinct values for a given column, used by the filter dropdown UI.
      */
     public function distinctJson(Request $request): JsonResponse
@@ -319,7 +351,7 @@ final class MonitoringController extends Controller
 
         // Score is computed, not stored — return fixed possible values
         if ($column === 'score') {
-            return response()->json(['values' => ['0', '1', '2', '3', '4']]);
+            return response()->json(['values' => ['0', '1', '2', '3', '4', '__empty__']]);
         }
 
         $allowedColumns = ['sheet', 'full_name', 'submission_date', 'award'];
@@ -330,6 +362,7 @@ final class MonitoringController extends Controller
 
         ['query' => $query] = $this->buildFilteredQuery($search);
         $values = $query->distinct()->pluck($column)->filter()->map(fn ($v) => (string) $v)->sort()->values();
+        $values[] = '__empty__';
 
         return response()->json(['values' => $values]);
     }

@@ -500,10 +500,11 @@ export class AjaxTable {
         for (const value of values) {
             const isChecked = selected.has(value) ? 'checked' : '';
             const escapedValue = value.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const displayLabel = value === '__empty__' ? 'Пусто' : value;
             html += `
                 <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-800/50 cursor-pointer filter-checkbox-item">
                     <input type="checkbox" value="${escapedValue}" ${isChecked} class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 filter-checkbox">
-                    <span class="text-xs text-slate-300 truncate max-w-full">${value}</span>
+                    <span class="text-xs text-slate-300 truncate max-w-full">${displayLabel}</span>
                 </label>`;
         }
 
