@@ -8,8 +8,11 @@ use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [SearchController::class, 'index'])->name('search.index');
+Route::get('/search/json', [SearchController::class, 'indexJson'])->name('search.indexJson');
 
 Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
+Route::get('/monitoring/json', [MonitoringController::class, 'indexJson'])->name('monitoring.indexJson');
+Route::get('/monitoring/json/distinct', [MonitoringController::class, 'distinctJson'])->name('monitoring.distinctJson');
 Route::post('/monitoring', [MonitoringController::class, 'store'])->name('monitoring.store');
 Route::post('/monitoring/import', [MonitoringController::class, 'import'])->name('monitoring.import');
 Route::get('/monitoring/export.csv', [MonitoringController::class, 'export'])->name('monitoring.export');
@@ -19,7 +22,9 @@ Route::delete('/monitoring/{id}', [MonitoringController::class, 'destroy'])->nam
 Route::delete('/monitoring', [MonitoringController::class, 'clear'])->name('monitoring.clear');
 
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+Route::get('/orders/json', [OrderController::class, 'indexJson'])->name('orders.indexJson');
 Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
+Route::get('/orders/{id}/awardees/json', [OrderController::class, 'showAwardeesJson'])->name('orders.awardeesJson');
 Route::get('/orders/{id}/export.csv', [OrderController::class, 'export'])->name('orders.export');
 Route::delete('/orders/{id}', [OrderController::class, 'destroy'])->name('orders.destroy');
 Route::patch('/orders/{id}/restore', [OrderController::class, 'restore'])->name('orders.restore');

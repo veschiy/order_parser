@@ -158,22 +158,15 @@
             <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-2.5">
                 <div class="flex flex-wrap items-center gap-3">
                     <div class="text-xs text-slate-400">
-                        Відображається: <span id="filteredRowCount" data-excel-count="monitoringTable" class="font-semibold text-slate-200">{{ $evaluations->count() }}</span> із {{ $totalCount }}
+                        Відображається: <span id="monitoringTable-count" class="font-semibold text-slate-200">0</span> із {{ $totalCount }}
                     </div>
-                    <button
-                        type="button"
-                        id="resetAllFiltersBtn"
-                        data-excel-reset="monitoringTable"
-                        class="hidden rounded-lg border border-indigo-700/60 bg-indigo-950/60 px-2.5 py-1 text-xs font-medium text-indigo-300 transition hover:bg-indigo-900/80 hover:text-indigo-200"
-                    >
-                        ✕ Скинути фільтри
-                    </button>
                 </div>
 
-                <form method="GET" action="{{ route('monitoring.index') }}" class="flex items-center gap-2">
+                <form id="monitoringSearchForm" class="flex items-center gap-2">
                     <input
                         type="search"
                         name="q"
+                        id="monitoringSearchInput"
                         value="{{ $search }}"
                         placeholder="Швидкий пошук..."
                         class="w-48 sm:w-64 rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
@@ -181,15 +174,13 @@
                     <button type="submit" class="rounded-xl bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700 transition">
                         Пошук
                     </button>
-                    @if ($search !== '')
-                        <a href="{{ route('monitoring.index') }}" class="rounded-xl border border-slate-700 px-3 py-1.5 text-sm text-slate-400 hover:text-white transition">
-                            Скинути
-                        </a>
-                    @endif
+                    <a href="#" id="monitoringSearchReset" class="rounded-xl border border-slate-700 px-3 py-1.5 text-sm text-slate-400 hover:text-white transition {{ $search !== '' ? '' : 'hidden' }}">
+                        Скинути
+                    </a>
                 </form>
             </div>
 
-            @if ($evaluations->isEmpty())
+            <div id="monitoringTable-empty" class="hidden">
                 <p class="text-sm text-slate-400">
                     @if ($search !== '')
                         За запитом «{{ $search }}» нічого не знайдено.
@@ -197,150 +188,96 @@
                         Записів у моніторингу поки немає. Додайте особу вручну або імпортуйте CSV файл.
                     @endif
                 </p>
-            @else
-                <x-excel-table id="monitoringTable" :total="$paginator->total()" :show-toolbar="false">
-                    <x-slot:header>
-                        <x-excel-table.th col="0" type="text">Аркуш</x-excel-table.th>
-                        <x-excel-table.th col="1" type="text">ПІБ</x-excel-table.th>
-                        <x-excel-table.th col="2" type="date">Дата подання</x-excel-table.th>
-                        <x-excel-table.th col="3" type="text">Нагорода</x-excel-table.th>
-                        <x-excel-table.th col="4" type="number" align="center">Бал</x-excel-table.th>
-                        <x-excel-table.th col="5" type="text">Збіги в указах</x-excel-table.th>
-                        <th class="px-3 py-3 text-right font-medium text-slate-300">Дії</th>
-                    </x-slot:header>
+            </div>
 
-                    @foreach ($evaluations as $evaluation)
-                        @php
-                            $rec = $evaluation->record;
-                            $score = $evaluation->score;
-                            $matchesSummary = empty($evaluation->matches)
-                                ? 'Не знайдено'
-                                : implode(', ', array_map(static fn ($m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches));
-                        @endphp
-                        <tr class="hover:bg-slate-800/40 monitoring-row" id="row-{{ $rec->id }}" data-row="{{ $rec->id }}">
-                            <!-- Sheet (col 0) -->
-                            <td class="px-3 py-3 text-slate-300" data-col="sheet" data-value="{{ $rec->sheet ?? '' }}">
-                                {{ $rec->sheet ?? '—' }}
-                            </td>
+            <div id="monitoringTable-loading" class="hidden py-12 text-center">
+                <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+                <p class="mt-3 text-sm text-slate-400">Завантаження...</p>
+            </div>
 
-                            <!-- Full Name (col 1) -->
-                            <td class="px-3 py-3 font-medium text-slate-100" data-col="full_name" data-value="{{ $rec->full_name }}">
-                                <div class="flex items-center gap-2">
-                                    <span>{{ $rec->full_name }}</span>
-                                </div>
-                            </td>
-
-                            <!-- Submission Date (col 2) -->
-                            <td class="px-3 py-3 text-slate-300" data-col="submission_date" data-value="{{ $rec->submission_date ? $rec->submission_date->format('Y-m-d') : '' }}">
-                                {{ $rec->submission_date ? $rec->submission_date->format('d.m.Y') : '—' }}
-                            </td>
-
-                            <!-- Award (col 3) -->
-                            <td class="px-3 py-3 text-slate-300" data-col="award" data-value="{{ $rec->award ?? '' }}">
-                                {{ $rec->award ?? '—' }}
-                            </td>
-
-                            <!-- Score Column (col 4) -->
-                            <td class="px-3 py-3 text-center" data-col="score" data-value="{{ $score }}">
-                                @if ($score === 0)
-                                    <span class="inline-flex items-center rounded-full bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-400" title="ПІБ не знайдено в указах (0 балів)">
-                                        0
-                                    </span>
-                                @elseif ($score === 1)
-                                    <span class="inline-flex items-center rounded-full bg-amber-950/80 border border-amber-700/60 px-2.5 py-1 text-xs font-semibold text-amber-300" title="Збіг за ПІБ (+1 бал)">
-                                        1
-                                    </span>
-                                @elseif ($score === 2)
-                                    <span class="inline-flex items-center rounded-full bg-blue-950/80 border border-blue-700/60 px-2.5 py-1 text-xs font-semibold text-blue-300" title="Збіг за ПІБ + одна з характеристик: звання, Нагорода або Дата протягом 6 місяців після подання (+2 бали)">
-                                        2
-                                    </span>
-                                @elseif ($score === 3)
-                                    <span class="inline-flex items-center rounded-full bg-purple-950/80 border border-purple-700/60 px-2.5 py-1 text-xs font-semibold text-purple-300" title="ПІБ + дві з характеристик: звання, Нагорода, Дата протягом 6 місяців після подання (+3 бали)">
-                                        3
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center rounded-full bg-emerald-950/80 border border-emerald-600/60 px-2.5 py-1 text-xs font-bold text-emerald-300" title="ПІБ + звання + Нагорода + Дата протягом 6 місяців після подання (максимум, +4 бали)">
-                                        {{ $score }}
-                                    </span>
-                                @endif
-                            </td>
-
-                            <!-- Matches in decrees (col 5) -->
-                            <td class="px-3 py-3 text-xs" data-col="matches" data-value="{{ $matchesSummary }}">
-                                @if (empty($evaluation->matches))
-                                    <span class="text-slate-500">Не знайдено</span>
-                                @else
-                                    <div class="space-y-1">
-                                        @foreach ($evaluation->matches as $match)
-                                            @php
-                                                $order = $match->awardee->order;
-                                            @endphp
-                                            <div class="rounded-lg bg-slate-950/60 p-2 border border-slate-800">
-                                                <div class="flex items-center justify-between gap-2">
-                                                    @if ($order)
-                                                        <a href="{{ route('orders.show', $order->id) }}" class="font-medium text-indigo-300 hover:underline">
-                                                            {{ $order->displayNumber() }}
-                                                        </a>
-                                                    @else
-                                                        <span class="text-slate-300">Указ #{{ $match->awardee->order_id }}</span>
-                                                    @endif
-                                                    <span class="text-[11px] font-semibold text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">
-                                                        бал: {{ $match->score }}
-                                                    </span>
-                                                </div>
-                                                <div class="mt-0.5 text-slate-400">
-                                                    {{ $match->awardee->award ?? '—' }}
-                                                </div>
-                                                <div class="mt-1 flex flex-wrap gap-1 text-[10px]">
-                                                    <span class="rounded px-1.5 py-0.5 bg-indigo-900/40 text-indigo-300">ПІБ ✓</span>
-                                                    @if ($match->rankMatched)
-                                                        <span class="rounded px-1.5 py-0.5 bg-purple-900/40 text-purple-300">Звання ✓</span>
-                                                    @endif
-                                                    @if ($match->awardMatched)
-                                                        <span class="rounded px-1.5 py-0.5 bg-emerald-900/40 text-emerald-300">Нагорода ✓</span>
-                                                    @endif
-                                                    @if ($match->dateMatched)
-                                                        <span class="rounded px-1.5 py-0.5 bg-blue-900/40 text-blue-300">Дата протягом 6 місяців після подання ✓</span>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @endif
-                            </td>
-
-                            <!-- Actions -->
-                            <td class="px-3 py-3 text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <button
-                                        type="button"
-                                        data-edit-monitoring
-                                        data-id="{{ $rec->id }}"
-                                        data-sheet="{{ $rec->sheet ?? '' }}"
-                                        data-full-name="{{ $rec->full_name }}"
-                                        data-submission-date="{{ $rec->submission_date ? $rec->submission_date->format('Y-m-d') : '' }}"
-                                        data-rank="{{ $rec->rank ?? '' }}"
-                                        data-award="{{ $rec->award ?? '' }}"
-                                        class="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300 transition"
-                                    >
-                                        Редагувати
-                                    </button>
-
-                                    <form method="POST" action="{{ route('monitoring.destroy', $rec->id) }}" onsubmit="return confirm('Видалити цей запис?');" class="inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="rounded-lg border border-rose-900/60 px-2 py-1 text-xs text-rose-400 hover:bg-rose-950/50">
-                                            Видалити
+            <div class="overflow-x-auto overflow-y-visible rounded-xl border border-slate-800">
+                <table id="monitoringTable" class="min-w-full divide-y divide-slate-800 text-sm">
+                    <thead class="bg-slate-900 select-none">
+                        <tr>
+                            <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="0" data-type="text">
+                                <div class="flex items-center text-left justify-between gap-1">
+                                    <span class="col-title">Аркуш</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="sort-icon text-slate-500 text-xs">↕</span>
+                                        <button type="button" data-action="sort" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Сортувати">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
                                         </button>
-                                    </form>
+                                        <button type="button" data-action="filter" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Фільтр">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                        </button>
+                                    </div>
                                 </div>
-                            </td>
+                            </th>
+                            <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="1" data-type="text">
+                                <div class="flex items-center text-left justify-between gap-1">
+                                    <span class="col-title">ПІБ</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="sort-icon text-slate-500 text-xs">↕</span>
+                                        <button type="button" data-action="sort" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Сортувати">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                                        </button>
+                                        <button type="button" data-action="filter" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Фільтр">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </th>
+                            <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="2" data-type="date">
+                                <div class="flex items-center text-left justify-between gap-1">
+                                    <span class="col-title">Дата подання</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="sort-icon text-slate-500 text-xs">↕</span>
+                                        <button type="button" data-action="sort" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Сортувати">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                                        </button>
+                                        <button type="button" data-action="filter" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Фільтр">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </th>
+                            <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="3" data-type="text">
+                                <div class="flex items-center text-left justify-between gap-1">
+                                    <span class="col-title">Нагорода</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="sort-icon text-slate-500 text-xs">↕</span>
+                                        <button type="button" data-action="sort" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Сортувати">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                                        </button>
+                                        <button type="button" data-action="filter" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Фільтр">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </th>
+                            <th class="relative px-3 py-3 text-center font-medium text-slate-300" data-col-index="4" data-type="number">
+                                <div class="flex items-center text-center justify-center gap-1">
+                                    <span class="col-title">Бал</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="sort-icon text-slate-500 text-xs">↕</span>
+                                        <button type="button" data-action="sort" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Сортувати">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                                        </button>
+                                        <button type="button" data-action="filter" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Фільтр">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </th>
+                            <th class="px-3 py-3 text-right font-medium text-slate-300">Дії</th>
                         </tr>
-                    @endforeach
-                </x-excel-table>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                    </tbody>
+                </table>
+            </div>
 
-                <x-pagination :paginator="$paginator" />
-            @endif
+            <div id="monitoringTable-pagination"></div>
         </section>
 
         <!-- Scoring Rules Section -->

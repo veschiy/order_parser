@@ -21,6 +21,15 @@
                 Знайти
             </button>
         </form>
+
+        <div id="searchResultsTable-empty" class="hidden">
+            <p class="text-sm text-slate-400">Введіть ім'я, щоб перевірити наявність нагород у базі.</p>
+        </div>
+
+        <div id="searchResultsTable-loading" class="hidden py-12 text-center">
+            <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+            <p class="mt-3 text-sm text-slate-400">Завантаження...</p>
+        </div>
     </section>
 
     <section class="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
@@ -31,30 +40,41 @@
             @endif
         </div>
 
-        @if ($query === '')
-            <p class="text-sm text-slate-400">Введіть ім’я, щоб перевірити наявність нагород у базі.</p>
-        @elseif ($results->isEmpty())
+        <div id="searchResultsTable-empty-msg" class="hidden">
             <p class="text-sm text-rose-300">Нічого не знайдено. Особа може не бути нагородженою, або дані ще не розібрані.</p>
-        @else
-            <x-excel-table id="searchResultsTable" :total="$results->total()">
-                <x-slot:header>
-                    <x-excel-table.th col="0" type="text">ПІБ</x-excel-table.th>
-                    <x-excel-table.th col="1" type="text">Звання</x-excel-table.th>
-                    <x-excel-table.th col="2" type="text">Нагорода</x-excel-table.th>
-                    <x-excel-table.th col="3" type="text">Номер указу</x-excel-table.th>
-                </x-slot:header>
+        </div>
 
-                @foreach ($results as $result)
-                    <tr class="hover:bg-slate-800/50" data-row="{{ $result->id }}">
-                        <td class="px-4 py-3 text-slate-100" data-value="{{ $result->full_name }}">{{ $result->full_name }}</td>
-                        <td class="px-4 py-3 text-slate-300" data-value="{{ $result->rank ?? '' }}">{{ $result->rank ?? '—' }}</td>
-                        <td class="px-4 py-3 text-slate-300" data-value="{{ $result->award ?? '' }}">{{ $result->award ?? '—' }}</td>
-                        <td class="px-4 py-3 text-indigo-300" data-value="{{ $result->order?->displayNumber() ?? '' }}">{{ $result->order?->displayNumber() ?? '—' }}</td>
+        <div class="overflow-x-auto overflow-y-visible rounded-xl border border-slate-800">
+            <table id="searchResultsTable" class="min-w-full divide-y divide-slate-800 text-sm">
+                <thead class="bg-slate-900 select-none">
+                    <tr>
+                        <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="0" data-type="text">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <span class="col-title">ПІБ</span>
+                            </div>
+                        </th>
+                        <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="1" data-type="text">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <span class="col-title">Звання</span>
+                            </div>
+                        </th>
+                        <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="2" data-type="text">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <span class="col-title">Нагорода</span>
+                            </div>
+                        </th>
+                        <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="3" data-type="text">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <span class="col-title">Номер указу</span>
+                            </div>
+                        </th>
                     </tr>
-                @endforeach
-            </x-excel-table>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                </tbody>
+            </table>
+        </div>
 
-            <x-pagination :paginator="$results" />
-        @endif
+        <div id="searchResultsTable-pagination"></div>
     </section>
 @endsection

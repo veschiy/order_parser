@@ -1,3 +1,5 @@
-import './excel-table.js';
-import './monitoring.js';
-import './order-details.js';
+import './ajax-table.js';
+import './orders-table.js';
+import './monitoring-table.js';
+import './search-table.js';
+import './awardees-table.js';

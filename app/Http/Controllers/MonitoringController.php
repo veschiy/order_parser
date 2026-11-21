@@ -9,6 +9,7 @@ use App\Services\Monitoring\MonitoringCsvImporter;
 use App\Services\Monitoring\MonitoringEvaluator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -20,7 +21,8 @@ final class MonitoringController extends Controller
     {
         $search = trim($request->string('q')->toString());
 
-        $records = $this->filteredRecords($search)->paginate(15);
+        ['query' => $query] = $this->buildFilteredQuery($search);
+        $records = $query->paginate(15);
         $evaluations = $evaluator->evaluateAll($records->items());
 
         return view('monitoring.index', [
@@ -32,9 +34,10 @@ final class MonitoringController extends Controller
     }
 
     /**
-     * @return Builder<MonitoringRecord>
+     * @param  string[]  $filters
+     * @return array{query: Builder<MonitoringRecord>, scoreFilter: int[]|null}
      */
-    private function filteredRecords(string $search): Builder
+    private function buildFilteredQuery(string $search, array $filters = [], ?string $sort = null, string $direction = 'asc'): array
     {
         $query = MonitoringRecord::query();
 
@@ -49,9 +52,43 @@ final class MonitoringController extends Controller
             });
         }
 
-        $query->orderBy('id');
+        // Apply column filters (score is computed, handled separately)
+        $allowedColumns = ['sheet', 'full_name', 'submission_date', 'award'];
+        $scoreFilter = null;
 
-        return $query;
+        foreach ($filters as $filter) {
+            $parts = explode(':', $filter, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+
+            $column = $parts[0];
+            $values = explode(',', $parts[1]);
+
+            if ($column === 'score') {
+                $scoreFilter = array_map('intval', $values);
+
+                continue;
+            }
+
+            if (in_array($column, $allowedColumns, true)) {
+                $query->whereIn($column, $values);
+            }
+        }
+
+        // Apply sorting (score is computed post-evaluation, so we only sort DB columns here)
+        $sortableColumns = ['sheet', 'full_name', 'submission_date', 'award'];
+        if ($sort !== null && in_array($sort, $sortableColumns, true)) {
+            $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
+        } elseif ($sort !== null && $sort === 'score') {
+            // Score sorting is handled post-evaluation in indexJson.
+            // Use a stable default order here so the post-evaluation sort is deterministic.
+            $query->orderBy('id');
+        } else {
+            $query->orderBy('id');
+        }
+
+        return ['query' => $query, 'scoreFilter' => $scoreFilter];
     }
 
     public function store(Request $request): RedirectResponse
@@ -140,7 +177,7 @@ final class MonitoringController extends Controller
 
     public function export(Request $request, MonitoringEvaluator $evaluator): StreamedResponse
     {
-        $query = $this->filteredRecords(trim($request->string('q')->toString()));
+        ['query' => $query] = $this->buildFilteredQuery(trim($request->string('q')->toString()));
 
         if ($request->isMethod('post')) {
             $validated = $request->validate(['record_ids' => ['required', 'string', 'json']]);
@@ -198,5 +235,86 @@ final class MonitoringController extends Controller
 
             fclose($handle);
         }, 200, $headers);
+    }
+
+    public function indexJson(Request $request, MonitoringEvaluator $evaluator): JsonResponse
+    {
+        $search = trim($request->string('q')->toString());
+        $perPage = (int) $request->input('perPage', 15);
+        $page = max(1, (int) $request->input('page', 1));
+        $sort = $request->input('sort');
+        $direction = $request->input('direction', 'asc');
+        $filters = (array) $request->input('filters', []);
+
+        ['query' => $query, 'scoreFilter' => $scoreFilter] = $this->buildFilteredQuery($search, $filters, $sort, $direction);
+
+        $total = $query->count();
+        $records = $query->forPage($page, $perPage)->get();
+        $evaluations = $evaluator->evaluateAll($records);
+
+        // Apply score filter post-evaluation (score is computed, not stored)
+        if ($scoreFilter !== null) {
+            $evaluations = $evaluations->filter(fn ($evaluation) => in_array($evaluation->score, $scoreFilter, true));
+        }
+
+        // Apply score sorting post-evaluation (score is computed, not a DB column)
+        if ($sort === 'score') {
+            $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, sortFlags: SORT_NUMERIC, descending: $direction === 'desc');
+        }
+
+        return response()->json([
+            'data' => $evaluations->map(fn ($evaluation) => [
+                'id' => $evaluation->record->id,
+                'sheet' => $evaluation->record->sheet ?? '',
+                'full_name' => $evaluation->record->full_name,
+                'submission_date' => $evaluation->record->submission_date?->format('Y-m-d') ?? '',
+                'submission_date_display' => $evaluation->record->submission_date?->format('d.m.Y') ?? '—',
+                'award' => $evaluation->record->award ?? '',
+                'rank' => $evaluation->record->rank ?? '',
+                'score' => $evaluation->score,
+                'matches' => array_map(static fn ($m) => [
+                    'awardee_id' => $m->awardee->id,
+                    'order_id' => $m->awardee->order_id,
+                    'order_display' => $m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id,
+                    'award' => $m->awardee->award ?? '—',
+                    'score' => $m->score,
+                    'rankMatched' => $m->rankMatched,
+                    'awardMatched' => $m->awardMatched,
+                    'dateMatched' => $m->dateMatched,
+                ], $evaluation->matches),
+                'matchesSummary' => empty($evaluation->matches)
+                    ? 'Не знайдено'
+                    : implode(', ', array_map(static fn ($m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches)),
+            ]),
+            'pagination' => [
+                'current_page' => $page,
+                'last_page' => (int) ceil($total / $perPage),
+                'per_page' => $perPage,
+                'total' => $total,
+                'from' => $total > 0 ? ($page - 1) * $perPage + 1 : 0,
+                'to' => min($page * $perPage, $total),
+            ],
+            'totalCount' => MonitoringRecord::query()->count(),
+        ]);
+    }
+
+    /**
+     * Return distinct values for a given column, used by the filter dropdown UI.
+     */
+    public function distinctJson(Request $request): JsonResponse
+    {
+        $column = $request->input('column');
+        $search = trim($request->string('q')->toString());
+
+        $allowedColumns = ['sheet', 'full_name', 'submission_date', 'award'];
+
+        if (! in_array($column, $allowedColumns, true)) {
+            return response()->json(['values' => []]);
+        }
+
+        ['query' => $query] = $this->buildFilteredQuery($search);
+        $values = $query->distinct()->pluck($column)->filter()->map(fn ($v) => (string) $v)->sort()->values();
+
+        return response()->json(['values' => $values]);
     }
 }

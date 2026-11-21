@@ -14,32 +14,59 @@
             </a>
         </div>
 
-        @if ($orders->isEmpty())
+        <div id="ordersTable-empty" class="hidden">
             <p class="text-sm text-slate-400">Поки що жодного указу не розібрано.</p>
-        @else
-            <x-excel-table id="ordersTable" :total="$orders->total()">
-                <x-slot:header>
-                    <x-excel-table.th col="0" type="text">Номер</x-excel-table.th>
-                    <x-excel-table.th col="1" type="text">Назва</x-excel-table.th>
-                    <x-excel-table.th col="2" type="number">Нагороджених</x-excel-table.th>
-                    <x-excel-table.th col="3" type="date">Дата розбору</x-excel-table.th>
-                    <th class="px-4 py-3 text-left font-medium text-slate-300">Дія</th>
-                </x-slot:header>
+        </div>
 
-                @foreach ($orders as $order)
-                    <tr class="hover:bg-slate-800/50 {{ $order->trashed() ? 'opacity-50' : '' }}" data-row="{{ $order->id }}">
-                        <td class="px-4 py-3 text-indigo-300 {{ $order->trashed() ? 'line-through' : '' }}" data-value="{{ $order->displayNumber() }}">{{ $order->displayNumber() }}</td>
-                        <td class="px-4 py-3 text-slate-100 {{ $order->trashed() ? 'line-through' : '' }}" data-value="{{ $order->title ?? '' }}">{{ $order->title ?? '—' }}</td>
-                        <td class="px-4 py-3 text-slate-300" data-value="{{ $order->awardees_count ?? 0 }}">{{ $order->awardees_count ?? 0 }}</td>
-                        <td class="px-4 py-3 text-slate-300" data-value="{{ optional($order->parsed_at)->format('Y-m-d H:i:s') ?? '' }}">{{ optional($order->parsed_at)->toDateTimeString() ?? '—' }}</td>
-                        <td class="px-4 py-3">
-                            <a href="{{ route('orders.show', $order->id) }}" class="text-indigo-300 hover:text-indigo-200">Деталі</a>
-                        </td>
+        <div id="ordersTable-loading" class="hidden py-12 text-center">
+            <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+            <p class="mt-3 text-sm text-slate-400">Завантаження...</p>
+        </div>
+
+        <div class="overflow-x-auto overflow-y-visible rounded-xl border border-slate-800">
+            <table id="ordersTable" class="min-w-full divide-y divide-slate-800 text-sm">
+                <thead class="bg-slate-900 select-none">
+                    <tr>
+                        <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="0" data-type="text">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <button type="button" data-action="sort" class="sort-trigger flex items-center gap-1 hover:text-white group">
+                                    <span class="col-title">Номер</span>
+                                    <span class="sort-icon text-slate-500 group-hover:text-slate-300 text-xs">↕</span>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="1" data-type="text">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <button type="button" data-action="sort" class="sort-trigger flex items-center gap-1 hover:text-white group">
+                                    <span class="col-title">Назва</span>
+                                    <span class="sort-icon text-slate-500 group-hover:text-slate-300 text-xs">↕</span>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="2" data-type="number">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <button type="button" data-action="sort" class="sort-trigger flex items-center gap-1 hover:text-white group">
+                                    <span class="col-title">Нагороджених</span>
+                                    <span class="sort-icon text-slate-500 group-hover:text-slate-300 text-xs">↕</span>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="3" data-type="date">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <button type="button" data-action="sort" class="sort-trigger flex items-center gap-1 hover:text-white group">
+                                    <span class="col-title">Дата розбору</span>
+                                    <span class="sort-icon text-slate-500 group-hover:text-slate-300 text-xs">↕</span>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="px-4 py-3 text-left font-medium text-slate-300">Дія</th>
                     </tr>
-                @endforeach
-            </x-excel-table>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                </tbody>
+            </table>
+        </div>
 
-            <x-pagination :paginator="$orders" />
-        @endif
+        <div id="ordersTable-pagination"></div>
     </section>
 @endsection

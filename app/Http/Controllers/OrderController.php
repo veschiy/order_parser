@@ -6,7 +6,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -109,5 +111,86 @@ final class OrderController extends Controller
         $order->restore();
 
         return redirect()->route('orders.show', $order->id)->with('status', 'Указ відновлено.');
+    }
+
+    public function indexJson(Request $request): JsonResponse
+    {
+        $query = Order::withTrashed()->withCount('awardees');
+
+        if ($request->boolean('withTrashed', true) === false) {
+            $query->whereNull('deleted_at');
+        }
+
+        $sort = $request->string('sort')->toString() ?: 'parsed_at';
+        $direction = $request->string('direction')->toString() ?: 'desc';
+
+        $validSort = ['number', 'title', 'awardees_count', 'parsed_at'];
+        if (in_array($sort, $validSort, true)) {
+            $query->orderBy($sort, $direction === 'asc' ? 'asc' : 'desc');
+        } else {
+            $query->latest();
+        }
+
+        $orders = $query->paginate((int) $request->input('perPage', 20));
+
+        return response()->json([
+            'data' => $orders->map(fn (Order $order) => [
+                'id' => $order->id,
+                'number' => $order->displayNumber(),
+                'title' => $order->title ?? '—',
+                'awardees_count' => $order->awardees_count ?? 0,
+                'parsed_at' => $order->parsed_at?->toDateTimeString() ?? '—',
+                'parsed_at_sort' => $order->parsed_at?->format('Y-m-d H:i:s') ?? '',
+                'trashed' => (bool) $order->trashed(),
+                'order_id' => $order->id,
+            ]),
+            'pagination' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total(),
+                'from' => $orders->firstItem(),
+                'to' => $orders->lastItem(),
+            ],
+        ]);
+    }
+
+    public function showAwardeesJson(int $id, Request $request): JsonResponse
+    {
+        $order = Order::withTrashed()->with('awardees')->findOrFail($id);
+
+        $perPage = (int) $request->input('perPage', 25);
+        $page = max(1, (int) $request->input('page', 1));
+
+        $sort = $request->string('sort')->toString() ?: 'id';
+        $direction = $request->string('direction')->toString() ?: 'asc';
+
+        $awardees = collect($order->awardees)->sortBy(function ($awardee) use ($sort) {
+            return match ($sort) {
+                'full_name' => $awardee->full_name,
+                'rank' => $awardee->rank ?? '',
+                'award' => $awardee->award ?? '',
+                default => $awardee->id,
+            };
+        }, $direction === 'desc', true)->forPage($page, $perPage)->values();
+
+        $paginator = new LengthAwarePaginator($awardees, $order->awardees->count(), $perPage, $page);
+
+        return response()->json([
+            'data' => $awardees->map(fn ($awardee) => [
+                'id' => $awardee->id,
+                'full_name' => $awardee->full_name,
+                'rank' => $awardee->rank ?? '—',
+                'award' => $awardee->award ?? '—',
+            ]),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+        ]);
     }
 }

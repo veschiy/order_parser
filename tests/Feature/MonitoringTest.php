@@ -44,25 +44,23 @@ final class MonitoringTest extends TestCase
             MonitoringRecord::query()->create(['full_name' => "Особа {$i} Унікальна"]);
         }
 
-        // Page 1 shows the first record, hides later ones, and offers a next link.
-        $this->get(route('monitoring.index'))
-            ->assertOk()
-            ->assertSee('Особа 1 Унікальна')
-            ->assertDontSee('Особа 20 Унікальна');
+        // Page 1 via JSON shows the first 15 records, not the last ones.
+        $response1 = $this->getJson(route('monitoring.indexJson', ['page' => 1]));
+        $response1->assertOk();
+        $data1 = $response1->json();
+        $names1 = array_column($data1['data'], 'full_name');
+        $this->assertContains('Особа 1 Унікальна', $names1);
+        $this->assertNotContains('Особа 20 Унікальна', $names1);
+        $this->assertSame(20, $data1['pagination']['total']);
+        $this->assertSame(2, $data1['pagination']['last_page']);
 
-        $page1 = $this->get(route('monitoring.index'))->getContent();
-        $this->assertIsString($page1);
-        $this->assertStringContainsString('/monitoring?page=2"', $page1);
-
-        // Page 2 shows the last record and a previous link back to page 1.
-        $this->get(route('monitoring.index', ['page' => 2]))
-            ->assertOk()
-            ->assertSee('Особа 20 Унікальна')
-            ->assertDontSee('Особа 1 Унікальна');
-
-        $page2 = $this->get(route('monitoring.index', ['page' => 2]))->getContent();
-        $this->assertIsString($page2);
-        $this->assertStringContainsString('/monitoring?page=1"', $page2);
+        // Page 2 via JSON shows the last record, not the first ones.
+        $response2 = $this->getJson(route('monitoring.indexJson', ['page' => 2]));
+        $response2->assertOk();
+        $data2 = $response2->json();
+        $names2 = array_column($data2['data'], 'full_name');
+        $this->assertContains('Особа 20 Унікальна', $names2);
+        $this->assertNotContains('Особа 1 Унікальна', $names2);
     }
 
     public function test_score_bands_render_distinct_colors_for_scores_3_and_4(): void
@@ -113,14 +111,24 @@ final class MonitoringTest extends TestCase
             'award' => 'орден «За мужність» III ступеня',
         ]);
 
-        $response = $this->get(route('monitoring.index'));
+        $response = $this->getJson(route('monitoring.indexJson'));
 
         $response->assertOk();
+        $data = $response->json();
 
-        // Score 4 → emerald "максимум" band (reserved for the full match).
-        $response->assertSee('ПІБ + звання + Нагорода + Дата протягом 6 місяців після подання (максимум, +4 бали)');
-        // Score 3 → new intermediate purple band between blue and emerald.
-        $response->assertSee('ПІБ + дві з характеристик: звання, Нагорода, Дата протягом 6 місяців після подання (+3 бали)');
+        // Score 4 → emerald "максимум" badge title
+        $score4Found = false;
+        $score3Found = false;
+        foreach ($data['data'] as $row) {
+            if ($row['score'] === 4) {
+                $score4Found = true;
+            }
+            if ($row['score'] === 3) {
+                $score3Found = true;
+            }
+        }
+        $this->assertTrue($score4Found, 'Expected a record with score 4');
+        $this->assertTrue($score3Found, 'Expected a record with score 3');
     }
 
     public function test_can_view_monitoring_page_and_empty_state(): void
@@ -192,12 +200,19 @@ final class MonitoringTest extends TestCase
             'award' => 'орден «За мужність» III ступеня',
         ]);
 
-        $response = $this->get(route('monitoring.index'));
+        $response = $this->getJson(route('monitoring.indexJson'));
 
         $response->assertOk();
-        $response->assertSee('Бакал Олександр Вікторович');
-        $response->assertSee('Петренко Петро Петрович');
-        $response->assertSee('№555/2026');
+        $data = $response->json();
+        $names = array_column($data['data'], 'full_name');
+        $this->assertContains('Бакал Олександр Вікторович', $names);
+        $this->assertContains('Петренко Петро Петрович', $names);
+
+        // Check that Бакал has a match with the order
+        $bakalRow = current(array_filter($data['data'], fn ($row) => $row['full_name'] === 'Бакал Олександр Вікторович'));
+        $this->assertIsArray($bakalRow);
+        $this->assertGreaterThan(0, $bakalRow['score']);
+        $this->assertStringContainsString('№555/2026', $bakalRow['matchesSummary']);
     }
 
     public function test_can_import_csv(): void

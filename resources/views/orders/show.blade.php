@@ -45,39 +45,50 @@
             </div>
         </div>
 
-        @if ($order->awardees->isEmpty())
+        <div id="awardeesTable-empty" class="hidden">
             <p class="text-sm text-slate-400">Список нагороджених ще не розібрано.</p>
-        @else
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-800 text-sm">
-                    <thead class="bg-slate-900">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">ПІБ</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Звання</th>
-                            <th class="px-4 py-3 text-left font-medium text-slate-300">Нагорода</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800">
-                        @foreach ($paginator->items() as $awardee)
-                            <tr class="hover:bg-slate-800/50">
-                                <td class="px-4 py-3 text-slate-100">
-                                    <span class="awardee-name" data-id="{{ $awardee->id }}">{{ $awardee->full_name }}</span>
-                                    <button type="button" class="ml-2 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300" data-edit-awardee data-id="{{ $awardee->id }}">Редагувати</button>
-                                    <div class="hidden mt-2 flex gap-2" data-edit-form="{{ $awardee->id }}" style="display:none;">
-                                        <input type="text" value="{{ $awardee->full_name }}" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none">
-                                        <button type="button" class="rounded-md bg-indigo-500 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-400" data-save-awardee-edit data-id="{{ $awardee->id }}">Зберегти</button>
-                                        <button type="button" class="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" data-cancel-awardee-edit data-id="{{ $awardee->id }}">Скасувати</button>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-slate-300">{{ $awardee->rank ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-300">{{ $awardee->award ?? '—' }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
+        </div>
 
-        <x-pagination :paginator="$paginator" />
+        <div id="awardeesTable-loading" class="hidden py-12 text-center">
+            <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+            <p class="mt-3 text-sm text-slate-400">Завантаження...</p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table id="awardeesTable" data-order-id="{{ $order->id }}" class="min-w-full divide-y divide-slate-800 text-sm">
+                <thead class="bg-slate-900">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-medium text-slate-300" data-col-index="0" data-type="text">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <button type="button" data-action="sort" class="sort-trigger flex items-center gap-1 hover:text-white group">
+                                    <span class="col-title">ПІБ</span>
+                                    <span class="sort-icon text-slate-500 group-hover:text-slate-300 text-xs">↕</span>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="px-4 py-3 text-left font-medium text-slate-300" data-col-index="1" data-type="text">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <button type="button" data-action="sort" class="sort-trigger flex items-center gap-1 hover:text-white group">
+                                    <span class="col-title">Звання</span>
+                                    <span class="sort-icon text-slate-500 group-hover:text-slate-300 text-xs">↕</span>
+                                </button>
+                            </div>
+                        </th>
+                        <th class="px-4 py-3 text-left font-medium text-slate-300" data-col-index="2" data-type="text">
+                            <div class="flex items-center text-left justify-between gap-1">
+                                <button type="button" data-action="sort" class="sort-trigger flex items-center gap-1 hover:text-white group">
+                                    <span class="col-title">Нагорода</span>
+                                    <span class="sort-icon text-slate-500 group-hover:text-slate-300 text-xs">↕</span>
+                                </button>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                </tbody>
+            </table>
+        </div>
+
+        <div id="awardeesTable-pagination"></div>
     </section>
 @endsection

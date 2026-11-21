@@ -475,9 +475,9 @@ class ExcelTable {
     }
 }
 
-// Auto-initialize tables
+// Auto-initialize tables (exclude #monitoringTable — it uses AjaxTable with server-side filters)
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('[data-excel-table], #monitoringTable').forEach(table => {
+    document.querySelectorAll('[data-excel-table]').forEach(table => {
         new ExcelTable(table);
     });
 });
