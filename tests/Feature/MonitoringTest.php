@@ -405,4 +405,42 @@ CSV;
         $this->assertStringContainsString('Visible Person', $response->streamedContent());
         $this->assertStringNotContainsString('Hidden Person', $response->streamedContent());
     }
+
+    public function test_json_endpoint_applies_multiple_column_filters(): void
+    {
+        MonitoringRecord::query()->create([
+            'sheet' => '1',
+            'full_name' => 'Особа А',
+            'award' => 'орден',
+        ]);
+
+        MonitoringRecord::query()->create([
+            'sheet' => '2',
+            'full_name' => 'Особа Б',
+            'award' => 'медаль',
+        ]);
+
+        MonitoringRecord::query()->create([
+            'sheet' => '1',
+            'full_name' => 'Особа В',
+            'award' => 'медаль',
+        ]);
+
+        // Single filter: sheet=1 should return 2 records.
+        $response1 = $this->getJson(route('monitoring.indexJson', ['filters' => ['sheet:1']]));
+        $response1->assertOk();
+        $this->assertSame(2, $response1->json('pagination.total'));
+
+        // Single filter: award=медаль should return 2 records.
+        $response2 = $this->getJson(route('monitoring.indexJson', ['filters' => ['award:медаль']]));
+        $response2->assertOk();
+        $this->assertSame(2, $response2->json('pagination.total'));
+
+        // Both filters: sheet=1 AND award=медаль should return 1 record (Особа В).
+        $responseBoth = $this->getJson(route('monitoring.indexJson', ['filters' => ['sheet:1', 'award:медаль']]));
+        $responseBoth->assertOk();
+        $dataBoth = $responseBoth->json();
+        $this->assertSame(1, $dataBoth['pagination']['total']);
+        $this->assertSame('Особа В', $dataBoth['data'][0]['full_name']);
+    }
 }
