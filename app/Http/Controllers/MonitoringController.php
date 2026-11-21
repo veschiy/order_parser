@@ -270,7 +270,7 @@ final class MonitoringController extends Controller
 
             // Apply score sorting post-evaluation
             if ($sort === 'score') {
-                $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, sortFlags: SORT_NUMERIC, descending: $direction === 'desc');
+                $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, SORT_NUMERIC, $direction === 'desc');
             }
 
             $total = $evaluations->count();
@@ -283,7 +283,7 @@ final class MonitoringController extends Controller
 
             // Apply score sorting post-evaluation (score is computed, not a DB column)
             if ($sort === 'score') {
-                $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, sortFlags: SORT_NUMERIC, descending: $direction === 'desc');
+                $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, SORT_NUMERIC, $direction === 'desc');
             }
         }
 
