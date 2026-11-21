@@ -96,7 +96,7 @@ final readonly class MonitoringEvaluator
         $bestMatch = null;
 
         foreach ($awardees as $awardee) {
-            if ($awardee->order->trashed()) {
+            if ($awardee->order === null || $awardee->order->trashed()) {
                 continue;
             }
 

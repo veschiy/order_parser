@@ -7,12 +7,15 @@ namespace App\Http\Controllers;
 use App\Models\MonitoringRecord;
 use App\Services\Monitoring\MonitoringCsvImporter;
 use App\Services\Monitoring\MonitoringEvaluator;
+use App\Services\Monitoring\MonitoringMatch;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class MonitoringController extends Controller
@@ -76,10 +79,10 @@ final class MonitoringController extends Controller
 
             if ($column === 'score') {
                 // Empty score filter means all unchecked — return no results
-                if (empty($values) || ($values === [''])) {
+                if ($values === ['']) {
                     $query->whereRaw('1 = 0');
                 } else {
-                    $scoreFilter = array_map('intval', $values);
+                    $scoreFilter = array_map(intval(...), $values);
                 }
 
                 continue;
@@ -233,7 +236,7 @@ final class MonitoringController extends Controller
                 $matchedDecrees = [];
                 foreach ($evaluation->matches as $match) {
                     $order = $match->awardee->order;
-                    $matchedDecrees[] = $order->displayNumber().' (бал: '.$match->score.')';
+                    $matchedDecrees[] = ($order ? $order->displayNumber() : 'Указ #'.$match->awardee->order_id).' (бал: '.$match->score.')';
                 }
 
                 fputcsv($handle, [
@@ -254,11 +257,13 @@ final class MonitoringController extends Controller
     public function indexJson(Request $request, MonitoringEvaluator $evaluator): JsonResponse
     {
         $search = trim($request->string('q')->toString());
-        $perPage = (int) $request->input('perPage', 15);
-        $page = max(1, (int) $request->input('page', 1));
-        $sort = $request->input('sort');
-        $direction = $request->input('direction', 'asc');
-        $filters = (array) $request->input('filters', []);
+        $perPage = $request->integer('perPage', 15);
+        $page = max(1, $request->integer('page', 1));
+        $sort = $request->string('sort')->toString() ?: null;
+        $direction = $request->string('direction')->toString() ?: 'asc';
+        $filtersRaw = $request->input('filters', []);
+        /** @var array<string> $filters */
+        $filters = is_array($filtersRaw) ? array_filter($filtersRaw, is_string(...)) : [];
 
         ['query' => $query, 'scoreFilter' => $scoreFilter] = $this->buildFilteredQuery($search, $filters, $sort, $direction);
 
@@ -266,7 +271,7 @@ final class MonitoringController extends Controller
             // Score is computed, not stored — must evaluate all records first, then filter and paginate
             $records = $query->get();
             $evaluations = $evaluator->evaluateAll($records);
-            $evaluations = $evaluations->filter(fn ($evaluation) => in_array($evaluation->score, $scoreFilter, true));
+            $evaluations = $evaluations->filter(fn ($evaluation): bool => in_array($evaluation->score, $scoreFilter, true));
 
             // Apply score sorting post-evaluation
             if ($sort === 'score') {
@@ -279,6 +284,7 @@ final class MonitoringController extends Controller
             // No score filter — paginate at the DB level for efficiency
             $total = $query->count();
             $records = $query->forPage($page, $perPage)->get();
+            /** @var Collection<int, MonitoringRecord> $records */
             $evaluations = $evaluator->evaluateAll($records);
 
             // Apply score sorting post-evaluation (score is computed, not a DB column)
@@ -288,7 +294,7 @@ final class MonitoringController extends Controller
         }
 
         return response()->json([
-            'data' => $evaluations->map(fn ($evaluation) => [
+            'data' => $evaluations->map(fn ($evaluation): array => [
                 'id' => $evaluation->record->id,
                 'sheet' => $evaluation->record->sheet ?? '',
                 'full_name' => $evaluation->record->full_name,
@@ -297,7 +303,7 @@ final class MonitoringController extends Controller
                 'award' => $evaluation->record->award ?? '',
                 'rank' => $evaluation->record->rank ?? '',
                 'score' => $evaluation->score,
-                'matches' => array_map(static fn ($m) => [
+                'matches' => array_map(static fn (MonitoringMatch $m): array => [
                     'awardee_id' => $m->awardee->id,
                     'order_id' => $m->awardee->order_id,
                     'order_display' => $m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id,
@@ -307,9 +313,9 @@ final class MonitoringController extends Controller
                     'awardMatched' => $m->awardMatched,
                     'dateMatched' => $m->dateMatched,
                 ], $evaluation->matches),
-                'matchesSummary' => empty($evaluation->matches)
+                'matchesSummary' => $evaluation->matches === []
                     ? 'Не знайдено'
-                    : implode(', ', array_map(static fn ($m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches)),
+                    : implode(', ', array_map(static fn (MonitoringMatch $m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches)),
             ])->values(),
             'pagination' => [
                 'current_page' => $page,
@@ -325,13 +331,16 @@ final class MonitoringController extends Controller
 
     /**
      * Apply a column filter, handling the '__empty__' sentinel for null/empty values.
+     *
+     * @param  Builder<MonitoringRecord>  $query
+     * @param  array<string>  $values
      */
     private function applyColumnFilter(Builder $query, string $column, array $values): void
     {
         $hasEmpty = in_array('__empty__', $values, true);
-        $nonEmptyValues = array_values(array_filter($values, fn ($v) => $v !== '__empty__'));
+        $nonEmptyValues = array_values(array_filter($values, fn (string $v): bool => $v !== '__empty__'));
 
-        if ($hasEmpty && empty($nonEmptyValues)) {
+        if ($hasEmpty && $nonEmptyValues === []) {
             // Only empty filter — match null or empty string
             $query->where(function ($builder) use ($column): void {
                 $builder->whereNull($column)->orWhere($column, '');
@@ -342,8 +351,8 @@ final class MonitoringController extends Controller
 
         if ($hasEmpty) {
             // Both empty and non-empty values
-            $query->where(function ($builder) use ($column, $nonEmptyValues): void {
-                $builder->whereIn($column, $nonEmptyValues)->orWhere(function ($inner) use ($column): void {
+            $query->where(function (Builder $builder) use ($column, $nonEmptyValues): void {
+                $builder->whereIn($column, $nonEmptyValues)->orWhere(function (Builder $inner) use ($column): void {
                     $inner->whereNull($column)->orWhere($column, '');
                 });
             });
@@ -375,7 +384,21 @@ final class MonitoringController extends Controller
         }
 
         ['query' => $query] = $this->buildFilteredQuery($search);
-        $values = $query->distinct()->pluck($column)->filter()->map(fn ($v) => (string) $v)->sort()->values();
+        $values = $query->distinct()->pluck($column)->filter()->map(function ($v): string {
+            if ($v instanceof Carbon) {
+                return $v->format('Y-m-d');
+            }
+
+            if (is_string($v)) {
+                return $v;
+            }
+
+            if (is_int($v)) {
+                return (string) $v;
+            }
+
+            return '';
+        })->sort()->values();
         $values[] = '__empty__';
 
         return response()->json(['values' => $values]);

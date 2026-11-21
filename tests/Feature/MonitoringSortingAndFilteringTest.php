@@ -8,6 +8,7 @@ use App\Models\Awardee;
 use App\Models\MonitoringRecord;
 use App\Models\Order;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 final class MonitoringSortingAndFilteringTest extends TestCase
@@ -62,7 +63,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_sheet_ascending(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -71,6 +72,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $sheets = array_column($data['data'], 'sheet');
 
@@ -83,7 +85,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('3', $sheets[4]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_sheet_descending(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -92,6 +94,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $sheets = array_column($data['data'], 'sheet');
 
@@ -102,7 +105,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('1', $sheets[3]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_full_name_ascending(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -111,6 +114,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $names = array_column($data['data'], 'full_name');
 
@@ -122,7 +126,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('Дорошенко Дмитро', $names[4]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_full_name_descending(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -131,6 +135,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $names = array_column($data['data'], 'full_name');
 
@@ -142,7 +147,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('Андрійків Андрій', $names[4]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_submission_date_ascending(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -151,6 +156,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $dates = array_column($data['data'], 'submission_date');
 
@@ -163,7 +169,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('2025-09-20', $dates[4]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_submission_date_descending(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -172,6 +178,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $dates = array_column($data['data'], 'submission_date');
 
@@ -184,7 +191,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('', $dates[4]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_award_ascending(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -193,6 +200,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $awards = array_column($data['data'], 'award');
 
@@ -205,7 +213,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('орден', $awards[4]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_award_descending(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -214,6 +222,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $awards = array_column($data['data'], 'award');
 
@@ -226,7 +235,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('', $awards[4]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_score_ascending(): void
     {
         // Create matching orders and awardees for some records to get non-zero scores.
@@ -249,6 +258,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $scores = array_column($data['data'], 'score');
 
@@ -258,7 +268,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertGreaterThanOrEqual($scores[count($scores) - 2], $scores[count($scores) - 1]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sort_by_score_descending(): void
     {
         $order = Order::query()->create([
@@ -280,6 +290,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
         $scores = array_column($data['data'], 'score');
 
@@ -289,7 +300,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertLessThanOrEqual($scores[0], $scores[1]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sorting_does_not_break_filtering_by_sheet(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -299,6 +310,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Only 2 records have sheet=1
@@ -309,7 +321,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('Гончар Григорій', $names[1]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sorting_does_not_break_filtering_by_award(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -319,6 +331,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Only 2 records have award=орден
@@ -329,7 +342,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('2025-06-15', $dates[1]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sorting_does_not_break_filtering_by_rank(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -339,6 +352,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Only 2 records have rank=генерал
@@ -348,7 +362,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('Дорошенко Дмитро', $names[1]);
     }
 
-    /** @test */
+    #[Test]
     public function test_filtering_does_not_break_sorting(): void
     {
         // Verify that applying a filter preserves the sort order
@@ -359,6 +373,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         $this->assertSame(2, $data['pagination']['total']);
@@ -368,7 +383,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('2', $sheets[1]);
     }
 
-    /** @test */
+    #[Test]
     public function test_sorting_with_multiple_filters(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -378,6 +393,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Only 1 record: sheet=1 AND award=медаль (Бондаренко Борис)
@@ -385,7 +401,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('Бондаренко Борис', $data['data'][0]['full_name']);
     }
 
-    /** @test */
+    #[Test]
     public function test_search_with_sorting(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -395,13 +411,14 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         $this->assertSame(1, $data['pagination']['total']);
         $this->assertSame('Бондаренко Борис', $data['data'][0]['full_name']);
     }
 
-    /** @test */
+    #[Test]
     public function test_search_with_filtering(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -410,6 +427,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Search for "орден" matches 2 records, but filter sheet:3 narrows to 1
@@ -417,7 +435,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('Андрійків Андрій', $data['data'][0]['full_name']);
     }
 
-    /** @test */
+    #[Test]
     public function test_search_with_sorting_and_filtering(): void
     {
         // Search only covers full_name, tax_id, award, sheet — NOT rank.
@@ -430,6 +448,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Search "орден" matches 2 records (Андрійків, Василенко), filter sheet:3 narrows to 1
@@ -437,7 +456,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('Андрійків Андрій', $data['data'][0]['full_name']);
     }
 
-    /** @test */
+    #[Test]
     public function test_empty_filter_returns_no_results(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -445,13 +464,14 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         $this->assertSame(0, $data['pagination']['total']);
         $this->assertSame([], $data['data']);
     }
 
-    /** @test */
+    #[Test]
     public function test_empty_filter_with_sorting_returns_no_results(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -461,13 +481,14 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         $this->assertSame(0, $data['pagination']['total']);
         $this->assertSame([], $data['data']);
     }
 
-    /** @test */
+    #[Test]
     public function test_empty_sentinel_filter_for_null_values(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -475,6 +496,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Only 1 record has null award (Гончар Григорій)
@@ -482,7 +504,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame('Гончар Григорій', $data['data'][0]['full_name']);
     }
 
-    /** @test */
+    #[Test]
     public function test_empty_sentinel_filter_combined_with_values(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -490,13 +512,14 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // 2 records with медаль + 1 with null award = 3 total
         $this->assertSame(3, $data['pagination']['total']);
     }
 
-    /** @test */
+    #[Test]
     public function test_score_filter_with_sorting_by_score(): void
     {
         $order = Order::query()->create([
@@ -519,6 +542,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Only score=0 records
@@ -527,7 +551,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function test_score_filter_with_db_column_sorting(): void
     {
         $order = Order::query()->create([
@@ -550,6 +574,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // All returned records should have score 0 and be sorted by name
@@ -563,7 +588,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertSame($sortedNames, $names);
     }
 
-    /** @test */
+    #[Test]
     public function test_pagination_with_sorting(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -574,12 +599,13 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         $this->assertSame(5, $data['pagination']['total']);
         $this->assertSame(3, $data['pagination']['last_page']);
         $this->assertSame(2, $data['pagination']['per_page']);
-        $this->assertSame(2, count($data['data']));
+        $this->assertCount(2, $data['data']);
         $this->assertSame('Андрійків Андрій', $data['data'][0]['full_name']);
         $this->assertSame('Бондаренко Борис', $data['data'][1]['full_name']);
 
@@ -592,12 +618,13 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response2->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data2 */
         $data2 = $response2->json();
         $this->assertSame('Василенко Віктор', $data2['data'][0]['full_name']);
         $this->assertSame('Гончар Григорій', $data2['data'][1]['full_name']);
     }
 
-    /** @test */
+    #[Test]
     public function test_pagination_with_filtering(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -607,11 +634,12 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         $this->assertSame(2, $data['pagination']['total']);
         $this->assertSame(2, $data['pagination']['last_page']);
-        $this->assertSame(1, count($data['data']));
+        $this->assertCount(1, $data['data']);
 
         // Page 2
         $response2 = $this->getJson(route('monitoring.indexJson', [
@@ -621,11 +649,12 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response2->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data2 */
         $data2 = $response2->json();
-        $this->assertSame(1, count($data2['data']));
+        $this->assertCount(1, $data2['data']);
     }
 
-    /** @test */
+    #[Test]
     public function test_pagination_with_sorting_and_filtering(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -637,6 +666,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         $this->assertSame(2, $data['pagination']['total']);
@@ -651,11 +681,12 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response2->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data2 */
         $data2 = $response2->json();
         $this->assertSame('Василенко Віктор', $data2['data'][0]['full_name']);
     }
 
-    /** @test */
+    #[Test]
     public function test_unknown_sort_column_ignored(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -664,13 +695,14 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Should fall back to default ID ordering
         $this->assertSame(5, $data['pagination']['total']);
     }
 
-    /** @test */
+    #[Test]
     public function test_distinct_values_endpoint_with_search(): void
     {
         $response = $this->getJson(route('monitoring.distinctJson', [
@@ -679,6 +711,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{values: array<int, string>} $data */
         $data = $response->json();
 
         // Search for "орден" should only return "орден" as a distinct award value
@@ -687,7 +720,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         $this->assertNotContains('медаль', $data['values']);
     }
 
-    /** @test */
+    #[Test]
     public function test_distinct_values_endpoint_for_score(): void
     {
         $response = $this->getJson(route('monitoring.distinctJson', [
@@ -695,12 +728,13 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{values: array<int, string>} $data */
         $data = $response->json();
 
         $this->assertSame(['0', '1', '2', '3', '4', '__empty__'], $data['values']);
     }
 
-    /** @test */
+    #[Test]
     public function test_distinct_values_for_unknown_column(): void
     {
         $response = $this->getJson(route('monitoring.distinctJson', [
@@ -708,12 +742,13 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{values: array<int, string>} $data */
         $data = $response->json();
 
         $this->assertSame([], $data['values']);
     }
 
-    /** @test */
+    #[Test]
     public function test_filter_by_submission_date(): void
     {
         // The submission_date is stored as a date, but the filter compares the raw DB value.
@@ -723,13 +758,14 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         $this->assertSame(1, $data['pagination']['total']);
         $this->assertSame('Андрійків Андрій', $data['data'][0]['full_name']);
     }
 
-    /** @test */
+    #[Test]
     public function test_filter_by_full_name(): void
     {
         $response = $this->getJson(route('monitoring.indexJson', [
@@ -737,13 +773,14 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         $this->assertSame(1, $data['pagination']['total']);
         $this->assertSame('Бондаренко Борис', $data['data'][0]['full_name']);
     }
 
-    /** @test */
+    #[Test]
     public function test_sorting_by_rank_is_not_supported(): void
     {
         // Rank is filterable but not sortable (not in sortableColumns)
@@ -753,6 +790,7 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         ]));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
         $data = $response->json();
 
         // Should fall back to default ID ordering

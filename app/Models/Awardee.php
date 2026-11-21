@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $rank
  * @property string|null $award
  * @property string|null $position_note
- * @property-read Order $order
+ * @property-read Order|null $order
  */
 #[Fillable([
     'order_id',

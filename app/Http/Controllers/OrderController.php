@@ -131,16 +131,16 @@ final class OrderController extends Controller
             $query->latest();
         }
 
-        $orders = $query->paginate((int) $request->input('perPage', 20));
+        $orders = $query->paginate($request->integer('perPage', 20));
 
         return response()->json([
-            'data' => $orders->map(fn (Order $order) => [
+            'data' => $orders->map(fn (Order $order): array => [
                 'id' => $order->id,
                 'number' => $order->displayNumber(),
                 'title' => $order->title ?? '—',
                 'awardees_count' => $order->awardees_count ?? 0,
-                'parsed_at' => $order->parsed_at?->toDateTimeString() ?? '—',
-                'parsed_at_sort' => $order->parsed_at?->format('Y-m-d H:i:s') ?? '',
+                'parsed_at' => $order->parsed_at->toDateTimeString(),
+                'parsed_at_sort' => $order->parsed_at->format('Y-m-d H:i:s'),
                 'trashed' => (bool) $order->trashed(),
                 'order_id' => $order->id,
             ]),
@@ -159,25 +159,23 @@ final class OrderController extends Controller
     {
         $order = Order::withTrashed()->with('awardees')->findOrFail($id);
 
-        $perPage = (int) $request->input('perPage', 25);
-        $page = max(1, (int) $request->input('page', 1));
+        $perPage = $request->integer('perPage', 25);
+        $page = max(1, $request->integer('page', 1));
 
         $sort = $request->string('sort')->toString() ?: 'id';
         $direction = $request->string('direction')->toString() ?: 'asc';
 
-        $awardees = collect($order->awardees)->sortBy(function ($awardee) use ($sort) {
-            return match ($sort) {
-                'full_name' => $awardee->full_name,
-                'rank' => $awardee->rank ?? '',
-                'award' => $awardee->award ?? '',
-                default => $awardee->id,
-            };
-        }, $direction === 'desc', true)->forPage($page, $perPage)->values();
+        $awardees = collect($order->awardees)->sortBy(fn ($awardee) => match ($sort) {
+            'full_name' => $awardee->full_name,
+            'rank' => $awardee->rank ?? '',
+            'award' => $awardee->award ?? '',
+            default => $awardee->id,
+        }, $direction === 'desc' ? 3 : 0)->forPage($page, $perPage)->values();
 
         $paginator = new LengthAwarePaginator($awardees, $order->awardees->count(), $perPage, $page);
 
         return response()->json([
-            'data' => $awardees->map(fn ($awardee) => [
+            'data' => $awardees->map(fn ($awardee): array => [
                 'id' => $awardee->id,
                 'full_name' => $awardee->full_name,
                 'rank' => $awardee->rank ?? '—',

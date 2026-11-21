@@ -47,6 +47,7 @@ final class MonitoringTest extends TestCase
         // Page 1 via JSON shows the first 15 records, not the last ones.
         $response1 = $this->getJson(route('monitoring.indexJson', ['page' => 1]));
         $response1->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int}} $data1 */
         $data1 = $response1->json();
         $names1 = array_column($data1['data'], 'full_name');
         $this->assertContains('Особа 1 Унікальна', $names1);
@@ -57,6 +58,7 @@ final class MonitoringTest extends TestCase
         // Page 2 via JSON shows the last record, not the first ones.
         $response2 = $this->getJson(route('monitoring.indexJson', ['page' => 2]));
         $response2->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int}} $data2 */
         $data2 = $response2->json();
         $names2 = array_column($data2['data'], 'full_name');
         $this->assertContains('Особа 20 Унікальна', $names2);
@@ -114,6 +116,7 @@ final class MonitoringTest extends TestCase
         $response = $this->getJson(route('monitoring.indexJson'));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int}} $data */
         $data = $response->json();
 
         // Score 4 → emerald "максимум" badge title
@@ -123,10 +126,12 @@ final class MonitoringTest extends TestCase
             if ($row['score'] === 4) {
                 $score4Found = true;
             }
+
             if ($row['score'] === 3) {
                 $score3Found = true;
             }
         }
+
         $this->assertTrue($score4Found, 'Expected a record with score 4');
         $this->assertTrue($score3Found, 'Expected a record with score 3');
     }
@@ -203,16 +208,18 @@ final class MonitoringTest extends TestCase
         $response = $this->getJson(route('monitoring.indexJson'));
 
         $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int}} $data */
         $data = $response->json();
         $names = array_column($data['data'], 'full_name');
         $this->assertContains('Бакал Олександр Вікторович', $names);
         $this->assertContains('Петренко Петро Петрович', $names);
 
         // Check that Бакал has a match with the order
-        $bakalRow = current(array_filter($data['data'], fn ($row) => $row['full_name'] === 'Бакал Олександр Вікторович'));
+        $bakalRow = current(array_filter($data['data'], fn (array $row): bool => $row['full_name'] === 'Бакал Олександр Вікторович'));
         $this->assertIsArray($bakalRow);
         $this->assertGreaterThan(0, $bakalRow['score']);
-        $this->assertStringContainsString('№555/2026', $bakalRow['matchesSummary']);
+        $matchesSummary = is_string($bakalRow['matchesSummary'] ?? '') ? ($bakalRow['matchesSummary'] ?? '') : '';
+        $this->assertStringContainsString('№555/2026', $matchesSummary);
     }
 
     public function test_can_import_csv(): void
@@ -439,6 +446,7 @@ CSV;
         // Both filters: sheet=1 AND award=медаль should return 1 record (Особа В).
         $responseBoth = $this->getJson(route('monitoring.indexJson', ['filters' => ['sheet:1', 'award:медаль']]));
         $responseBoth->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int}} $dataBoth */
         $dataBoth = $responseBoth->json();
         $this->assertSame(1, $dataBoth['pagination']['total']);
         $this->assertSame('Особа В', $dataBoth['data'][0]['full_name']);

@@ -8,6 +8,7 @@ use App\Models\Awardee;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 final class SearchController extends Controller
 {
@@ -43,8 +44,8 @@ final class SearchController extends Controller
     public function indexJson(Request $request): JsonResponse
     {
         $query = trim($request->string('q')->toString());
-        $perPage = (int) $request->input('perPage', 15);
-        $page = max(1, (int) $request->input('page', 1));
+        $perPage = $request->integer('perPage', 15);
+        $page = max(1, $request->integer('page', 1));
 
         if ($query === '') {
             return response()->json([
@@ -75,8 +76,9 @@ final class SearchController extends Controller
             ->orderBy('full_name')
             ->paginate($perPage, ['*'], 'page', $page);
 
+        /** @var LengthAwarePaginator<int, Awardee> $results */
         return response()->json([
-            'data' => $results->map(fn ($result) => [
+            'data' => $results->map(fn ($result): array => [
                 'id' => $result->id,
                 'full_name' => $result->full_name,
                 'rank' => $result->rank ?? '—',
