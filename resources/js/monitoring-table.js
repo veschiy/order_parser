@@ -17,10 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
         defaultParams: currentSearch ? { q: currentSearch } : {},
         filterColumnMap: {
             0: 'sheet',
-            1: 'full_name',
-            2: 'submission_date',
-            3: 'award',
-            4: 'score',
+            1: 'rank',
+            2: 'full_name',
+            3: 'submission_date',
+            4: 'award',
+            5: 'score',
         },
         renderRow(row) {
             const scoreBadge = getScoreBadge(row.score);
@@ -28,27 +29,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return `
                 <tr class="hover:bg-slate-800/40 monitoring-row" id="row-${row.id}" data-row="${row.id}">
-                    <td class="px-3 py-3 text-slate-300" data-col-index="0" data-col="sheet" data-value="${row.sheet}">
+                    <td class="px-2.5 py-2 text-slate-300" data-col-index="0" data-col="sheet" data-value="${row.sheet}">
                         ${row.sheet || '—'}
                     </td>
-                    <td class="px-3 py-3 font-medium text-slate-100" data-col-index="1" data-col="full_name" data-value="${row.full_name}">
+                    <td class="px-2.5 py-2 text-slate-300" data-col-index="1" data-col="rank" data-value="${row.rank}">
+                        ${row.rank || '—'}
+                    </td>
+                    <td class="px-2.5 py-2 font-medium text-slate-100" data-col-index="2" data-col="full_name" data-value="${row.full_name}">
                         <div class="flex items-center gap-2">
                             <span>${row.full_name}</span>
                         </div>
                     </td>
-                    <td class="px-3 py-3 text-slate-300" data-col-index="2" data-col="submission_date" data-value="${row.submission_date}">
+                    <td class="px-2.5 py-2 text-slate-300" data-col-index="3" data-col="submission_date" data-value="${row.submission_date}">
                         ${row.submission_date_display}
                     </td>
-                    <td class="px-3 py-3 text-slate-300" data-col-index="3" data-col="award" data-value="${row.award}">
+                    <td class="px-2.5 py-2 text-slate-300" data-col-index="4" data-col="award" data-value="${row.award}">
                         ${row.award || '—'}
                     </td>
-                    <td class="px-3 py-3 text-center" data-col-index="4" data-col="score" data-value="${row.score}">
+                    <td class="px-2.5 py-2 text-center" data-col-index="5" data-col="score" data-value="${row.score}">
                         ${scoreBadge}
                     </td>
-                    <td class="px-3 py-3 text-xs" data-col="matches" data-value="${row.matchesSummary}">
+                    <td class="px-2.5 py-2 text-xs" data-col="matches" data-value="${row.matchesSummary}">
                         ${matchesHtml}
                     </td>
-                    <td class="px-3 py-3 text-right">
+                    <td class="px-2.5 py-2 text-right">
                         <div class="flex items-center justify-end gap-2">
                             <button
                                 type="button"
@@ -80,10 +84,11 @@ document.addEventListener('DOMContentLoaded', () => {
         getSortColumnMap() {
             return {
                 0: 'sheet',
-                1: 'full_name',
-                2: 'submission_date',
-                3: 'award',
-                4: 'score',
+                1: 'rank',
+                2: 'full_name',
+                3: 'submission_date',
+                4: 'award',
+                5: 'score',
             };
         },
     });

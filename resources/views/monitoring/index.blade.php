@@ -196,10 +196,10 @@
             </div>
 
             <div class="overflow-x-auto overflow-y-visible rounded-xl border border-slate-800">
-                <table id="monitoringTable" class="min-w-full divide-y divide-slate-800 text-sm">
+                <table id="monitoringTable" class="min-w-full divide-y divide-slate-800 text-xs">
                     <thead class="bg-slate-900 select-none">
                         <tr>
-                            <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="0" data-type="text">
+                            <th class="relative px-2.5 py-2 text-left font-medium text-slate-300" data-col-index="0" data-type="text">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Аркуш</span>
                                     <div class="flex items-center gap-1">
@@ -213,7 +213,21 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="1" data-type="text">
+                            <th class="relative px-2.5 py-2 text-left font-medium text-slate-300" data-col-index="1" data-type="text">
+                                <div class="flex items-center text-left justify-between gap-1">
+                                    <span class="col-title">Звання</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="sort-icon text-slate-500 text-xs">↕</span>
+                                        <button type="button" data-action="sort" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Сортувати">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                                        </button>
+                                        <button type="button" data-action="filter" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Фільтр">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </th>
+                            <th class="relative px-2.5 py-2 text-left font-medium text-slate-300" data-col-index="2" data-type="text">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">ПІБ</span>
                                     <div class="flex items-center gap-1">
@@ -227,7 +241,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="2" data-type="date">
+                            <th class="relative px-2.5 py-2 text-left font-medium text-slate-300" data-col-index="3" data-type="date">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Дата подання</span>
                                     <div class="flex items-center gap-1">
@@ -241,7 +255,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-3 py-3 text-left font-medium text-slate-300" data-col-index="3" data-type="text">
+                            <th class="relative px-2.5 py-2 text-left font-medium text-slate-300" data-col-index="4" data-type="text">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Нагорода</span>
                                     <div class="flex items-center gap-1">
@@ -255,7 +269,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-3 py-3 text-center font-medium text-slate-300" data-col-index="4" data-type="number">
+                            <th class="relative px-2.5 py-2 text-center font-medium text-slate-300" data-col-index="5" data-type="number">
                                 <div class="flex items-center text-center justify-center gap-1">
                                     <span class="col-title">Бал</span>
                                     <div class="flex items-center gap-1">
@@ -269,7 +283,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="px-3 py-3 text-right font-medium text-slate-300">Дії</th>
+                            <th class="px-2.5 py-2 text-right font-medium text-slate-300">Дії</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">

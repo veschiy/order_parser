@@ -53,7 +53,7 @@ final class MonitoringController extends Controller
         }
 
         // Apply column filters (score is computed, handled separately)
-        $allowedColumns = ['sheet', 'full_name', 'submission_date', 'award'];
+        $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
         $scoreFilter = null;
 
         foreach ($filters as $filter) {
@@ -354,7 +354,7 @@ final class MonitoringController extends Controller
             return response()->json(['values' => ['0', '1', '2', '3', '4', '__empty__']]);
         }
 
-        $allowedColumns = ['sheet', 'full_name', 'submission_date', 'award'];
+        $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
 
         if (! in_array($column, $allowedColumns, true)) {
             return response()->json(['values' => []]);
