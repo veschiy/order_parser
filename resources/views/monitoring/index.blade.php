@@ -269,8 +269,8 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-2.5 py-2 text-center font-medium text-slate-300" data-col-index="5" data-type="number">
-                                <div class="flex items-center text-center justify-center gap-1">
+                            <th class="relative px-2.5 py-2 text-left font-medium text-slate-300" data-col-index="5" data-type="number">
+                                <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Бал</span>
                                     <div class="flex items-center gap-1">
                                         <span class="sort-icon text-slate-500 text-xs">↕</span>
@@ -283,7 +283,8 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="px-2.5 py-2 text-right font-medium text-slate-300">Дії</th>
+                            <th class="px-2.5 py-2 text-left font-medium text-slate-300"></th>
+                            <th class="px-2.5 py-2 text-left font-medium text-slate-300">Дії</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">
