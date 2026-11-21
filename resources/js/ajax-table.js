@@ -126,7 +126,7 @@ export class AjaxTable {
             }
 
             const json = await response.json();
-            this.allData = json.data || [];
+            this.allData = Array.isArray(json.data) ? json.data : [];
             this.render(this.allData, json.pagination || {});
 
             if (this.onLoad) {
@@ -145,15 +145,12 @@ export class AjaxTable {
         if (!tbody) return;
 
         const emptyEl = this.emptyMessageSelector ? document.querySelector(this.emptyMessageSelector) : null;
-        const tableWrapper = tbody.closest('.overflow-x-auto');
 
         if (data.length === 0) {
             tbody.innerHTML = '';
             if (emptyEl) emptyEl.classList.remove('hidden');
-            if (tableWrapper) tableWrapper.classList.add('hidden');
         } else {
             if (emptyEl) emptyEl.classList.add('hidden');
-            if (tableWrapper) tableWrapper.classList.remove('hidden');
 
             const html = data.map(row => this.renderRow(row)).join('');
             tbody.innerHTML = html;
@@ -426,12 +423,6 @@ export class AjaxTable {
         dropdown.style.top = Math.min(rect.bottom + 4, window.innerHeight - 400) + 'px';
         dropdown.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
         dropdown.classList.remove('hidden');
-
-        // For computed columns (like score), use client-side distinct values
-        if (columnName === 'score') {
-            this.renderClientSideDistinct(colIndex, listEl);
-            return;
-        }
 
         // Fetch distinct values
         try {

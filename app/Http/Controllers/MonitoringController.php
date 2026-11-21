@@ -248,18 +248,29 @@ final class MonitoringController extends Controller
 
         ['query' => $query, 'scoreFilter' => $scoreFilter] = $this->buildFilteredQuery($search, $filters, $sort, $direction);
 
-        $total = $query->count();
-        $records = $query->forPage($page, $perPage)->get();
-        $evaluations = $evaluator->evaluateAll($records);
-
-        // Apply score filter post-evaluation (score is computed, not stored)
         if ($scoreFilter !== null) {
+            // Score is computed, not stored — must evaluate all records first, then filter and paginate
+            $records = $query->get();
+            $evaluations = $evaluator->evaluateAll($records);
             $evaluations = $evaluations->filter(fn ($evaluation) => in_array($evaluation->score, $scoreFilter, true));
-        }
 
-        // Apply score sorting post-evaluation (score is computed, not a DB column)
-        if ($sort === 'score') {
-            $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, sortFlags: SORT_NUMERIC, descending: $direction === 'desc');
+            // Apply score sorting post-evaluation
+            if ($sort === 'score') {
+                $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, sortFlags: SORT_NUMERIC, descending: $direction === 'desc');
+            }
+
+            $total = $evaluations->count();
+            $evaluations = $evaluations->forPage($page, $perPage);
+        } else {
+            // No score filter — paginate at the DB level for efficiency
+            $total = $query->count();
+            $records = $query->forPage($page, $perPage)->get();
+            $evaluations = $evaluator->evaluateAll($records);
+
+            // Apply score sorting post-evaluation (score is computed, not a DB column)
+            if ($sort === 'score') {
+                $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, sortFlags: SORT_NUMERIC, descending: $direction === 'desc');
+            }
         }
 
         return response()->json([
@@ -285,7 +296,7 @@ final class MonitoringController extends Controller
                 'matchesSummary' => empty($evaluation->matches)
                     ? 'Не знайдено'
                     : implode(', ', array_map(static fn ($m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches)),
-            ]),
+            ])->values(),
             'pagination' => [
                 'current_page' => $page,
                 'last_page' => (int) ceil($total / $perPage),
@@ -305,6 +316,11 @@ final class MonitoringController extends Controller
     {
         $column = $request->input('column');
         $search = trim($request->string('q')->toString());
+
+        // Score is computed, not stored — return fixed possible values
+        if ($column === 'score') {
+            return response()->json(['values' => ['0', '1', '2', '3', '4']]);
+        }
 
         $allowedColumns = ['sheet', 'full_name', 'submission_date', 'award'];
 
