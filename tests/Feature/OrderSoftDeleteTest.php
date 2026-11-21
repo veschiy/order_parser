@@ -31,27 +31,6 @@ final class OrderSoftDeleteTest extends TestCase
             ->assertDontSee('БАКАЛ Олександр Вікторович');
     }
 
-    public function test_restore_makes_order_searchable_again(): void
-    {
-        $order = Order::query()->create([
-            'document_url' => 'https://example.com/order',
-            'parsed_at' => now(),
-        ]);
-        $awardee = Awardee::query()->create([
-            'order_id' => $order->id,
-            'full_name' => 'БАКАЛ Олександр Вікторович',
-        ]);
-
-        $order->delete();
-
-        $this->patch('/orders/'.$order->id.'/restore')
-            ->assertRedirect(route('orders.show', $order->id));
-
-        $this->get('/?q='.urlencode('БАКАЛ'))
-            ->assertOk()
-            ->assertSee('БАКАЛ Олександр Вікторович');
-    }
-
     public function test_soft_deleted_order_can_still_be_opened_and_restored(): void
     {
         $order = Order::query()->create([

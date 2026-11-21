@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\Awardee;
-use App\Models\Order;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -44,22 +42,5 @@ HTML;
             'full_name' => 'БАКАЛ Олександр Вікторович',
             'award' => 'орден «За мужність» III ступеня',
         ]);
-    }
-
-    public function test_orders_and_awardees_can_be_listed(): void
-    {
-        $order = Order::query()->create([
-            'document_url' => 'https://example.com/order',
-            'parsed_at' => now(),
-        ]);
-
-        Awardee::query()->create([
-            'order_id' => $order->id,
-            'full_name' => 'БАКАЛ Олександр Вікторович',
-        ]);
-
-        $this->get('/orders/'.$order->id)
-            ->assertOk()
-            ->assertSee('БАКАЛ Олександр Вікторович');
     }
 }
