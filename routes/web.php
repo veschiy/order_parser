@@ -10,16 +10,18 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [SearchController::class, 'index'])->name('search.index');
 Route::get('/search/json', [SearchController::class, 'indexJson'])->name('search.indexJson');
 
-Route::get('/monitoring', [MonitoringController::class, 'index'])->name('monitoring.index');
-Route::get('/monitoring/json', [MonitoringController::class, 'indexJson'])->name('monitoring.indexJson');
-Route::get('/monitoring/json/distinct', [MonitoringController::class, 'distinctJson'])->name('monitoring.distinctJson');
-Route::post('/monitoring', [MonitoringController::class, 'store'])->name('monitoring.store');
-Route::post('/monitoring/import', [MonitoringController::class, 'import'])->name('monitoring.import');
-Route::get('/monitoring/export.csv', [MonitoringController::class, 'export'])->name('monitoring.export');
-Route::post('/monitoring/export.csv', [MonitoringController::class, 'export']);
-Route::put('/monitoring/{id}', [MonitoringController::class, 'update'])->name('monitoring.update');
-Route::delete('/monitoring/{id}', [MonitoringController::class, 'destroy'])->name('monitoring.destroy');
-Route::delete('/monitoring', [MonitoringController::class, 'clear'])->name('monitoring.clear');
+Route::prefix('/monitoring')->group(function () {
+    Route::get('/', [MonitoringController::class, 'index'])->name('monitoring.index');
+    Route::get('/json', [MonitoringController::class, 'indexJson'])->name('monitoring.indexJson');
+    Route::get('/json/distinct', [MonitoringController::class, 'distinctJson'])->name('monitoring.distinctJson');
+    Route::post('/', [MonitoringController::class, 'store'])->name('monitoring.store');
+    Route::post('/import', [MonitoringController::class, 'import'])->name('monitoring.import');
+    Route::get('/export.csv', [MonitoringController::class, 'export'])->name('monitoring.export');
+    Route::post('/export.csv', [MonitoringController::class, 'export']);
+    Route::put('/{id}', [MonitoringController::class, 'update'])->name('monitoring.update');
+    Route::delete('/{id}', [MonitoringController::class, 'destroy'])->name('monitoring.destroy');
+    Route::delete('/', [MonitoringController::class, 'clear'])->name('monitoring.clear');
+});
 
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
 Route::get('/orders/json', [OrderController::class, 'indexJson'])->name('orders.indexJson');

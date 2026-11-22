@@ -19,11 +19,17 @@
 @endif
 
 <div class="overflow-x-auto overflow-y-visible rounded-xl border border-slate-800">
-    <table id="{{ $id }}" data-excel-table class="min-w-full divide-y divide-slate-800 text-sm">
+    <table id="{{ $id }}" data-excel-table class="min-w-full divide-y divide-slate-800 text-sm" role="table" aria-label="Таблиця даних">
         @if (isset($header))
             <thead class="bg-slate-900 select-none">
                 <tr>
                     {{ $header }}
+                </tr>
+            </thead>
+        @else
+            <thead class="bg-slate-900 select-none">
+                <tr>
+                    <th scope="col">Дані</th>
                 </tr>
             </thead>
         @endif

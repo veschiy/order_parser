@@ -8,19 +8,20 @@ use App\Models\Awardee;
 use App\Models\Order;
 use App\Models\ParseRun;
 use App\Services\Documents\DecreeParser;
+use App\Services\Documents\ParsedDecree;
 use App\Services\Http\BrowserlikeClient;
 use App\Services\Rss\FeedItem;
 use App\Services\Rss\FeedParser;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
-final readonly class AwardsParserService
+final class AwardsParserService
 {
-    private FeedParser $feedParser;
+    private readonly FeedParser $feedParser;
 
-    private DecreeParser $decreeParser;
+    private readonly DecreeParser $decreeParser;
 
-    private BrowserlikeClient $client;
+    private readonly BrowserlikeClient $client;
 
     public function __construct(?FeedParser $feedParser = null, ?DecreeParser $decreeParser = null, ?BrowserlikeClient $client = null)
     {
@@ -190,16 +191,7 @@ final readonly class AwardsParserService
      */
     private function parseAndStoreDocument(string $url, ?string $publishedAt = null): array
     {
-        $publicationDate = null;
-
-        if ($publishedAt !== null) {
-            try {
-                $publicationDate = new \DateTimeImmutable($publishedAt);
-            } catch (Throwable) {
-                // Fall back to the date extracted from the document itself.
-            }
-        }
-
+        $publicationDate = $this->parsePublishedAt($publishedAt);
         $existingOrder = Order::withTrashed()->where('document_url', $url)->first();
 
         if ($existingOrder !== null && $existingOrder->awardees()->exists()) {
@@ -210,12 +202,47 @@ final readonly class AwardsParserService
             return [$existingOrder, 0, null];
         }
 
-        try {
-            $decree = $this->decreeParser->parse($url, $publicationDate);
-        } catch (Throwable $throwable) {
-            return [null, 0, $throwable->getMessage()];
+        $decree = $this->fetchDecree($url, $publicationDate);
+        if (! $decree instanceof ParsedDecree) {
+            return [null, 0, $this->lastError];
         }
 
+        return $this->storeDecree($decree);
+    }
+
+    private string $lastError = '';
+
+    private function parsePublishedAt(?string $publishedAt): ?\DateTimeImmutable
+    {
+        if ($publishedAt === null) {
+            return null;
+        }
+
+        try {
+            return new \DateTimeImmutable($publishedAt);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function fetchDecree(string $url, ?\DateTimeImmutable $publicationDate): ?ParsedDecree
+    {
+        $this->lastError = '';
+
+        try {
+            return $this->decreeParser->parse($url, $publicationDate);
+        } catch (Throwable $throwable) {
+            $this->lastError = $throwable->getMessage();
+
+            return null;
+        }
+    }
+
+    /**
+     * @return array{0: ?Order, 1: int, 2: ?string}
+     */
+    private function storeDecree(ParsedDecree $decree): array
+    {
         $order = null;
         $awardeesCreated = 0;
 
@@ -259,10 +286,10 @@ final readonly class AwardsParserService
                     }
                 }
             });
-
-            return [$order, $awardeesCreated, null];
         } catch (Throwable $throwable) {
             return [null, 0, $throwable->getMessage()];
         }
+
+        return [$order, $awardeesCreated, null];
     }
 }

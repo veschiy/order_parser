@@ -63,12 +63,12 @@ final readonly class DecreeParser
             }
         }
 
-        preg_match_all('/Нагородити\s+(.+?)(?=Нагородити\s+|$)/us', $text, $segments, PREG_SET_ORDER);
+        preg_match_all('/Нагородити\s+(.+)(?=Нагородити\s+|$)/us', $text, $segments, PREG_SET_ORDER);
 
         foreach ($segments as $segmentMatch) {
             $body = $segmentMatch[1];
 
-            if (! preg_match('/^(.*?)(?=\s+[А-ЯІЇЄҐ][А-ЯІЇЄҐЬ]{2,}\s+[А-ЯІЇЄҐ][а-яіїєґ])/us', $body, $awardMatch, PREG_OFFSET_CAPTURE)) {
+            if (! preg_match('/^(.+?)(?=\s+[А-ЯІЇЄҐ][А-ЯІЇЄҐЬ]{2,}\s+[А-ЯІЇЄҐ][а-яіїєґ])/us', $body, $awardMatch, PREG_OFFSET_CAPTURE)) {
                 continue;
             }
 
@@ -278,20 +278,16 @@ final readonly class DecreeParser
 
     private function extractTitle(string $html): ?string
     {
+        $title = null;
+
         if (preg_match('/<h1[^>]*>(.*?)<\/h1>/us', $html, $matches)) {
             $title = trim(html_entity_decode(strip_tags($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-
-            return $title !== '' ? $title : null;
-        }
-
-        if (preg_match('/<title[^>]*>(.*?)<\/title>/us', $html, $matches)) {
+        } elseif (preg_match('/<title[^>]*>(.*?)<\/title>/us', $html, $matches)) {
             $title = trim(html_entity_decode(strip_tags($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
             $title = preg_replace('/\s+[—–-].*$/u', '', $title) ?? $title;
-
-            return $title !== '' ? $title : null;
         }
 
-        return null;
+        return $title !== '' ? $title : null;
     }
 
     private function htmlToText(string $html): string
@@ -310,6 +306,16 @@ final readonly class DecreeParser
 
     private function extractPublishedAt(string $html, string $text): ?\DateTimeInterface
     {
+        $date = $this->extractDateFromHtml($html);
+        if ($date instanceof \DateTimeInterface) {
+            return $date;
+        }
+
+        return $this->extractDateFromText($text);
+    }
+
+    private function extractDateFromHtml(string $html): ?\DateTimeInterface
+    {
         foreach ([
             '/property=["\']article:published_time["\'][^>]*content=["\']([^"\']+)["\']/iu',
             '/content=["\']([^"\']+)["\'][^>]*property=["\']article:published_time["\']/iu',
@@ -325,6 +331,11 @@ final readonly class DecreeParser
             }
         }
 
+        return null;
+    }
+
+    private function extractDateFromText(string $text): ?\DateTimeInterface
+    {
         $months = [
             'січня' => 1,
             'лютого' => 2,
@@ -340,24 +351,22 @@ final readonly class DecreeParser
             'грудня' => 12,
         ];
 
-        // Prefer the last Ukrainian date in the document, which is usually
-        // the signing date at the bottom of the decree.
         preg_match_all('/(\d{1,2})\s+('.implode('|', array_keys($months)).')\s+(\d{4})/u', $text, $matches, PREG_SET_ORDER);
 
-        if ($matches !== []) {
-            $lastMatch = end($matches);
-            $day = (int) $lastMatch[1];
-            $month = $months[$lastMatch[2]];
-            $year = (int) $lastMatch[3];
-
-            try {
-                return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
-            } catch (\Throwable) {
-                return null;
-            }
+        if ($matches === []) {
+            return null;
         }
 
-        return null;
+        $lastMatch = end($matches);
+        $day = (int) $lastMatch[1];
+        $month = $months[$lastMatch[2]];
+        $year = (int) $lastMatch[3];
+
+        try {
+            return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

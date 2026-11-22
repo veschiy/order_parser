@@ -167,6 +167,7 @@
                 </div>
 
                 <form id="monitoringSearchForm" class="flex items-center gap-2">
+                    <label for="monitoringSearchInput" class="sr-only">Швидкий пошук</label>
                     <input
                         type="search"
                         name="q"

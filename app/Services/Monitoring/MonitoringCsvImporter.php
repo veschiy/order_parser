@@ -34,6 +34,14 @@ final class MonitoringCsvImporter
             return 0;
         }
 
+        return $this->importFromStream($stream, $delimiter);
+    }
+
+    /**
+     * @param  resource  $stream
+     */
+    private function importFromStream($stream, string $delimiter): int
+    {
         rewind($stream);
 
         $firstRow = fgetcsv($stream, 0, $delimiter, '"', '\\');
@@ -44,7 +52,6 @@ final class MonitoringCsvImporter
         }
 
         $columnIndices = $this->resolveColumnIndices($firstRow, $stream);
-
         $imported = $this->importRows($stream, $delimiter, $columnIndices);
 
         fclose($stream);
@@ -89,8 +96,6 @@ final class MonitoringCsvImporter
     }
 
     /**
-     * Find the first non-empty line, detect delimiter, and rewind. Returns null if no content.
-     *
      * @param  resource  $stream
      */
     private function findDelimiterAndRewind($stream): ?string
@@ -104,8 +109,6 @@ final class MonitoringCsvImporter
     }
 
     /**
-     * Read the first non-empty line from the stream.
-     *
      * @param  resource  $stream
      */
     private function readFirstNonEmptyLine($stream): string
@@ -122,8 +125,6 @@ final class MonitoringCsvImporter
     }
 
     /**
-     * Resolve column indices from the first row, handling header and non-header cases.
-     *
      * @param  array<int, string|null>  $firstRow
      * @param  resource  $stream
      * @return array<string, int>
@@ -297,64 +298,74 @@ final class MonitoringCsvImporter
             $normalized = mb_strtolower(trim($cell), 'UTF-8');
             $normalized = str_replace(['.', '_', '-'], '', $normalized);
 
-            // Skip "отримано" or "received" explicitly
-            if (str_contains($normalized, 'отриман') || str_contains($normalized, 'received')) {
+            if ($this->isSkippedHeader($normalized)) {
                 continue;
             }
 
-            if (str_contains($normalized, 'аркуш') || str_contains($normalized, 'sheet') || str_contains($normalized, 'лист')) {
-                $map['sheet'] = $index;
-            } elseif (
-                str_contains($normalized, 'піб') ||
-                str_contains($normalized, 'фіо') ||
-                str_contains($normalized, 'fullname') ||
-                str_contains($normalized, 'full name') ||
-                str_contains($normalized, 'особа') ||
-                $normalized === 'name' ||
-                $normalized === "ім'я" ||
-                $normalized === 'імя' ||
-                $normalized === 'прізвище'
-            ) {
-                $map['full_name'] = $index;
-            } elseif (
-                str_contains($normalized, 'іпн') ||
-                str_contains($normalized, 'рнокпп') ||
-                str_contains($normalized, 'tax') ||
-                str_contains($normalized, 'код') ||
-                $normalized === 'ipn'
-            ) {
-                // IPN is intentionally skipped for monitoring
-                continue;
-            } elseif (
-                str_contains($normalized, 'поданн') ||
-                str_contains($normalized, 'submission') ||
-                str_contains($normalized, 'date') ||
-                str_contains($normalized, 'дата')
-            ) {
-                $map['submission_date'] = $index;
-            } elseif (
-                str_contains($normalized, 'званн') ||
-                str_contains($normalized, 'ранг') ||
-                str_contains($normalized, 'grade') ||
-                str_contains($normalized, 'rank') ||
-                str_contains($normalized, 'должност')
-            ) {
-                $map['rank'] = $index;
-            } elseif (
-                str_contains($normalized, 'нагород') ||
-                str_contains($normalized, 'award') ||
-                str_contains($normalized, 'відзнак')
-            ) {
-                $map['award'] = $index;
+            $field = $this->matchHeaderField($normalized);
+            if ($field !== null) {
+                $map[$field] = $index;
             }
         }
 
-        // We consider it a header row if at least 'full_name' or 2 other fields are recognized
         if (isset($map['full_name']) || count($map) >= 2) {
             return $map;
         }
 
         return null;
+    }
+
+    private function isSkippedHeader(string $normalized): bool
+    {
+        return str_contains($normalized, 'отриман')
+            || str_contains($normalized, 'received')
+            || str_contains($normalized, 'іпн')
+            || str_contains($normalized, 'рнокпп')
+            || str_contains($normalized, 'tax')
+            || str_contains($normalized, 'код')
+            || $normalized === 'ipn';
+    }
+
+    private function matchHeaderField(string $normalized): ?string
+    {
+        if (str_contains($normalized, 'аркуш') || str_contains($normalized, 'sheet') || str_contains($normalized, 'лист')) {
+            return 'sheet';
+        }
+
+        if ($this->isFullNameHeader($normalized)) {
+            return 'full_name';
+        }
+
+        if (str_contains($normalized, 'поданн') || str_contains($normalized, 'submission')
+            || str_contains($normalized, 'date') || str_contains($normalized, 'дата')) {
+            return 'submission_date';
+        }
+
+        if (str_contains($normalized, 'званн') || str_contains($normalized, 'ранг')
+            || str_contains($normalized, 'grade') || str_contains($normalized, 'rank')
+            || str_contains($normalized, 'должност')) {
+            return 'rank';
+        }
+
+        if (str_contains($normalized, 'нагород') || str_contains($normalized, 'award')
+            || str_contains($normalized, 'відзнак')) {
+            return 'award';
+        }
+
+        return null;
+    }
+
+    private function isFullNameHeader(string $normalized): bool
+    {
+        return str_contains($normalized, 'піб')
+            || str_contains($normalized, 'фіо')
+            || str_contains($normalized, 'fullname')
+            || str_contains($normalized, 'full name')
+            || str_contains($normalized, 'особа')
+            || $normalized === 'name'
+            || $normalized === "ім'я"
+            || $normalized === 'імя'
+            || $normalized === 'прізвище';
     }
 
     /**

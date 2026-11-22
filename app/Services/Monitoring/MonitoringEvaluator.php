@@ -185,6 +185,11 @@ final readonly class MonitoringEvaluator
             return true;
         }
 
+        return $this->tokensMatch($normMonitored, $normAwardee);
+    }
+
+    private function tokensMatch(string $normMonitored, string $normAwardee): bool
+    {
         $monitoredTokens = preg_split(self::WHITESPACE_PATTERN, $normMonitored) ?: [];
         $awardeeTokens = preg_split(self::WHITESPACE_PATTERN, $normAwardee) ?: [];
 
@@ -220,6 +225,11 @@ final readonly class MonitoringEvaluator
             return true;
         }
 
+        return $this->awardsContainEachOther($normMonitored, $normAwardee);
+    }
+
+    private function awardsContainEachOther(string $normMonitored, string $normAwardee): bool
+    {
         return str_contains($normAwardee, $normMonitored) || str_contains($normMonitored, $normAwardee);
     }
 

@@ -327,7 +327,6 @@ final class MonitoringController extends Controller
         $nonEmptyValues = array_values(array_filter($values, fn (string $v): bool => $v !== '__empty__'));
 
         if ($hasEmpty && $nonEmptyValues === []) {
-            // Only empty filter — match null or empty string
             $query->where(function ($builder) use ($column): void {
                 $builder->whereNull($column)->orWhere($column, '');
             });
@@ -335,19 +334,14 @@ final class MonitoringController extends Controller
             return;
         }
 
-        if ($hasEmpty) {
-            // Both empty and non-empty values
-            $query->where(function (Builder $builder) use ($column, $nonEmptyValues): void {
-                $builder->whereIn($column, $nonEmptyValues)->orWhere(function (Builder $inner) use ($column): void {
+        $query->where(function (Builder $builder) use ($column, $nonEmptyValues, $hasEmpty): void {
+            $builder->whereIn($column, $nonEmptyValues);
+            if ($hasEmpty) {
+                $builder->orWhere(function (Builder $inner) use ($column): void {
                     $inner->whereNull($column)->orWhere($column, '');
                 });
-            });
-
-            return;
-        }
-
-        // Only non-empty values
-        $query->whereIn($column, $nonEmptyValues);
+            }
+        });
     }
 
     /**
@@ -411,19 +405,20 @@ final class MonitoringController extends Controller
      */
     private function passesMatchesFilter(bool $hasMatches, array $evalDecreeDisplays, array $matchesFilter): bool
     {
-        // If only "no matches" is selected
-        if ($matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] === []) {
+        $hasDecreeFilter = ! empty($matchesFilter['decreeDisplays']);
+        $hasNoMatchFilter = $matchesFilter['hasNoMatches'];
+        $hasDecreeMatch = $hasMatches && count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
+
+        if ($hasNoMatchFilter && $hasDecreeFilter) {
+            return ! $hasMatches || $hasDecreeMatch;
+        }
+
+        if ($hasNoMatchFilter) {
             return ! $hasMatches;
         }
 
-        // If only specific decrees are selected
-        if (! $matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] !== []) {
-            return $hasMatches && count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
-        }
-
-        // Both specific decrees and "no matches" selected
-        if ($matchesFilter['hasNoMatches'] && ! empty($matchesFilter['decreeDisplays'])) {
-            return ! $hasMatches || count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
+        if ($hasDecreeFilter) {
+            return $hasDecreeMatch;
         }
 
         return true;
@@ -437,18 +432,9 @@ final class MonitoringController extends Controller
     private function applySorting(Builder $query, ?string $sort, string $direction): void
     {
         $sortableColumns = ['sheet', 'full_name', 'submission_date', 'award'];
-        $computedColumns = ['score', 'matches'];
 
         if ($sort !== null && in_array($sort, $sortableColumns, true)) {
             $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
-
-            return;
-        }
-
-        if ($sort !== null && in_array($sort, $computedColumns, true)) {
-            // Score and matches sorting are handled post-evaluation in indexJson.
-            // Use a stable default order here so the post-evaluation sort is deterministic.
-            $query->orderBy('id');
 
             return;
         }
@@ -535,49 +521,59 @@ final class MonitoringController extends Controller
      */
     public function distinctJson(Request $request): JsonResponse
     {
-        $column = $request->input('column');
+        $column = $request->has('column') ? ($request->string('column')->toString() ?: null) : null;
         $search = trim($request->string('q')->toString());
 
-        // Score is computed, not stored — return fixed possible values
+        $values = $this->resolveDistinctValues($column, $search);
+
+        return response()->json(['values' => $values]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolveDistinctValues(?string $column, string $search): array
+    {
         if ($column === 'score') {
-            return response()->json(['values' => ['0', '1', '2', '3', '4', '__empty__']]);
+            return ['0', '1', '2', '3', '4', '__empty__'];
         }
 
-        // Matches is computed, not stored — return distinct decree display numbers from evaluated data
         if ($column === 'matches') {
             ['query' => $matchQuery] = $this->buildFilteredQuery($search);
             $records = $matchQuery->get();
             $evaluations = (new MonitoringEvaluator)->evaluateAll($records);
 
-            $decreeDisplays = $this->buildDecreeDisplays($evaluations);
-
-            return response()->json(['values' => $decreeDisplays]);
+            return $this->buildDecreeDisplays($evaluations);
         }
 
         $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
 
         if (! in_array($column, $allowedColumns, true)) {
-            return response()->json(['values' => []]);
+            return [];
         }
 
         ['query' => $query] = $this->buildFilteredQuery($search);
-        $values = $query->distinct()->pluck($column)->filter()->map(function ($v): string {
-            if ($v instanceof Carbon) {
-                return $v->format('Y-m-d');
-            }
-
-            if (is_string($v)) {
-                return $v;
-            }
-
-            if (is_int($v)) {
-                return (string) $v;
-            }
-
-            return '';
-        })->sort()->values();
+        /** @var list<string> $values */
+        $values = $query->distinct()->pluck($column)->filter()->map(fn ($v): string => $this->formatDistinctValue($v))->sort()->values()->toArray();
         $values[] = '__empty__';
 
-        return response()->json(['values' => $values]);
+        return $values;
+    }
+
+    private function formatDistinctValue(mixed $v): string
+    {
+        if ($v instanceof Carbon) {
+            return $v->format('Y-m-d');
+        }
+
+        if (is_string($v)) {
+            return $v;
+        }
+
+        if (is_int($v)) {
+            return (string) $v;
+        }
+
+        return '';
     }
 }

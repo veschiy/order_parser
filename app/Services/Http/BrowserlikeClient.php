@@ -73,22 +73,31 @@ final class BrowserlikeClient
 
         $this->throttle();
 
-        $reprimed = false;
-
         if (! $this->primed) {
             $this->prime($headers);
             $this->primed = true;
         }
 
+        return $this->retryWithBackoff($url, $headers);
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     * @return array{0: int, 1: string}
+     */
+    private function retryWithBackoff(string $url, array $headers): array
+    {
+        $reprimed = false;
         $status = 0;
         $body = '';
 
         for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
-            try {
-                [$status, $body] = $this->perform($url, $headers);
-            } catch (\Throwable $throwable) {
+            [$status, $body, $threw] = $this->attemptRequest($url, $headers);
+
+            if ($threw) {
                 if ($attempt >= self::MAX_ATTEMPTS - 1) {
-                    throw $throwable;
+                    // Re-throw on last attempt — the exception is stored.
+                    throw $this->lastException ?? new HttpRequestFailedException('Request failed after '.self::MAX_ATTEMPTS.' attempts.');
                 }
 
                 $this->backoff($attempt);
@@ -100,22 +109,8 @@ final class BrowserlikeClient
                 return [$status, $body];
             }
 
-            // Re-prime cookies once if the edge still blocks us, then retry.
-            if (! $reprimed && $attempt === 1) {
-                // Drop any stale/checkpoint cookies before re-priming so the
-                // retry starts from a clean (or empty) jar. Prefer unlinking;
-                // fall back to emptying the file if deletion fails.
-                if ($this->cookieFile !== null && is_file($this->cookieFile)) {
-                    if (@unlink($this->cookieFile)) {
-                        $this->cookieFile = null;
-                    } else {
-                        @file_put_contents($this->cookieFile, '');
-                    }
-                }
-
-                $this->primed = false;
-                $this->prime($headers);
-                $this->primed = true;
+            if ($this->shouldReprime($reprimed, $attempt)) {
+                $this->reprimeCookies($headers);
                 $reprimed = true;
             }
 
@@ -129,6 +124,48 @@ final class BrowserlikeClient
         }
 
         return [$status, $body];
+    }
+
+    private ?\Throwable $lastException = null;
+
+    /**
+     * @param  array<string, string>  $headers
+     * @return array{0: int, 1: string, 2: bool}
+     */
+    private function attemptRequest(string $url, array $headers): array
+    {
+        try {
+            [$status, $body] = $this->perform($url, $headers);
+
+            return [$status, $body, false];
+        } catch (\Throwable $throwable) {
+            $this->lastException = $throwable;
+
+            return [0, '', true];
+        }
+    }
+
+    private function shouldReprime(bool $reprimed, int $attempt): bool
+    {
+        return ! $reprimed && $attempt === 1;
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function reprimeCookies(array $headers): void
+    {
+        if ($this->cookieFile !== null && is_file($this->cookieFile)) {
+            if (@unlink($this->cookieFile)) {
+                $this->cookieFile = null;
+            } else {
+                @file_put_contents($this->cookieFile, '');
+            }
+        }
+
+        $this->primed = false;
+        $this->prime($headers);
+        $this->primed = true;
     }
 
     /**
