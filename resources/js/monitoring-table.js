@@ -120,6 +120,35 @@ document.addEventListener('DOMContentLoaded', () => {
             resetLink.classList.add('hidden');
         });
     }
+
+    // Reset all filters button (also clears search)
+    const resetFiltersBtn = document.getElementById('monitoringResetFiltersBtn');
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            ajaxTable.defaultParams = {};
+            ajaxTable.resetAllFilters();
+            if (resetLink) resetLink.classList.add('hidden');
+            updateResetFiltersButton();
+        });
+    }
+
+    const updateResetFiltersButton = () => {
+        const hasFilters = Object.keys(ajaxTable.columnFilters).length > 0;
+        if (resetFiltersBtn) {
+            resetFiltersBtn.style.display = hasFilters ? 'inline-flex' : 'none';
+        }
+    };
+
+    // Override renderComplete to also update the reset button visibility
+    const originalRenderComplete = ajaxTable.renderComplete;
+    ajaxTable.renderComplete = function () {
+        if (originalRenderComplete) originalRenderComplete.apply(this, arguments);
+        updateResetFiltersButton();
+    };
+
+    // Initial visibility check
+    updateResetFiltersButton();
 });
 
 function getScoreBadge(score) {

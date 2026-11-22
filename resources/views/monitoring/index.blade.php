@@ -160,6 +160,10 @@
                     <div class="text-xs text-slate-400">
                         Відображається: <span id="monitoringTable-count" class="font-semibold text-slate-200">0</span> із {{ $totalCount }}
                     </div>
+                    <button type="button" id="monitoringResetFiltersBtn" class="inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-sm font-medium text-indigo-300 transition hover:bg-indigo-500/20 hover:text-indigo-200" style="display: none;">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        Скинути фільтри
+                    </button>
                 </div>
 
                 <form id="monitoringSearchForm" class="flex items-center gap-2">
