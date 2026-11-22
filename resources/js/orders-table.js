@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
         countSelector: '#ordersTable-count',
         defaultSort: 'parsed_at',
         defaultDirection: 'desc',
+        filterColumnMap: {
+            0: 'number',
+        },
         renderRow(row) {
             const trashedClass = row.trashed ? 'opacity-50' : '';
             const lineThrough = row.trashed ? 'line-through' : '';
@@ -36,4 +39,25 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         },
     });
+
+    const resetBtn = document.getElementById('ordersResetFiltersBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            table.resetAllFilters();
+            table.load();
+        });
+    }
+
+    const updateResetFiltersButton = () => {
+        const hasFilters = Object.keys(table.columnFilters).length > 0;
+        if (resetBtn) {
+            resetBtn.style.display = hasFilters ? 'inline-flex' : 'none';
+        }
+    };
+
+    const originalRenderComplete = table.renderComplete;
+    table.renderComplete = function () {
+        if (originalRenderComplete) originalRenderComplete.apply(this, arguments);
+        updateResetFiltersButton();
+    };
 });

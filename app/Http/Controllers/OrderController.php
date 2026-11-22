@@ -122,6 +122,47 @@ final class OrderController extends Controller
             $query->whereNull('deleted_at');
         }
 
+        // Apply column filters
+        $filtersRaw = $request->input('filters', []);
+        /** @var array<string> $filters */
+        $filters = is_array($filtersRaw) ? array_filter($filtersRaw, is_string(...)) : [];
+
+        foreach ($filters as $filter) {
+            $parts = explode(':', $filter, 2);
+            if (count($parts) !== 2) {
+                continue;
+            }
+
+            $column = $parts[0];
+            $rawValues = $parts[1];
+
+            // Empty values means all checkboxes unchecked — return no results
+            if ($rawValues === '') {
+                $query->whereRaw('1 = 0');
+
+                continue;
+            }
+
+            $values = explode(',', $rawValues);
+
+            if ($column === 'number') {
+                $hasEmpty = in_array('__empty__', $values, true);
+                $nonEmptyValues = array_values(array_filter($values, fn (string $v): bool => $v !== '__empty__'));
+
+                if ($hasEmpty && $nonEmptyValues === []) {
+                    $query->whereNull('number')->orWhere('number', '');
+                } elseif ($hasEmpty) {
+                    $query->where(function ($builder) use ($nonEmptyValues): void {
+                        $builder->whereIn('number', $nonEmptyValues)->orWhere(function ($inner): void {
+                            $inner->whereNull('number')->orWhere('number', '');
+                        });
+                    });
+                } else {
+                    $query->whereIn('number', $nonEmptyValues);
+                }
+            }
+        }
+
         $sort = $request->string('sort')->toString() ?: 'parsed_at';
         $direction = $request->string('direction')->toString() ?: 'desc';
 
@@ -147,6 +188,31 @@ final class OrderController extends Controller
             ]),
             'pagination' => PaginationResponse::fromPaginator($orders),
         ]);
+    }
+
+    /**
+     * Return distinct values for a given column, used by the filter dropdown UI.
+     */
+    public function distinctJson(Request $request): JsonResponse
+    {
+        $column = $request->input('column');
+
+        $allowedColumns = ['number'];
+
+        if (! in_array($column, $allowedColumns, true)) {
+            return response()->json(['values' => []]);
+        }
+
+        $values = Order::withTrashed()
+            ->distinct()
+            ->pluck($column)
+            ->filter()
+            ->sort()
+            ->values();
+
+        $values[] = '__empty__';
+
+        return response()->json(['values' => $values]);
     }
 
     public function showAwardeesJson(int $id, Request $request): JsonResponse

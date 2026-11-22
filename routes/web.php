@@ -23,6 +23,7 @@ Route::delete('/monitoring', [MonitoringController::class, 'clear'])->name('moni
 
 Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
 Route::get('/orders/json', [OrderController::class, 'indexJson'])->name('orders.indexJson');
+Route::get('/orders/json/distinct', [OrderController::class, 'distinctJson'])->name('orders.distinctJson');
 Route::get('/orders/{id}', [OrderController::class, 'show'])->name('orders.show');
 Route::get('/orders/{id}/awardees/json', [OrderController::class, 'showAwardeesJson'])->name('orders.awardeesJson');
 Route::get('/orders/{id}/export.csv', [OrderController::class, 'export'])->name('orders.export');
