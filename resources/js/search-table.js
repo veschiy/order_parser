@@ -1,7 +1,7 @@
 import { AjaxTable } from './ajax-table.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    const searchForm = document.querySelector('form[action*="search"]');
+    const searchForm = document.getElementById('searchForm');
     const searchInput = searchForm?.querySelector('input[name="q"]');
     const currentQuery = searchInput?.value || '';
 

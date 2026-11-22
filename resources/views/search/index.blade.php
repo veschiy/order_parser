@@ -9,7 +9,7 @@
             <p class="mt-1 text-sm text-slate-400">Введіть ПІБ у називному або пошуковому вигляді, і система покаже знайдені нагороди.</p>
         </div>
 
-        <form method="GET" action="{{ route('search.index') }}" class="flex flex-col gap-3 sm:flex-row">
+        <form id="searchForm" method="GET" action="{{ route('search.index') }}" class="flex flex-col gap-3 sm:flex-row">
             <input
                 type="search"
                 name="q"
