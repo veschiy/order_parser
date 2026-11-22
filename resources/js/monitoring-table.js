@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
             3: 'submission_date',
             4: 'award',
             5: 'score',
+            6: 'matches',
         },
         renderRow(row) {
             const scoreBadge = getScoreBadge(row.score);
@@ -35,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="px-2.5 py-2 text-slate-300" data-col-index="1" data-col="rank" data-value="${row.rank}">
                         ${row.rank || '—'}
                     </td>
-                    <td class="px-2.5 py-2 font-medium text-slate-100" data-col-index="2" data-col="full_name" data-value="${row.full_name}">
+                    <td class="px-2.5 py-2 font-bold text-slate-100" data-col-index="2" data-col="full_name" data-value="${row.full_name}">
                         <div class="flex items-center gap-2">
                             <span>${row.full_name}</span>
                         </div>
