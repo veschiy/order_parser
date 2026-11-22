@@ -38,7 +38,7 @@ final class MonitoringController extends Controller
 
     /**
      * @param  string[]  $filters
-     * @return array{query: Builder<MonitoringRecord>, scoreFilter: int[]|null}
+     * @return array{query: Builder<MonitoringRecord>, scoreFilter: int[]|null, matchesFilter: array{decreeDisplays: list<string>, hasNoMatches: bool}}
      */
     private function buildFilteredQuery(string $search, array $filters = [], ?string $sort = null, string $direction = 'asc'): array
     {
@@ -55,9 +55,10 @@ final class MonitoringController extends Controller
             });
         }
 
-        // Apply column filters (score is computed, handled separately)
+        // Apply column filters (score and matches are computed, handled separately)
         $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
         $scoreFilter = null;
+        $matchesFilter = ['decreeDisplays' => [], 'hasNoMatches' => false];
 
         foreach ($filters as $filter) {
             $parts = explode(':', $filter, 2);
@@ -88,6 +89,14 @@ final class MonitoringController extends Controller
                 continue;
             }
 
+            if ($column === 'matches') {
+                // Matches filter: '__empty__' = no matches, other values are decree display strings
+                $matchesFilter['hasNoMatches'] = in_array('__empty__', $values, true);
+                $matchesFilter['decreeDisplays'] = array_values(array_filter($values, fn (string $v): bool => $v !== '__empty__'));
+
+                continue;
+            }
+
             if (in_array($column, $allowedColumns, true)) {
                 $this->applyColumnFilter($query, $column, $values);
             }
@@ -105,7 +114,7 @@ final class MonitoringController extends Controller
             $query->orderBy('id');
         }
 
-        return ['query' => $query, 'scoreFilter' => $scoreFilter];
+        return ['query' => $query, 'scoreFilter' => $scoreFilter, 'matchesFilter' => $matchesFilter];
     }
 
     public function store(Request $request): RedirectResponse
@@ -265,23 +274,59 @@ final class MonitoringController extends Controller
         /** @var array<string> $filters */
         $filters = is_array($filtersRaw) ? array_filter($filtersRaw, is_string(...)) : [];
 
-        ['query' => $query, 'scoreFilter' => $scoreFilter] = $this->buildFilteredQuery($search, $filters, $sort, $direction);
+        ['query' => $query, 'scoreFilter' => $scoreFilter, 'matchesFilter' => $matchesFilter] = $this->buildFilteredQuery($search, $filters, $sort, $direction);
 
-        if ($scoreFilter !== null) {
-            // Score is computed, not stored — must evaluate all records first, then filter and paginate
+        $hasMatchesFilter = ! empty($matchesFilter['decreeDisplays']) || $matchesFilter['hasNoMatches'];
+
+        if ($scoreFilter !== null || $hasMatchesFilter) {
+            // Score or matches are computed, not stored — must evaluate all records first, then filter and paginate
             $records = $query->get();
             $evaluations = $evaluator->evaluateAll($records);
-            $evaluations = $evaluations->filter(fn ($evaluation): bool => in_array($evaluation->score, $scoreFilter, true));
+
+            // Apply score filter
+            if ($scoreFilter !== null) {
+                $evaluations = $evaluations->filter(fn ($evaluation): bool => in_array($evaluation->score, $scoreFilter, true));
+            }
+
+            // Apply matches filter (filter by specific decree displays and/or no matches)
+            if ($hasMatchesFilter) {
+                $evaluations = $evaluations->filter(function ($evaluation) use ($matchesFilter): bool {
+                    $decreeDisplays = array_map(static fn (MonitoringMatch $m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches);
+                    $hasMatches = count($decreeDisplays) > 0;
+
+                    // If only "no matches" is selected
+                    if ($matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] === []) {
+                        return ! $hasMatches;
+                    }
+
+                    // If only specific decrees are selected
+                    if (! $matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] !== []) {
+                        return $hasMatches && count(array_intersect($decreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
+                    }
+
+                    // Both specific decrees and "no matches" selected
+                    if ($matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] !== []) {
+                        return ! $hasMatches || count(array_intersect($decreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
+                    }
+
+                    return true;
+                });
+            }
 
             // Apply score sorting post-evaluation
             if ($sort === 'score') {
                 $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, SORT_NUMERIC, $direction === 'desc');
             }
 
+            // Apply matches sorting post-evaluation
+            if ($sort === 'matches') {
+                $evaluations = $evaluations->sortBy(fn ($evaluation) => count($evaluation->matches), SORT_NUMERIC, $direction === 'desc');
+            }
+
             $total = $evaluations->count();
             $evaluations = $evaluations->forPage($page, $perPage);
         } else {
-            // No score filter — paginate at the DB level for efficiency
+            // No score/matches filter — paginate at the DB level for efficiency
             $total = $query->count();
             $records = $query->forPage($page, $perPage)->get();
             /** @var Collection<int, MonitoringRecord> $records */
@@ -290,6 +335,11 @@ final class MonitoringController extends Controller
             // Apply score sorting post-evaluation (score is computed, not a DB column)
             if ($sort === 'score') {
                 $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, SORT_NUMERIC, $direction === 'desc');
+            }
+
+            // Apply matches sorting post-evaluation
+            if ($sort === 'matches') {
+                $evaluations = $evaluations->sortBy(fn ($evaluation) => count($evaluation->matches), SORT_NUMERIC, $direction === 'desc');
             }
         }
 
@@ -375,6 +425,27 @@ final class MonitoringController extends Controller
         // Score is computed, not stored — return fixed possible values
         if ($column === 'score') {
             return response()->json(['values' => ['0', '1', '2', '3', '4', '__empty__']]);
+        }
+
+        // Matches is computed, not stored — return distinct decree display numbers from evaluated data
+        if ($column === 'matches') {
+            ['query' => $matchQuery] = $this->buildFilteredQuery($search);
+            $records = $matchQuery->get();
+            $evaluations = (new MonitoringEvaluator)->evaluateAll($records);
+
+            $decreeDisplays = [];
+            foreach ($evaluations as $evaluation) {
+                foreach ($evaluation->matches as $match) {
+                    $display = $match->awardee->order ? $match->awardee->order->displayNumber() : 'Указ #'.$match->awardee->order_id;
+                    $decreeDisplays[] = $display;
+                }
+            }
+
+            $decreeDisplays = array_values(array_unique($decreeDisplays));
+            sort($decreeDisplays, SORT_NATURAL | SORT_FLAG_CASE);
+            $decreeDisplays[] = '__empty__';
+
+            return response()->json(['values' => $decreeDisplays]);
         }
 
         $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];

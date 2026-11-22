@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 3: 'submission_date',
                 4: 'award',
                 5: 'score',
+                6: 'matches',
             };
         },
     });
