@@ -101,12 +101,12 @@ final class MonitoringController extends Controller
             }
         }
 
-        // Apply sorting (score is computed post-evaluation, so we only sort DB columns here)
+        // Apply sorting (score and matches are computed post-evaluation, so we only sort DB columns here)
         $sortableColumns = ['sheet', 'full_name', 'submission_date', 'award'];
         if ($sort !== null && in_array($sort, $sortableColumns, true)) {
             $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
-        } elseif ($sort !== null && $sort === 'score') {
-            // Score sorting is handled post-evaluation in indexJson.
+        } elseif ($sort !== null && in_array($sort, ['score', 'matches'], true)) {
+            // Score and matches sorting are handled post-evaluation in indexJson.
             // Use a stable default order here so the post-evaluation sort is deterministic.
             $query->orderBy('id');
         } else {
@@ -338,9 +338,9 @@ final class MonitoringController extends Controller
             $total = $evaluations->count();
             $evaluations = $evaluations->forPage($page, $perPage);
         } else {
-            // No score/matches filter — paginate at the DB level for efficiency
+            // No score/matches filter — sort first, then paginate
             $total = $allRecords->count();
-            $evaluations = $allEvaluations->forPage($page, $perPage);
+            $evaluations = $allEvaluations;
 
             // Apply score sorting post-evaluation (score is computed, not a DB column)
             if ($sort === 'score') {
@@ -351,6 +351,8 @@ final class MonitoringController extends Controller
             if ($sort === 'matches') {
                 $evaluations = $evaluations->sortBy(fn ($evaluation) => count($evaluation->matches), SORT_NUMERIC, $direction === 'desc');
             }
+
+            $evaluations = $evaluations->forPage($page, $perPage);
         }
 
         return response()->json([
