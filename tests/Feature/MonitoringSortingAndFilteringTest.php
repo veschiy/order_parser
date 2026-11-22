@@ -796,4 +796,64 @@ final class MonitoringSortingAndFilteringTest extends TestCase
         // Should fall back to default ID ordering
         $this->assertSame(5, $data['pagination']['total']);
     }
+
+    #[Test]
+    public function test_combined_score_and_matches_filter(): void
+    {
+        $order = Order::query()->create([
+            'number' => '300/2025',
+            'document_url' => 'https://example.com/300',
+            'published_at' => '2025-07-01',
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $order->id,
+            'full_name' => 'АНДРІЙКІВ АНДРІЙ',
+            'award' => 'орден',
+        ]);
+
+        // Filter by score=1 (has a match) - this should return only records with score 1
+        $response = $this->getJson(route('monitoring.indexJson', [
+            'filters' => ['score:1'],
+        ]));
+
+        $response->assertOk();
+        /** @var array{data: array<int, array<string, mixed>>, pagination: array{total: int, last_page: int, per_page: int}} $data */
+        $data = $response->json();
+
+        // Only Андрійків should have score > 0
+        foreach ($data['data'] as $row) {
+            $this->assertSame(1, $row['score']);
+        }
+    }
+
+    #[Test]
+    public function test_distinct_json_for_matches_column(): void
+    {
+        $order = Order::query()->create([
+            'number' => '400/2025',
+            'document_url' => 'https://example.com/400',
+            'published_at' => '2025-08-01',
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $order->id,
+            'full_name' => 'БОНДАРЕНКО БОРИС',
+            'award' => 'медаль',
+        ]);
+
+        $response = $this->getJson(route('monitoring.distinctJson', [
+            'column' => 'matches',
+        ]));
+
+        $response->assertOk();
+        /** @var array{values: array<int, string>} $data */
+        $data = $response->json();
+
+        // Should contain the decree display number and __empty__
+        $this->assertContains('__empty__', $data['values']);
+        $this->assertContains('№400/2025 від 01.08.2025', $data['values']);
+    }
 }

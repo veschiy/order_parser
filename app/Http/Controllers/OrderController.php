@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Services\PaginationResponse;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -144,14 +145,7 @@ final class OrderController extends Controller
                 'trashed' => (bool) $order->trashed(),
                 'order_id' => $order->id,
             ]),
-            'pagination' => [
-                'current_page' => $orders->currentPage(),
-                'last_page' => $orders->lastPage(),
-                'per_page' => $orders->perPage(),
-                'total' => $orders->total(),
-                'from' => $orders->firstItem(),
-                'to' => $orders->lastItem(),
-            ],
+            'pagination' => PaginationResponse::fromPaginator($orders),
         ]);
     }
 
@@ -181,14 +175,7 @@ final class OrderController extends Controller
                 'rank' => $awardee->rank ?? '—',
                 'award' => $awardee->award ?? '—',
             ]),
-            'pagination' => [
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-                'total' => $paginator->total(),
-                'from' => $paginator->firstItem(),
-                'to' => $paginator->lastItem(),
-            ],
+            'pagination' => PaginationResponse::fromPaginator($paginator),
         ]);
     }
 }

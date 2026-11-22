@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Awardee;
+use App\Services\PaginationResponse;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,14 +51,7 @@ final class SearchController extends Controller
         if ($query === '') {
             return response()->json([
                 'data' => [],
-                'pagination' => [
-                    'current_page' => 1,
-                    'last_page' => 1,
-                    'per_page' => $perPage,
-                    'total' => 0,
-                    'from' => 0,
-                    'to' => 0,
-                ],
+                'pagination' => PaginationResponse::fromValues(1, 0, $perPage),
             ]);
         }
 
@@ -85,14 +79,7 @@ final class SearchController extends Controller
                 'award' => $result->award ?? '—',
                 'order_display' => $result->order?->displayNumber() ?? '—',
             ]),
-            'pagination' => [
-                'current_page' => $results->currentPage(),
-                'last_page' => $results->lastPage(),
-                'per_page' => $results->perPage(),
-                'total' => $results->total(),
-                'from' => $results->firstItem(),
-                'to' => $results->lastItem(),
-            ],
+            'pagination' => PaginationResponse::fromPaginator($results),
         ]);
     }
 }

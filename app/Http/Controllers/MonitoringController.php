@@ -8,6 +8,7 @@ use App\Models\MonitoringRecord;
 use App\Services\Monitoring\MonitoringCsvImporter;
 use App\Services\Monitoring\MonitoringEvaluator;
 use App\Services\Monitoring\MonitoringMatch;
+use App\Services\PaginationResponse;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class MonitoringController extends Controller
@@ -280,16 +282,7 @@ final class MonitoringController extends Controller
         // Collect distinct decree display numbers from ALL evaluations (before pagination) for the filter dropdown
         $allRecords = $query->get();
         $allEvaluations = $evaluator->evaluateAll($allRecords);
-        $decreeDisplays = [];
-        foreach ($allEvaluations as $evaluation) {
-            foreach ($evaluation->matches as $match) {
-                $display = $match->awardee->order ? $match->awardee->order->displayNumber() : 'Указ #'.$match->awardee->order_id;
-                $decreeDisplays[] = $display;
-            }
-        }
-        $decreeDisplays = array_values(array_unique($decreeDisplays));
-        sort($decreeDisplays, SORT_NATURAL | SORT_FLAG_CASE);
-        $decreeDisplays[] = '__empty__';
+        $decreeDisplays = $this->buildDecreeDisplays($allEvaluations);
 
         if ($scoreFilter !== null || $hasMatchesFilter) {
             // Score or matches are computed, not stored — must evaluate all records first, then filter and paginate
@@ -325,15 +318,7 @@ final class MonitoringController extends Controller
                 });
             }
 
-            // Apply score sorting post-evaluation
-            if ($sort === 'score') {
-                $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, SORT_NUMERIC, $direction === 'desc');
-            }
-
-            // Apply matches sorting post-evaluation
-            if ($sort === 'matches') {
-                $evaluations = $evaluations->sortBy(fn ($evaluation) => count($evaluation->matches), SORT_NUMERIC, $direction === 'desc');
-            }
+            $evaluations = $this->applyComputedSorting($evaluations, $sort, $direction);
 
             $total = $evaluations->count();
             $evaluations = $evaluations->forPage($page, $perPage);
@@ -342,15 +327,7 @@ final class MonitoringController extends Controller
             $total = $allRecords->count();
             $evaluations = $allEvaluations;
 
-            // Apply score sorting post-evaluation (score is computed, not a DB column)
-            if ($sort === 'score') {
-                $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, SORT_NUMERIC, $direction === 'desc');
-            }
-
-            // Apply matches sorting post-evaluation
-            if ($sort === 'matches') {
-                $evaluations = $evaluations->sortBy(fn ($evaluation) => count($evaluation->matches), SORT_NUMERIC, $direction === 'desc');
-            }
+            $evaluations = $this->applyComputedSorting($evaluations, $sort, $direction);
 
             $evaluations = $evaluations->forPage($page, $perPage);
         }
@@ -379,14 +356,7 @@ final class MonitoringController extends Controller
                     ? 'Не знайдено'
                     : implode(', ', array_map(static fn (MonitoringMatch $m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches)),
             ])->values(),
-            'pagination' => [
-                'current_page' => $page,
-                'last_page' => (int) ceil($total / $perPage),
-                'per_page' => $perPage,
-                'total' => $total,
-                'from' => $total > 0 ? ($page - 1) * $perPage + 1 : 0,
-                'to' => min($page * $perPage, $total),
-            ],
+            'pagination' => PaginationResponse::fromValues($page, $total, $perPage),
             'totalCount' => MonitoringRecord::query()->count(),
             'distinctMatches' => $decreeDisplays,
         ]);
@@ -428,6 +398,44 @@ final class MonitoringController extends Controller
     }
 
     /**
+     * Apply post-evaluation sorting for computed columns (score, matches).
+     */
+    private function applyComputedSorting(Collection $evaluations, ?string $sort, string $direction): Collection
+    {
+        if ($sort === 'score') {
+            $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, SORT_NUMERIC, $direction === 'desc');
+        }
+
+        if ($sort === 'matches') {
+            $evaluations = $evaluations->sortBy(fn ($evaluation) => count($evaluation->matches), SORT_NUMERIC, $direction === 'desc');
+        }
+
+        return $evaluations;
+    }
+
+    /**
+     * Build a sorted array of distinct decree display numbers from evaluations.
+     *
+     * @return list<string>
+     */
+    private function buildDecreeDisplays(Collection $evaluations): array
+    {
+        $decreeDisplays = [];
+        foreach ($evaluations as $evaluation) {
+            foreach ($evaluation->matches as $match) {
+                $display = $match->awardee->order ? $match->awardee->order->displayNumber() : 'Указ #'.$match->awardee->order_id;
+                $decreeDisplays[] = $display;
+            }
+        }
+
+        $decreeDisplays = array_values(array_unique($decreeDisplays));
+        sort($decreeDisplays, SORT_NATURAL | SORT_FLAG_CASE);
+        $decreeDisplays[] = '__empty__';
+
+        return $decreeDisplays;
+    }
+
+    /**
      * Return distinct values for a given column, used by the filter dropdown UI.
      */
     public function distinctJson(Request $request): JsonResponse
@@ -446,17 +454,7 @@ final class MonitoringController extends Controller
             $records = $matchQuery->get();
             $evaluations = (new MonitoringEvaluator)->evaluateAll($records);
 
-            $decreeDisplays = [];
-            foreach ($evaluations as $evaluation) {
-                foreach ($evaluation->matches as $match) {
-                    $display = $match->awardee->order ? $match->awardee->order->displayNumber() : 'Указ #'.$match->awardee->order_id;
-                    $decreeDisplays[] = $display;
-                }
-            }
-
-            $decreeDisplays = array_values(array_unique($decreeDisplays));
-            sort($decreeDisplays, SORT_NATURAL | SORT_FLAG_CASE);
-            $decreeDisplays[] = '__empty__';
+            $decreeDisplays = $this->buildDecreeDisplays($evaluations);
 
             return response()->json(['values' => $decreeDisplays]);
         }
