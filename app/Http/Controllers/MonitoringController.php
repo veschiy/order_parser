@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MonitoringRecord;
 use App\Services\Monitoring\MonitoringCsvImporter;
+use App\Services\Monitoring\MonitoringEvaluation;
 use App\Services\Monitoring\MonitoringEvaluator;
 use App\Services\Monitoring\MonitoringMatch;
 use App\Services\PaginationResponse;
@@ -310,7 +311,7 @@ final class MonitoringController extends Controller
                     }
 
                     // Both specific decrees and "no matches" selected
-                    if ($matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] !== []) {
+                    if ($matchesFilter['hasNoMatches'] && ! empty($matchesFilter['decreeDisplays'])) {
                         return ! $hasMatches || count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
                     }
 
@@ -399,6 +400,9 @@ final class MonitoringController extends Controller
 
     /**
      * Apply post-evaluation sorting for computed columns (score, matches).
+     *
+     * @param  Collection<int, MonitoringEvaluation>  $evaluations
+     * @return Collection<int, MonitoringEvaluation>
      */
     private function applyComputedSorting(Collection $evaluations, ?string $sort, string $direction): Collection
     {
@@ -407,7 +411,7 @@ final class MonitoringController extends Controller
         }
 
         if ($sort === 'matches') {
-            $evaluations = $evaluations->sortBy(fn ($evaluation) => count($evaluation->matches), SORT_NUMERIC, $direction === 'desc');
+            $evaluations = $evaluations->sortBy(fn ($evaluation): int => count($evaluation->matches), SORT_NUMERIC, $direction === 'desc');
         }
 
         return $evaluations;
@@ -416,6 +420,7 @@ final class MonitoringController extends Controller
     /**
      * Build a sorted array of distinct decree display numbers from evaluations.
      *
+     * @param  Collection<int, MonitoringEvaluation>  $evaluations
      * @return list<string>
      */
     private function buildDecreeDisplays(Collection $evaluations): array
@@ -428,10 +433,12 @@ final class MonitoringController extends Controller
             }
         }
 
-        $decreeDisplays = array_values(array_unique($decreeDisplays));
+        $decreeDisplays = array_values(array_unique($decreeDisplays, SORT_STRING));
         sort($decreeDisplays, SORT_NATURAL | SORT_FLAG_CASE);
+
         $decreeDisplays[] = '__empty__';
 
+        /** @var list<string> $decreeDisplays */
         return $decreeDisplays;
     }
 

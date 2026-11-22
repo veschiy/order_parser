@@ -10,6 +10,9 @@ final class PaginationResponse
 {
     /**
      * Build a pagination array from a Laravel paginator instance.
+     *
+     * @param  LengthAwarePaginator<int, object>  $paginator
+     * @return array{current_page: int, last_page: int, per_page: int, total: int, from: int|null, to: int|null}
      */
     public static function fromPaginator(LengthAwarePaginator $paginator): array
     {
@@ -25,6 +28,8 @@ final class PaginationResponse
 
     /**
      * Build a pagination array from manual values (used when pagination is not via a paginator).
+     *
+     * @return array{current_page: int, last_page: int, per_page: int, total: int, from: int, to: int}
      */
     public static function fromValues(int $currentPage, int $total, int $perPage): array
     {
