@@ -347,30 +347,34 @@ export class AjaxTable {
             </div>
             <div class="p-3 space-y-2">
                 <div class="flex gap-2">
-                    <button type="button" id="${this.tableId}FilterSelectAll" class="flex-1 rounded-lg border border-slate-800 bg-slate-950/80 px-2 py-1.5 text-xs text-slate-300 hover:border-indigo-500 hover:text-indigo-300 transition">
-                        Вибрати все
+                    <button type="button" id="${this.tableId}FilterSortAsc" class="flex-1 rounded-lg border border-slate-800 bg-slate-950/80 px-2 py-1.5 text-xs text-slate-300 hover:border-indigo-500 hover:text-indigo-300 transition">
+                        ↑ Сортувати А → Я
                     </button>
-                    <button type="button" id="${this.tableId}FilterDeselectAll" class="flex-1 rounded-lg border border-slate-800 bg-slate-950/80 px-2 py-1.5 text-xs text-slate-300 hover:border-indigo-500 hover:text-indigo-300 transition">
-                        Зняти все
+                    <button type="button" id="${this.tableId}FilterSortDesc" class="flex-1 rounded-lg border border-slate-800 bg-slate-950/80 px-2 py-1.5 text-xs text-slate-300 hover:border-indigo-500 hover:text-indigo-300 transition">
+                        ↓ Сортувати Я → А
                     </button>
                 </div>
                 <div class="relative">
-                    <input type="search" id="${this.tableId}FilterSearch" placeholder="Шукати..." class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 outline-none focus:border-indigo-500">
+                    <input type="search" id="${this.tableId}FilterSearch" placeholder="Пошук у значеннях..." class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 outline-none focus:border-indigo-500">
                 </div>
-                <div id="${this.tableId}FilterCheckboxList" class="max-h-60 overflow-y-auto space-y-0.5 pr-1"></div>
+                <div class="flex items-center justify-between text-[11px] text-slate-400 px-1 pt-1">
+                    <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                        <input type="checkbox" id="${this.tableId}FilterSelectAllCheckbox" class="rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-0">
+                        <span>(Відмітити все)</span>
+                    </label>
+                    <button type="button" id="${this.tableId}FilterClear" class="text-indigo-400 hover:underline text-xs">
+                        Скинути
+                    </button>
+                </div>
+                <div id="${this.tableId}FilterCheckboxList" class="max-h-60 overflow-y-auto space-y-0.5 pr-1 rounded-xl border border-slate-800 bg-slate-950/60 p-2"></div>
             </div>
-            <div class="flex items-center justify-between p-3 border-t border-slate-800">
-                <button type="button" id="${this.tableId}FilterClear" class="rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-1.5 text-xs text-slate-300 hover:border-rose-500 hover:text-rose-300 transition">
-                    Очистити фільтр
+            <div class="flex items-center justify-end gap-2 p-3 border-t border-slate-800">
+                <button type="button" id="${this.tableId}FilterCancel" class="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 hover:text-white transition">
+                    Скасувати
                 </button>
-                <div class="flex gap-2">
-                    <button type="button" id="${this.tableId}FilterCancel" class="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 hover:text-white transition">
-                        Скасувати
-                    </button>
-                    <button type="button" id="${this.tableId}FilterApply" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition">
-                        Застосувати
-                    </button>
-                </div>
+                <button type="button" id="${this.tableId}FilterApply" class="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition">
+                    Застосувати
+                </button>
             </div>
         `;
 
@@ -379,8 +383,13 @@ export class AjaxTable {
         document.getElementById(`${this.tableId}FilterCancel`).addEventListener('click', () => this.closeFilterDropdown());
         document.getElementById(`${this.tableId}FilterApply`).addEventListener('click', () => this.applyFilterDropdown());
         document.getElementById(`${this.tableId}FilterClear`).addEventListener('click', () => this.clearFilterDropdown());
-        document.getElementById(`${this.tableId}FilterSelectAll`).addEventListener('click', () => this.selectAllFilterCheckboxes());
-        document.getElementById(`${this.tableId}FilterDeselectAll`).addEventListener('click', () => this.deselectAllFilterCheckboxes());
+
+        const selectAllCheckbox = document.getElementById(`${this.tableId}FilterSelectAllCheckbox`);
+        selectAllCheckbox.addEventListener('change', (e) => this.toggleSelectAllFilterCheckboxes(e.target.checked));
+
+        // Sort buttons — apply sorting to table rows (server-side)
+        document.getElementById(`${this.tableId}FilterSortAsc`).addEventListener('click', () => this.sortTable('asc'));
+        document.getElementById(`${this.tableId}FilterSortDesc`).addEventListener('click', () => this.sortTable('desc'));
 
         const searchInput = document.getElementById(`${this.tableId}FilterSearch`);
         if (searchInput) {
@@ -408,11 +417,30 @@ export class AjaxTable {
         this.activeFilterColIndex = colIndex;
         const columnName = this.filterColumnMap[colIndex];
 
-        // Update title
+        // Update title with "ФІЛЬТР:" prefix
         const titleEl = document.getElementById(`${this.tableId}FilterTitle`);
         if (titleEl) {
             const th = document.querySelector(`#${this.tableId} th[data-col-index="${colIndex}"] .col-title`);
-            titleEl.textContent = th ? th.textContent.trim() : 'Фільтр';
+            const colTitle = th ? th.textContent.trim() : 'Фільтр';
+            titleEl.textContent = 'ФІЛЬТР: ' + colTitle;
+        }
+
+        // Update sort button labels based on column type
+        const sortAscBtn = document.getElementById(`${this.tableId}FilterSortAsc`);
+        const sortDescBtn = document.getElementById(`${this.tableId}FilterSortDesc`);
+        if (sortAscBtn && sortDescBtn) {
+            const th = document.querySelector(`#${this.tableId} th[data-col-index="${colIndex}"]`);
+            const type = th?.dataset?.type || 'text';
+            if (type === 'number') {
+                sortAscBtn.textContent = '↑ Від меншого до більшого';
+                sortDescBtn.textContent = '↓ Від більшого до меншого';
+            } else if (type === 'date') {
+                sortAscBtn.textContent = '↑ Від старих до нових';
+                sortDescBtn.textContent = '↓ Від нових до старих';
+            } else {
+                sortAscBtn.textContent = '↑ Сортувати А → Я';
+                sortDescBtn.textContent = '↓ Сортувати Я → А';
+            }
         }
 
         // Fetch distinct values from server
@@ -517,22 +545,33 @@ export class AjaxTable {
 
         if (values.length === 0) {
             listEl.innerHTML = '<div class="py-4 text-center text-xs text-slate-500">Немає значень для відображення</div>';
+            // Update select-all checkbox
+            const selectAllCheckbox = document.getElementById(`${this.tableId}FilterSelectAllCheckbox`);
+            if (selectAllCheckbox) selectAllCheckbox.checked = true;
             return;
         }
 
         let html = '';
+        let checkedCount = 0;
         for (const value of values) {
-            const isChecked = selected.has(value) ? 'checked' : '';
+            const isChecked = selected.has(value);
+            if (isChecked) checkedCount++;
             const escapedValue = value.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const displayLabel = value === '__empty__' ? 'Пусто' : value;
             html += `
                 <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-800/50 cursor-pointer filter-checkbox-item">
-                    <input type="checkbox" value="${escapedValue}" ${isChecked} class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 filter-checkbox">
+                    <input type="checkbox" value="${escapedValue}" ${isChecked ? 'checked' : ''} class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 filter-checkbox">
                     <span class="text-xs text-slate-300 truncate max-w-full">${displayLabel}</span>
                 </label>`;
         }
 
         listEl.innerHTML = html;
+
+        // Update select-all checkbox state
+        const selectAllCheckbox = document.getElementById(`${this.tableId}FilterSelectAllCheckbox`);
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = checkedCount === values.length;
+        }
     }
 
     filterCheckboxList(query) {
@@ -548,14 +587,28 @@ export class AjaxTable {
         });
     }
 
-    selectAllFilterCheckboxes() {
+    toggleSelectAllFilterCheckboxes(checked) {
         const checkboxes = document.querySelectorAll(`#${this.tableId}FilterDropdown .filter-checkbox`);
-        checkboxes.forEach(cb => cb.checked = true);
+        checkboxes.forEach(cb => cb.checked = checked);
     }
 
-    deselectAllFilterCheckboxes() {
-        const checkboxes = document.querySelectorAll(`#${this.tableId}FilterDropdown .filter-checkbox`);
-        checkboxes.forEach(cb => cb.checked = false);
+    sortTable(direction) {
+        const colIndex = this.activeFilterColIndex;
+        if (colIndex === null) return;
+
+        const th = document.querySelector(`#${this.tableId} th[data-col-index="${colIndex}"]`);
+        const col = th?.dataset?.title || th?.querySelector('.col-title')?.textContent?.trim() || '';
+
+        const sortMap = this.getSortColumnMap();
+        const sortCol = sortMap[colIndex] || col;
+
+        this.currentSort = sortCol;
+        this.currentDirection = direction;
+        this.currentPage = 1;
+
+        this.updateSortIcons(colIndex);
+        this.closeFilterDropdown();
+        this.load();
     }
 
     applyFilterDropdown() {
