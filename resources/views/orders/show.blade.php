@@ -45,17 +45,20 @@
             </div>
         </div>
 
-        <div id="awardeesTable-empty" class="hidden">
-            <p class="text-sm text-slate-400">Список нагороджених ще не розібрано.</p>
-        </div>
+        <div class="relative">
+            <div id="awardeesTable-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm rounded-xl pointer-events-auto">
+                <div class="text-center">
+                    <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+                    <p class="mt-3 text-sm text-slate-300">Завантаження...</p>
+                </div>
+            </div>
 
-        <div id="awardeesTable-loading" class="hidden py-12 text-center">
-            <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
-            <p class="mt-3 text-sm text-slate-400">Завантаження...</p>
-        </div>
+            <div id="awardeesTable-empty" class="hidden">
+                <p class="text-sm text-slate-400">Список нагороджених ще не розібрано.</p>
+            </div>
 
-        <div class="overflow-x-auto">
-            <table id="awardeesTable" data-order-id="{{ $order->id }}" class="min-w-full divide-y divide-slate-800 text-sm">
+            <div class="overflow-x-auto">
+                <table id="awardeesTable" data-order-id="{{ $order->id }}" class="min-w-full divide-y divide-slate-800 text-sm">
                 <thead class="bg-slate-900">
                     <tr>
                         <th class="px-4 py-3 text-left font-medium text-slate-300" data-col-index="0" data-type="text">
@@ -87,8 +90,9 @@
                 <tbody class="divide-y divide-slate-800">
                 </tbody>
             </table>
-        </div>
+            </div>
 
-        <div id="awardeesTable-pagination"></div>
+            <div id="awardeesTable-pagination"></div>
+        </div>
     </section>
 @endsection

@@ -184,23 +184,26 @@
                 </form>
             </div>
 
-            <div id="monitoringTable-empty" class="hidden">
-                <p class="text-sm text-slate-400">
-                    @if ($search !== '')
-                        За запитом «{{ $search }}» нічого не знайдено.
-                    @else
-                        Записів у моніторингу поки немає. Додайте особу вручну або імпортуйте CSV файл.
-                    @endif
-                </p>
-            </div>
+            <div class="relative">
+                <div id="monitoringTable-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm rounded-xl pointer-events-auto">
+                    <div class="text-center">
+                        <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+                        <p class="mt-3 text-sm text-slate-300">Завантаження...</p>
+                    </div>
+                </div>
 
-            <div id="monitoringTable-loading" class="hidden py-12 text-center">
-                <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
-                <p class="mt-3 text-sm text-slate-400">Завантаження...</p>
-            </div>
+                <div id="monitoringTable-empty" class="hidden">
+                    <p class="text-sm text-slate-400">
+                        @if ($search !== '')
+                            За запитом «{{ $search }}» нічого не знайдено.
+                        @else
+                            Записів у моніторингу поки немає. Додайте особу вручну або імпортуйте CSV файл.
+                        @endif
+                    </p>
+                </div>
 
-            <div class="overflow-x-auto overflow-y-visible rounded-xl border border-slate-800">
-                <table id="monitoringTable" class="min-w-full divide-y divide-slate-800 text-xs">
+                <div class="overflow-x-auto overflow-y-visible rounded-xl border border-slate-800">
+                    <table id="monitoringTable" class="min-w-full divide-y divide-slate-800 text-xs">
                     <thead class="bg-slate-900 select-none">
                         <tr>
                             <th class="relative px-2.5 py-2 text-left font-bold text-slate-300" data-col-index="0" data-type="text">
@@ -309,7 +312,8 @@
                 </table>
             </div>
 
-            <div id="monitoringTable-pagination"></div>
+                <div id="monitoringTable-pagination"></div>
+            </div>
         </section>
 
         <!-- Scoring Rules Section -->
