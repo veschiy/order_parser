@@ -10,7 +10,9 @@
         </div>
 
         <form id="searchForm" method="GET" action="{{ route('search.index') }}" class="flex flex-col gap-3 sm:flex-row">
+            <label for="searchQuery" class="sr-only">ПІБ</label>
             <input
+                id="searchQuery"
                 type="search"
                 name="q"
                 value="{{ $query }}"

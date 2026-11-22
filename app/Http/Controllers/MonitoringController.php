@@ -59,8 +59,6 @@ final class MonitoringController extends Controller
             });
         }
 
-        // Apply column filters (score and matches are computed, handled separately)
-        $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
         $scoreFilter = null;
         $matchesFilter = ['decreeDisplays' => [], 'hasNoMatches' => false];
 
@@ -71,36 +69,22 @@ final class MonitoringController extends Controller
             }
 
             $column = $parts[0];
-            $rawValues = $parts[1];
-
-            // Empty values means all checkboxes unchecked — return no results
-            if ($rawValues === '') {
-                $query->whereRaw('1 = 0');
-
-                continue;
-            }
-
-            $values = explode(',', $rawValues);
+            $values = $parts[1] === '' ? [] : explode(',', $parts[1]);
 
             if ($column === 'score') {
-                // Empty score filter means all unchecked — return no results
-                if ($values === ['']) {
-                    $query->whereRaw('1 = 0');
-                } else {
-                    $scoreFilter = array_map(intval(...), $values);
-                }
+                [$query, $scoreFilter] = $this->applyScoreFilter($query, $values);
 
                 continue;
             }
 
             if ($column === 'matches') {
-                // Matches filter: '__empty__' = no matches, other values are decree display strings
                 $matchesFilter['hasNoMatches'] = in_array('__empty__', $values, true);
                 $matchesFilter['decreeDisplays'] = array_values(array_filter($values, fn (string $v): bool => $v !== '__empty__'));
 
                 continue;
             }
 
+            $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
             if (in_array($column, $allowedColumns, true)) {
                 $this->applyColumnFilter($query, $column, $values);
             }
@@ -109,6 +93,22 @@ final class MonitoringController extends Controller
         $this->applySorting($query, $sort, $direction);
 
         return ['query' => $query, 'scoreFilter' => $scoreFilter, 'matchesFilter' => $matchesFilter];
+    }
+
+    /**
+     * @param  Builder<MonitoringRecord>  $query
+     * @param  list<string>  $values
+     * @return array{Builder<MonitoringRecord>, int[]|null}
+     */
+    private function applyScoreFilter(Builder $query, array $values): array
+    {
+        if ($values === [] || $values === ['']) {
+            $query->whereRaw('1 = 0');
+
+            return [$query, null];
+        }
+
+        return [$query, array_map(intval(...), $values)];
     }
 
     public function store(Request $request): RedirectResponse
@@ -238,7 +238,10 @@ final class MonitoringController extends Controller
             foreach ($evaluations as $evaluation) {
                 $matchedDecrees = [];
                 foreach ($evaluation->matches as $match) {
-                    $matchedDecrees[] = $this->decreeDisplay($match).' (бал: '.$match->score.')';
+                    $display = $match->awardee->order
+                        ? $match->awardee->order->displayNumber()
+                        : self::DECREE_PREFIX.$match->awardee->order_id;
+                    $matchedDecrees[] = $display.' (бал: '.$match->score.')';
                 }
 
                 fputcsv($handle, [
@@ -374,7 +377,9 @@ final class MonitoringController extends Controller
         $decreeDisplays = [];
         foreach ($evaluations as $evaluation) {
             foreach ($evaluation->matches as $match) {
-                $decreeDisplays[] = $this->decreeDisplay($match);
+                $decreeDisplays[] = $match->awardee->order
+                    ? $match->awardee->order->displayNumber()
+                    : self::DECREE_PREFIX.$match->awardee->order_id;
             }
         }
 
@@ -385,16 +390,6 @@ final class MonitoringController extends Controller
 
         /** @var list<string> $decreeDisplays */
         return $decreeDisplays;
-    }
-
-    /**
-     * Get the display string for a decree reference.
-     */
-    private function decreeDisplay(MonitoringMatch $match): string
-    {
-        return $match->awardee->order
-            ? $match->awardee->order->displayNumber()
-            : self::DECREE_PREFIX.$match->awardee->order_id;
     }
 
     /**
@@ -409,19 +404,13 @@ final class MonitoringController extends Controller
         $hasNoMatchFilter = $matchesFilter['hasNoMatches'];
         $hasDecreeMatch = $hasMatches && count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
 
-        if ($hasNoMatchFilter && $hasDecreeFilter) {
-            return ! $hasMatches || $hasDecreeMatch;
-        }
-
         if ($hasNoMatchFilter) {
-            return ! $hasMatches;
+            return $hasDecreeFilter
+                ? (! $hasMatches || $hasDecreeMatch)
+                : ! $hasMatches;
         }
 
-        if ($hasDecreeFilter) {
-            return $hasDecreeMatch;
-        }
-
-        return true;
+        return $hasDecreeFilter ? $hasDecreeMatch : true;
     }
 
     /**
@@ -469,6 +458,12 @@ final class MonitoringController extends Controller
      */
     private function evaluationToArray(MonitoringEvaluation $evaluation): array
     {
+        $matchesSummary = $evaluation->matches === []
+            ? 'Не знайдено'
+            : implode(', ', array_map(static fn (MonitoringMatch $m): string => $m->awardee->order
+                ? $m->awardee->order->displayNumber()
+                : self::DECREE_PREFIX.$m->awardee->order_id, $evaluation->matches));
+
         return [
             'id' => $evaluation->record->id,
             'sheet' => $evaluation->record->sheet ?? '',
@@ -479,7 +474,7 @@ final class MonitoringController extends Controller
             'rank' => $evaluation->record->rank ?? '',
             'score' => $evaluation->score,
             'matches' => array_map($this->matchToArray(...), $evaluation->matches),
-            'matchesSummary' => $this->matchesSummary($evaluation->matches),
+            'matchesSummary' => $matchesSummary,
         ];
     }
 
@@ -493,7 +488,9 @@ final class MonitoringController extends Controller
         return [
             'awardee_id' => $match->awardee->id,
             'order_id' => $match->awardee->order_id,
-            'order_display' => $this->decreeDisplay($match),
+            'order_display' => $match->awardee->order
+                ? $match->awardee->order->displayNumber()
+                : self::DECREE_PREFIX.$match->awardee->order_id,
             'award' => $match->awardee->award ?? '—',
             'score' => $match->score,
             'rankMatched' => $match->rankMatched,
@@ -503,25 +500,12 @@ final class MonitoringController extends Controller
     }
 
     /**
-     * Build a summary string from matches.
-     *
-     * @param  list<MonitoringMatch>  $matches
-     */
-    private function matchesSummary(array $matches): string
-    {
-        if ($matches === []) {
-            return 'Не знайдено';
-        }
-
-        return implode(', ', array_map($this->decreeDisplay(...), $matches));
-    }
-
-    /**
      * Return distinct values for a given column, used by the filter dropdown UI.
      */
     public function distinctJson(Request $request): JsonResponse
     {
-        $column = $request->has('column') ? ($request->string('column')->toString() ?: null) : null;
+        $columnString = $request->string('column')->toString();
+        $column = $columnString !== '' ? $columnString : null;
         $search = trim($request->string('q')->toString());
 
         $values = $this->resolveDistinctValues($column, $search);
@@ -534,6 +518,18 @@ final class MonitoringController extends Controller
      */
     private function resolveDistinctValues(?string $column, string $search): array
     {
+        $formatValue = static function (mixed $v): string {
+            if ($v instanceof Carbon) {
+                return $v->format('Y-m-d');
+            }
+
+            if (is_string($v) || is_int($v)) {
+                return (string) $v;
+            }
+
+            return '';
+        };
+
         if ($column === 'score') {
             return ['0', '1', '2', '3', '4', '__empty__'];
         }
@@ -554,26 +550,11 @@ final class MonitoringController extends Controller
 
         ['query' => $query] = $this->buildFilteredQuery($search);
         /** @var list<string> $values */
-        $values = $query->distinct()->pluck($column)->filter()->map(fn ($v): string => $this->formatDistinctValue($v))->sort()->values()->toArray();
+        $values = $query->distinct()->pluck($column)->filter()
+            ->map($formatValue)
+            ->sort()->values()->toArray();
         $values[] = '__empty__';
 
         return $values;
-    }
-
-    private function formatDistinctValue(mixed $v): string
-    {
-        if ($v instanceof Carbon) {
-            return $v->format('Y-m-d');
-        }
-
-        if (is_string($v)) {
-            return $v;
-        }
-
-        if (is_int($v)) {
-            return (string) $v;
-        }
-
-        return '';
     }
 }

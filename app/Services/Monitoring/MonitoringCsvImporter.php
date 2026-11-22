@@ -328,44 +328,40 @@ final class MonitoringCsvImporter
 
     private function matchHeaderField(string $normalized): ?string
     {
-        if (str_contains($normalized, 'аркуш') || str_contains($normalized, 'sheet') || str_contains($normalized, 'лист')) {
-            return 'sheet';
-        }
+        $checks = [
+            'sheet' => fn (): bool => str_contains($normalized, 'аркуш')
+                || str_contains($normalized, 'sheet')
+                || str_contains($normalized, 'лист'),
+            'full_name' => fn (): bool => str_contains($normalized, 'піб')
+                || str_contains($normalized, 'фіо')
+                || str_contains($normalized, 'fullname')
+                || str_contains($normalized, 'full name')
+                || str_contains($normalized, 'особа')
+                || $normalized === 'name'
+                || $normalized === "ім'я"
+                || $normalized === 'імя'
+                || $normalized === 'прізвище',
+            'submission_date' => fn (): bool => str_contains($normalized, 'поданн')
+                || str_contains($normalized, 'submission')
+                || str_contains($normalized, 'date')
+                || str_contains($normalized, 'дата'),
+            'rank' => fn (): bool => str_contains($normalized, 'званн')
+                || str_contains($normalized, 'ранг')
+                || str_contains($normalized, 'grade')
+                || str_contains($normalized, 'rank')
+                || str_contains($normalized, 'должност'),
+            'award' => fn (): bool => str_contains($normalized, 'нагород')
+                || str_contains($normalized, 'award')
+                || str_contains($normalized, 'відзнак'),
+        ];
 
-        if ($this->isFullNameHeader($normalized)) {
-            return 'full_name';
-        }
-
-        if (str_contains($normalized, 'поданн') || str_contains($normalized, 'submission')
-            || str_contains($normalized, 'date') || str_contains($normalized, 'дата')) {
-            return 'submission_date';
-        }
-
-        if (str_contains($normalized, 'званн') || str_contains($normalized, 'ранг')
-            || str_contains($normalized, 'grade') || str_contains($normalized, 'rank')
-            || str_contains($normalized, 'должност')) {
-            return 'rank';
-        }
-
-        if (str_contains($normalized, 'нагород') || str_contains($normalized, 'award')
-            || str_contains($normalized, 'відзнак')) {
-            return 'award';
+        foreach ($checks as $field => $check) {
+            if ($check()) {
+                return $field;
+            }
         }
 
         return null;
-    }
-
-    private function isFullNameHeader(string $normalized): bool
-    {
-        return str_contains($normalized, 'піб')
-            || str_contains($normalized, 'фіо')
-            || str_contains($normalized, 'fullname')
-            || str_contains($normalized, 'full name')
-            || str_contains($normalized, 'особа')
-            || $normalized === 'name'
-            || $normalized === "ім'я"
-            || $normalized === 'імя'
-            || $normalized === 'прізвище';
     }
 
     /**
@@ -394,26 +390,18 @@ final class MonitoringCsvImporter
                 continue;
             }
 
-            // Extract all occurrences of d.m.Y, d/m/Y, d-m-Y, Y-m-d, Y/m/d, Y.m.d
-            // Also cleans up formatting like 28./05./2026
             $cleaned = str_replace(['./', '/.'], '.', $input);
 
-            if (preg_match_all('/\b(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})\b/', $cleaned, $matches, PREG_SET_ORDER)) {
-                foreach ($matches as $m) {
-                    try {
-                        $allFoundDates[] = Carbon::createFromDate((int) $m[3], (int) $m[2], (int) $m[1])->startOfDay();
-                    } catch (Throwable) {
-                        // ignore invalid dates
-                    }
-                }
-            }
-
-            if (preg_match_all('/\b(\d{4})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})\b/', $cleaned, $matches, PREG_SET_ORDER)) {
-                foreach ($matches as $m) {
-                    try {
-                        $allFoundDates[] = Carbon::createFromDate((int) $m[1], (int) $m[2], (int) $m[3])->startOfDay();
-                    } catch (Throwable) {
-                        // ignore invalid dates
+            foreach ([
+                ['pattern' => '/\b(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})\b/', 'yearFirst' => false],
+                ['pattern' => '/\b(\d{4})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})\b/', 'yearFirst' => true],
+            ] as $config) {
+                if (preg_match_all($config['pattern'], $cleaned, $matches, PREG_SET_ORDER)) {
+                    foreach ($matches as $m) {
+                        $date = $this->createDateFromMatch($m, $config['yearFirst']);
+                        if ($date instanceof DateTimeInterface) {
+                            $allFoundDates[] = $date;
+                        }
                     }
                 }
             }
@@ -423,10 +411,9 @@ final class MonitoringCsvImporter
             return null;
         }
 
-        // Return the latest date found
         $latest = $allFoundDates[0];
         foreach ($allFoundDates as $date) {
-            if ($date->isAfter($latest)) {
+            if ($date->getTimestamp() > $latest->getTimestamp()) {
                 $latest = $date;
             }
         }
@@ -434,8 +421,22 @@ final class MonitoringCsvImporter
         return $latest;
     }
 
-    public function parseDate(?string $dateStr): ?DateTimeInterface
+    /**
+     * Create a date from a regex match.
+     *
+     * @param  array<int, string>  $match
+     * @param  bool  $yearFirst  true if the pattern is Y-m-d, false if d-m-Y
+     */
+    private function createDateFromMatch(array $match, bool $yearFirst): ?DateTimeInterface
     {
-        return $this->parseLatestDate($dateStr);
+        try {
+            if ($yearFirst) {
+                return Carbon::createFromDate((int) (string) $match[1], (int) (string) $match[2], (int) (string) $match[3])->startOfDay();
+            }
+
+            return Carbon::createFromDate((int) (string) $match[3], (int) (string) $match[2], (int) (string) $match[1])->startOfDay();
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

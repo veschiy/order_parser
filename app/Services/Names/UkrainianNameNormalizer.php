@@ -77,9 +77,11 @@ final class UkrainianNameNormalizer
             }
         }
 
-        $result = $this->applyUppercaseCommonRules($part);
-        if ($result !== null) {
-            return $result;
+        if (mb_substr($part, -1, 1, 'UTF-8') === 'Ь') {
+            $previousCharacter = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
+            if (in_array($previousCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
+                return mb_substr($part, 0, -1, 'UTF-8').'Й';
+            }
         }
 
         if ($index !== 0) {
@@ -171,40 +173,10 @@ final class UkrainianNameNormalizer
     {
         $lastTwo = mb_substr($part, -2, 2, 'UTF-8');
 
-        if ($this->isUppercaseIndeclinableEnding($lastTwo)) {
+        if ($lastTwo === 'РА' || $lastTwo === 'РО') {
             return mb_substr($part, 0, -1, 'UTF-8');
         }
 
-        $result = $this->applyUppercaseAdjectiveRules($part, $lastTwo);
-        if ($result !== null) {
-            return $result;
-        }
-
-        $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'familyName', $gender);
-        if ($candidate !== null) {
-            return $this->normalizeUppercaseCandidate($candidate);
-        }
-
-        $result = $this->applyUppercaseSoftSignRecovery($part);
-        if ($result !== null) {
-            return $result;
-        }
-
-        // Fallback rules for remaining cases
-        if ($lastTwo === 'ЛА') {
-            return mb_substr($part, 0, -1, 'UTF-8').'О';
-        }
-
-        return null;
-    }
-
-    private function isUppercaseIndeclinableEnding(string $lastTwo): bool
-    {
-        return $lastTwo === 'РА' || $lastTwo === 'РО';
-    }
-
-    private function applyUppercaseAdjectiveRules(string $part, string $lastTwo): ?string
-    {
         $previousCharacter = mb_strtolower(mb_substr($part, -3, 1, 'UTF-8'), 'UTF-8');
 
         if ($lastTwo === 'ЛА'
@@ -217,6 +189,20 @@ final class UkrainianNameNormalizer
         }
 
         if ($lastTwo === 'НА' && $previousCharacter === 'х') {
+            return mb_substr($part, 0, -1, 'UTF-8').'О';
+        }
+
+        $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'familyName', $gender);
+        if ($candidate !== null) {
+            return $this->normalizeUppercaseCandidate($candidate);
+        }
+
+        $result = $this->applyUppercaseSoftSignRecovery($part);
+        if ($result !== null) {
+            return $result;
+        }
+
+        if ($lastTwo === 'ЛА') {
             return mb_substr($part, 0, -1, 'UTF-8').'О';
         }
 
@@ -257,21 +243,6 @@ final class UkrainianNameNormalizer
         return null;
     }
 
-    private function applyUppercaseCommonRules(string $part): ?string
-    {
-        // An uppercase vowel-final word ending in a soft sign is the
-        // iotated nominative (e.g. БУГАЬ -> БУГАЙ).
-        if (mb_substr($part, -1, 1, 'UTF-8') === 'Ь') {
-            $previousCharacter = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
-
-            if (in_array($previousCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
-                return mb_substr($part, 0, -1, 'UTF-8').'Й';
-            }
-        }
-
-        return null;
-    }
-
     private function normalizeLowercasePart(string $part, int $index, string $gender): string
     {
         if (mb_strlen($part, 'UTF-8') <= 2) {
@@ -291,29 +262,23 @@ final class UkrainianNameNormalizer
             }
         }
 
-        $result = $this->applyLowercaseEndingRules($part);
-        if ($result !== null) {
-            return $result;
-        }
+        $result = $this->applyLowercaseEndingRules($part)
+            ?? $this->applyLowercaseSoftSignRules($part);
 
-        $result = $this->applyLowercaseSoftSignRules($part);
         if ($result !== null) {
             return $result;
         }
 
         if ($index === 0) {
-            $result = $this->applyLowercaseSurnameRules($part);
-            if ($result !== null) {
-                return $result;
+            $surnameResult = $this->applyLowercaseSurnameRules($part);
+            if ($surnameResult !== null) {
+                return $surnameResult;
             }
         }
 
-        $result = $this->applyLowercaseFallbackRules($part);
-        if ($result !== null) {
-            return $result;
-        }
+        $fallback = $this->applyLowercaseFallbackRules($part);
 
-        return $part;
+        return $fallback ?? $part;
     }
 
     private function applyLowercaseFallbackRules(string $part): ?string
@@ -325,11 +290,13 @@ final class UkrainianNameNormalizer
             }
         }
 
-        if (mb_substr($part, -3, 3, 'UTF-8') === 'йць') {
+        $lastThree = mb_substr($part, -3, 3, 'UTF-8');
+
+        if ($lastThree === 'йць') {
             return mb_substr($part, 0, -3, 'UTF-8').'єць';
         }
 
-        if (mb_substr($part, -3, 3, 'UTF-8') === 'око') {
+        if ($lastThree === 'око') {
             return mb_substr($part, 0, -1, 'UTF-8');
         }
 
@@ -369,17 +336,17 @@ final class UkrainianNameNormalizer
     private function applyLowercaseEndingRules(string $part): ?string
     {
         $last = mb_substr($part, -1, null, 'UTF-8');
+        $stem = mb_substr($part, 0, -1, 'UTF-8');
 
-        if (in_array($last, ['а', 'я'], true)) {
-            return mb_substr($part, 0, -1, 'UTF-8');
-        }
+        $endingMap = [
+            'а' => '',
+            'я' => '',
+            'у' => 'а',
+            'ю' => 'я',
+        ];
 
-        if ($last === 'у') {
-            return mb_substr($part, 0, -1, 'UTF-8').'а';
-        }
-
-        if ($last === 'ю') {
-            return mb_substr($part, 0, -1, 'UTF-8').'я';
+        if (isset($endingMap[$last])) {
+            return $stem.$endingMap[$last];
         }
 
         // Recover the nominative form for surnames that lost a vowel

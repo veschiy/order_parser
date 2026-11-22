@@ -129,7 +129,7 @@ final readonly class DecreeParser
      */
     private function findCandidatePositions(string $namesText): array
     {
-        preg_match_all('/(?:[А-ЯІЇЄҐ\.ʼ’\']{2,}\s+)+[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,}(?:-[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,})?/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
+        preg_match_all('/(?:[А-ЯІЇЄҐ\.ʼ\x{2019}]{2,}\s+)+[А-ЯІЇЄҐ][ʼ\x{2019}а-яіїєґ]{2,}(?:-[А-ЯІЇЄҐ][ʼ\x{2019}а-яіїєґ]{2,})?/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
 
         $positions = [];
         foreach ($candidateMatches[0] as $candidateMatch) {
@@ -222,35 +222,38 @@ final readonly class DecreeParser
         $parts = preg_split(self::WHITESPACE_PATTERN, $rank) ?: [];
 
         foreach ($parts as $key => $word) {
-            $parts[$key] = implode('-', array_map(
-                static function (string $segment): string {
-                    $segment = trim($segment, '.');
-
-                    if ($segment === '') {
-                        return '';
-                    }
-
-                    $lower = mb_strtolower($segment, 'UTF-8');
-
-                    if (str_ends_with($lower, 'ого') && mb_strlen($segment, 'UTF-8') > 3) {
-                        return mb_substr($segment, 0, -3, 'UTF-8').'ий';
-                    }
-
-                    if (str_ends_with($lower, 'у')) {
-                        return mb_substr($segment, 0, -1, 'UTF-8').'а';
-                    }
-
-                    if (str_ends_with($lower, 'а')) {
-                        return mb_substr($segment, 0, -1, 'UTF-8');
-                    }
-
-                    return $segment;
-                },
-                explode('-', $word),
-            ));
+            $parts[$key] = implode('-', array_map($this->normalizeRankSegment(...), explode('-', $word)));
         }
 
         return implode(' ', $parts);
+    }
+
+    /**
+     * Normalize a single segment of a rank (e.g., "генерал" from "генерал-майор").
+     */
+    private function normalizeRankSegment(string $segment): string
+    {
+        $segment = trim($segment, '.');
+
+        if ($segment === '') {
+            return '';
+        }
+
+        $lower = mb_strtolower($segment, 'UTF-8');
+
+        if (str_ends_with($lower, 'ого') && mb_strlen($segment, 'UTF-8') > 3) {
+            return mb_substr($segment, 0, -3, 'UTF-8').'ий';
+        }
+
+        if (str_ends_with($lower, 'у')) {
+            return mb_substr($segment, 0, -1, 'UTF-8').'а';
+        }
+
+        if (str_ends_with($lower, 'а')) {
+            return mb_substr($segment, 0, -1, 'UTF-8');
+        }
+
+        return $segment;
     }
 
     private function normalizeAward(string $award): string

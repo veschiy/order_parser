@@ -57,7 +57,7 @@ class ExcelTable {
     initHeaders() {
         const headers = this.table.querySelectorAll('thead th[data-col-index]');
         headers.forEach(th => {
-            const colIndex = parseInt(th.dataset.colIndex, 10);
+            const colIndex = Number.parseInt(th.dataset.colIndex, 10);
             
             const sortBtn = th.querySelector('[data-action="sort"]') || th.querySelector('.sort-trigger');
             if (sortBtn) {
@@ -200,8 +200,8 @@ class ExcelTable {
             const valB = this.getCellText(b, colIndex);
 
             if (type === 'number') {
-                const numA = parseFloat(valA) || 0;
-                const numB = parseFloat(valB) || 0;
+                const numA = Number.parseFloat(valA) || 0;
+                const numB = Number.parseFloat(valB) || 0;
                 return direction === 'asc' ? numA - numB : numB - numA;
             }
 
@@ -220,7 +220,7 @@ class ExcelTable {
         rows.forEach(r => tbody.appendChild(r));
 
         this.table.querySelectorAll('thead th[data-col-index]').forEach(header => {
-            const idx = parseInt(header.dataset.colIndex, 10);
+            const idx = Number.parseInt(header.dataset.colIndex, 10);
             const icon = header.querySelector('.sort-icon') || header.querySelector('[data-sort-icon]');
             if (!icon) return;
             if (idx === colIndex) {
@@ -284,7 +284,7 @@ class ExcelTable {
         });
 
         const sortedValues = Array.from(uniqueValues).sort((a, b) => {
-            if (type === 'number') return (parseFloat(a) || 0) - (parseFloat(b) || 0);
+            if (type === 'number') return (Number.parseFloat(a) || 0) - (Number.parseFloat(b) || 0);
             return a.localeCompare(b, 'uk', { sensitivity: 'base' });
         });
 
@@ -439,7 +439,7 @@ class ExcelTable {
 
         // Update header filter buttons active status
         this.table.querySelectorAll('thead th[data-col-index]').forEach(th => {
-            const idx = parseInt(th.dataset.colIndex, 10);
+            const idx = Number.parseInt(th.dataset.colIndex, 10);
             const btn = th.querySelector('[data-action="filter"], .filter-btn');
             const isFiltered = this.columnFilters[idx] !== undefined;
             if (btn) {
