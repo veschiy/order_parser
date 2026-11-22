@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Rss;
 
+use App\Exceptions\RssParseException;
 use App\Services\Http\BrowserlikeClient;
-use RuntimeException;
 
 final readonly class FeedParser
 {
@@ -26,13 +26,13 @@ final readonly class FeedParser
         [$status, $body] = $this->request($url);
 
         if ($status < 200 || $status >= 300) {
-            throw new RuntimeException("RSS request failed with status {$status}.");
+            throw new RssParseException("RSS request failed with status {$status}.");
         }
 
         $xml = simplexml_load_string($body);
 
         if ($xml === false) {
-            throw new RuntimeException('RSS response is not valid XML.');
+            throw new RssParseException('RSS response is not valid XML.');
         }
 
         $items = [];

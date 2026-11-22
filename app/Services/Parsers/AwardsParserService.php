@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\ParseRun;
 use App\Services\Documents\DecreeParser;
 use App\Services\Http\BrowserlikeClient;
+use App\Services\Rss\FeedItem;
 use App\Services\Rss\FeedParser;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -33,37 +34,12 @@ final readonly class AwardsParserService
      */
     public function parseRss(string $url, ?int $limit = null): array
     {
-        $summary = [
-            'mode' => 'rss',
-            'source_url' => $url,
-            'items_found' => 0,
-            'items_parsed' => 0,
-            'orders_created' => 0,
-            'awardees_created' => 0,
-            'errors' => [],
-        ];
+        $summary = $this->createSummary('rss', $url);
+        $run = $this->createParseRun('rss', $url);
 
-        $run = ParseRun::query()->create([
-            'mode' => 'rss',
-            'source_url' => $url,
-            'status' => 'running',
-            'items_found' => 0,
-            'items_parsed' => 0,
-            'orders_created' => 0,
-            'awardees_created' => 0,
-            'started_at' => now(),
-        ]);
-
-        try {
-            $items = $this->feedParser->parse($url);
-        } catch (Throwable $throwable) {
-            $summary['errors'][] = $throwable->getMessage();
-
-            $run->forceFill([
-                'status' => 'failed',
-                'error' => $throwable->getMessage(),
-                'finished_at' => now(),
-            ])->save();
+        $items = $this->fetchRssItems($url, $summary);
+        if ($items === null) {
+            $this->finishParseRun($run, $summary, 'failed');
 
             return $summary;
         }
@@ -75,36 +51,98 @@ final readonly class AwardsParserService
         $summary['items_found'] = count($items);
 
         foreach ($items as $item) {
-            if ($item->link === '') {
-                $summary['errors'][] = 'RSS item has no document link.';
-
-                continue;
-            }
-
-            [$order, $awardeesCreated, $error] = $this->parseAndStoreDocument($item->link, $item->publishedAt);
-
-            if ($error !== null) {
-                $summary['errors'][] = $error;
-
-                continue;
-            }
-
-            $summary['items_parsed']++;
-            $summary['orders_created'] += $order?->wasRecentlyCreated ? 1 : 0;
-            $summary['awardees_created'] += $awardeesCreated;
+            $this->processRssItem($item, $summary);
         }
 
+        $status = $summary['errors'] === [] ? 'completed' : 'completed_with_errors';
+        $this->finishParseRun($run, $summary, $status);
+
+        return $summary;
+    }
+
+    /**
+     * @return array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}
+     */
+    private function createSummary(string $mode, string $url): array
+    {
+        return [
+            'mode' => $mode,
+            'source_url' => $url,
+            'items_found' => 0,
+            'items_parsed' => 0,
+            'orders_created' => 0,
+            'awardees_created' => 0,
+            'errors' => [],
+        ];
+    }
+
+    private function createParseRun(string $mode, string $url): ParseRun
+    {
+        return ParseRun::query()->create([
+            'mode' => $mode,
+            'source_url' => $url,
+            'status' => 'running',
+            'items_found' => 0,
+            'items_parsed' => 0,
+            'orders_created' => 0,
+            'awardees_created' => 0,
+            'started_at' => now(),
+        ]);
+    }
+
+    /**
+     * @param array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}& $summary
+     * @return list<FeedItem>|null
+     */
+    private function fetchRssItems(string $url, array &$summary): ?array
+    {
+        try {
+            return $this->feedParser->parse($url);
+        } catch (Throwable $throwable) {
+            $summary['errors'][] = $throwable->getMessage();
+
+            return null;
+        }
+    }
+
+    /**
+     * @param array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}& $summary
+     */
+    private function processRssItem(FeedItem $item, array &$summary): void
+    {
+        if ($item->link === '') {
+            $summary['errors'][] = 'RSS item has no document link.';
+
+            return;
+        }
+
+        [$order, $awardeesCreated, $error] = $this->parseAndStoreDocument($item->link, $item->publishedAt);
+
+        if ($error !== null) {
+            $summary['errors'][] = $error;
+
+            return;
+        }
+
+        $summary['items_parsed']++;
+        $summary['orders_created'] += $order?->wasRecentlyCreated ? 1 : 0;
+        $summary['awardees_created'] += $awardeesCreated;
+    }
+
+    /**
+     * @param  array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}  $summary
+     */
+    private function finishParseRun(ParseRun $run, array $summary, string $status): void
+    {
         $run->forceFill([
             'items_found' => $summary['items_found'],
             'items_parsed' => $summary['items_parsed'],
             'orders_created' => $summary['orders_created'],
             'awardees_created' => $summary['awardees_created'],
-            'status' => $summary['errors'] === [] ? 'completed' : 'completed_with_errors',
+            'status' => $status,
             'error' => $summary['errors'] === [] ? null : implode('; ', $summary['errors']),
             'finished_at' => now(),
         ])->save();
-
-        return $summary;
     }
 
     /**

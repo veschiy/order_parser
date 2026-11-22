@@ -22,6 +22,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class MonitoringController extends Controller
 {
+    private const string DECREE_PREFIX = 'Указ #';
+
     public function index(Request $request, MonitoringEvaluator $evaluator): View
     {
         $search = trim($request->string('q')->toString());
@@ -104,17 +106,7 @@ final class MonitoringController extends Controller
             }
         }
 
-        // Apply sorting (score and matches are computed post-evaluation, so we only sort DB columns here)
-        $sortableColumns = ['sheet', 'full_name', 'submission_date', 'award'];
-        if ($sort !== null && in_array($sort, $sortableColumns, true)) {
-            $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
-        } elseif ($sort !== null && in_array($sort, ['score', 'matches'], true)) {
-            // Score and matches sorting are handled post-evaluation in indexJson.
-            // Use a stable default order here so the post-evaluation sort is deterministic.
-            $query->orderBy('id');
-        } else {
-            $query->orderBy('id');
-        }
+        $this->applySorting($query, $sort, $direction);
 
         return ['query' => $query, 'scoreFilter' => $scoreFilter, 'matchesFilter' => $matchesFilter];
     }
@@ -246,8 +238,7 @@ final class MonitoringController extends Controller
             foreach ($evaluations as $evaluation) {
                 $matchedDecrees = [];
                 foreach ($evaluation->matches as $match) {
-                    $order = $match->awardee->order;
-                    $matchedDecrees[] = ($order ? $order->displayNumber() : 'Указ #'.$match->awardee->order_id).' (бал: '.$match->score.')';
+                    $matchedDecrees[] = $this->decreeDisplay($match).' (бал: '.$match->score.')';
                 }
 
                 fputcsv($handle, [
@@ -297,25 +288,13 @@ final class MonitoringController extends Controller
             // Apply matches filter (filter by specific decree displays and/or no matches)
             if ($hasMatchesFilter) {
                 $evaluations = $evaluations->filter(function ($evaluation) use ($matchesFilter): bool {
-                    $evalDecreeDisplays = array_map(static fn (MonitoringMatch $m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches);
+                    $evalDecreeDisplays = array_map(
+                        static fn (MonitoringMatch $m) => $m->awardee->order ? $m->awardee->order->displayNumber() : self::DECREE_PREFIX.$m->awardee->order_id,
+                        $evaluation->matches
+                    );
                     $hasMatches = count($evalDecreeDisplays) > 0;
 
-                    // If only "no matches" is selected
-                    if ($matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] === []) {
-                        return ! $hasMatches;
-                    }
-
-                    // If only specific decrees are selected
-                    if (! $matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] !== []) {
-                        return $hasMatches && count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
-                    }
-
-                    // Both specific decrees and "no matches" selected
-                    if ($matchesFilter['hasNoMatches'] && ! empty($matchesFilter['decreeDisplays'])) {
-                        return ! $hasMatches || count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
-                    }
-
-                    return true;
+                    return $this->passesMatchesFilter($hasMatches, $evalDecreeDisplays, $matchesFilter);
                 });
             }
 
@@ -333,34 +312,7 @@ final class MonitoringController extends Controller
             $evaluations = $evaluations->forPage($page, $perPage);
         }
 
-        return response()->json([
-            'data' => $evaluations->map(fn ($evaluation): array => [
-                'id' => $evaluation->record->id,
-                'sheet' => $evaluation->record->sheet ?? '',
-                'full_name' => $evaluation->record->full_name,
-                'submission_date' => $evaluation->record->submission_date?->format('Y-m-d') ?? '',
-                'submission_date_display' => $evaluation->record->submission_date?->format('d.m.Y') ?? '—',
-                'award' => $evaluation->record->award ?? '',
-                'rank' => $evaluation->record->rank ?? '',
-                'score' => $evaluation->score,
-                'matches' => array_map(static fn (MonitoringMatch $m): array => [
-                    'awardee_id' => $m->awardee->id,
-                    'order_id' => $m->awardee->order_id,
-                    'order_display' => $m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id,
-                    'award' => $m->awardee->award ?? '—',
-                    'score' => $m->score,
-                    'rankMatched' => $m->rankMatched,
-                    'awardMatched' => $m->awardMatched,
-                    'dateMatched' => $m->dateMatched,
-                ], $evaluation->matches),
-                'matchesSummary' => $evaluation->matches === []
-                    ? 'Не знайдено'
-                    : implode(', ', array_map(static fn (MonitoringMatch $m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches)),
-            ])->values(),
-            'pagination' => PaginationResponse::fromValues($page, $total, $perPage),
-            'totalCount' => MonitoringRecord::query()->count(),
-            'distinctMatches' => $decreeDisplays,
-        ]);
+        return response()->json($this->buildJsonResponse($evaluations, $page, $total, $perPage, $decreeDisplays));
     }
 
     /**
@@ -428,8 +380,7 @@ final class MonitoringController extends Controller
         $decreeDisplays = [];
         foreach ($evaluations as $evaluation) {
             foreach ($evaluation->matches as $match) {
-                $display = $match->awardee->order ? $match->awardee->order->displayNumber() : 'Указ #'.$match->awardee->order_id;
-                $decreeDisplays[] = $display;
+                $decreeDisplays[] = $this->decreeDisplay($match);
             }
         }
 
@@ -440,6 +391,143 @@ final class MonitoringController extends Controller
 
         /** @var list<string> $decreeDisplays */
         return $decreeDisplays;
+    }
+
+    /**
+     * Get the display string for a decree reference.
+     */
+    private function decreeDisplay(MonitoringMatch $match): string
+    {
+        return $match->awardee->order
+            ? $match->awardee->order->displayNumber()
+            : self::DECREE_PREFIX.$match->awardee->order_id;
+    }
+
+    /**
+     * Check if an evaluation passes the matches filter criteria.
+     *
+     * @param  array<string>  $evalDecreeDisplays
+     * @param  array{decreeDisplays: list<string>, hasNoMatches: bool}  $matchesFilter
+     */
+    private function passesMatchesFilter(bool $hasMatches, array $evalDecreeDisplays, array $matchesFilter): bool
+    {
+        // If only "no matches" is selected
+        if ($matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] === []) {
+            return ! $hasMatches;
+        }
+
+        // If only specific decrees are selected
+        if (! $matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] !== []) {
+            return $hasMatches && count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
+        }
+
+        // Both specific decrees and "no matches" selected
+        if ($matchesFilter['hasNoMatches'] && ! empty($matchesFilter['decreeDisplays'])) {
+            return ! $hasMatches || count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
+        }
+
+        return true;
+    }
+
+    /**
+     * Apply sorting to the query builder.
+     *
+     * @param  Builder<MonitoringRecord>  $query
+     */
+    private function applySorting(Builder $query, ?string $sort, string $direction): void
+    {
+        $sortableColumns = ['sheet', 'full_name', 'submission_date', 'award'];
+        $computedColumns = ['score', 'matches'];
+
+        if ($sort !== null && in_array($sort, $sortableColumns, true)) {
+            $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
+
+            return;
+        }
+
+        if ($sort !== null && in_array($sort, $computedColumns, true)) {
+            // Score and matches sorting are handled post-evaluation in indexJson.
+            // Use a stable default order here so the post-evaluation sort is deterministic.
+            $query->orderBy('id');
+
+            return;
+        }
+
+        $query->orderBy('id');
+    }
+
+    /**
+     * Build the JSON response array for indexJson.
+     *
+     * @param  Collection<int, MonitoringEvaluation>  $evaluations
+     * @param  list<string>  $decreeDisplays
+     * @return array{data: list<array<string, mixed>>, pagination: array<string, mixed>, totalCount: int, distinctMatches: list<string>}
+     */
+    private function buildJsonResponse(Collection $evaluations, int $page, int $total, int $perPage, array $decreeDisplays): array
+    {
+        /** @var list<array<string, mixed>> $data */
+        $data = $evaluations->map(fn ($evaluation): array => $this->evaluationToArray($evaluation))->values()->toArray();
+
+        return [
+            'data' => $data,
+            'pagination' => PaginationResponse::fromValues($page, $total, $perPage),
+            'totalCount' => MonitoringRecord::query()->count(),
+            'distinctMatches' => $decreeDisplays,
+        ];
+    }
+
+    /**
+     * Convert a single evaluation to an array for JSON response.
+     *
+     * @return array<string, mixed>
+     */
+    private function evaluationToArray(MonitoringEvaluation $evaluation): array
+    {
+        return [
+            'id' => $evaluation->record->id,
+            'sheet' => $evaluation->record->sheet ?? '',
+            'full_name' => $evaluation->record->full_name,
+            'submission_date' => $evaluation->record->submission_date?->format('Y-m-d') ?? '',
+            'submission_date_display' => $evaluation->record->submission_date?->format('d.m.Y') ?? '—',
+            'award' => $evaluation->record->award ?? '',
+            'rank' => $evaluation->record->rank ?? '',
+            'score' => $evaluation->score,
+            'matches' => array_map($this->matchToArray(...), $evaluation->matches),
+            'matchesSummary' => $this->matchesSummary($evaluation->matches),
+        ];
+    }
+
+    /**
+     * Convert a single match to an array for JSON response.
+     *
+     * @return array<string, mixed>
+     */
+    private function matchToArray(MonitoringMatch $match): array
+    {
+        return [
+            'awardee_id' => $match->awardee->id,
+            'order_id' => $match->awardee->order_id,
+            'order_display' => $this->decreeDisplay($match),
+            'award' => $match->awardee->award ?? '—',
+            'score' => $match->score,
+            'rankMatched' => $match->rankMatched,
+            'awardMatched' => $match->awardMatched,
+            'dateMatched' => $match->dateMatched,
+        ];
+    }
+
+    /**
+     * Build a summary string from matches.
+     *
+     * @param  list<MonitoringMatch>  $matches
+     */
+    private function matchesSummary(array $matches): string
+    {
+        if ($matches === []) {
+            return 'Не знайдено';
+        }
+
+        return implode(', ', array_map($this->decreeDisplay(...), $matches));
     }
 
     /**

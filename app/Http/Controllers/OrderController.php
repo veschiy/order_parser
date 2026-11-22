@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Services\PaginationResponse;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -122,7 +123,24 @@ final class OrderController extends Controller
             $query->whereNull('deleted_at');
         }
 
-        // Apply column filters
+        $this->applyFilters($query, $request);
+        $this->applySorting($query, $request);
+
+        $orders = $query->paginate($request->integer('perPage', 20));
+
+        return response()->json([
+            'data' => $orders->map(fn (Order $order): array => $this->orderToArray($order)),
+            'pagination' => PaginationResponse::fromPaginator($orders),
+        ]);
+    }
+
+    /**
+     * Apply column filters from the request to the query.
+     *
+     * @param  Builder<Order>  $query
+     */
+    private function applyFilters(Builder $query, Request $request): void
+    {
         $filtersRaw = $request->input('filters', []);
         /** @var array<string> $filters */
         $filters = is_array($filtersRaw) ? array_filter($filtersRaw, is_string(...)) : [];
@@ -133,36 +151,61 @@ final class OrderController extends Controller
                 continue;
             }
 
-            $column = $parts[0];
-            $rawValues = $parts[1];
+            $this->applyFilter($query, $parts[0], $parts[1]);
+        }
+    }
 
-            // Empty values means all checkboxes unchecked — return no results
-            if ($rawValues === '') {
-                $query->whereRaw('1 = 0');
+    /**
+     * Apply a single column filter to the query.
+     *
+     * @param  Builder<Order>  $query
+     */
+    private function applyFilter(Builder $query, string $column, string $rawValues): void
+    {
+        if ($rawValues === '') {
+            $query->whereRaw('1 = 0');
 
-                continue;
-            }
-
-            $values = explode(',', $rawValues);
-
-            if ($column === 'number') {
-                $hasEmpty = in_array('__empty__', $values, true);
-                $nonEmptyValues = array_values(array_filter($values, fn (string $v): bool => $v !== '__empty__'));
-
-                if ($hasEmpty && $nonEmptyValues === []) {
-                    $query->whereNull('number')->orWhere('number', '');
-                } elseif ($hasEmpty) {
-                    $query->where(function ($builder) use ($nonEmptyValues): void {
-                        $builder->whereIn('number', $nonEmptyValues)->orWhere(function ($inner): void {
-                            $inner->whereNull('number')->orWhere('number', '');
-                        });
-                    });
-                } else {
-                    $query->whereIn('number', $nonEmptyValues);
-                }
-            }
+            return;
         }
 
+        $values = explode(',', $rawValues);
+
+        if ($column === 'number') {
+            $this->applyNumberFilter($query, $values);
+        }
+    }
+
+    /**
+     * Apply the number column filter handling empty values.
+     *
+     * @param  Builder<Order>  $query
+     * @param  array<string>  $values
+     */
+    private function applyNumberFilter(Builder $query, array $values): void
+    {
+        $hasEmpty = in_array('__empty__', $values, true);
+        $nonEmptyValues = array_values(array_filter($values, fn (string $v): bool => $v !== '__empty__'));
+
+        if ($hasEmpty && $nonEmptyValues === []) {
+            $query->whereNull('number')->orWhere('number', '');
+        } elseif ($hasEmpty) {
+            $query->where(function (Builder $builder) use ($nonEmptyValues): void {
+                $builder->whereIn('number', $nonEmptyValues)->orWhere(function (Builder $inner): void {
+                    $inner->whereNull('number')->orWhere('number', '');
+                });
+            });
+        } else {
+            $query->whereIn('number', $nonEmptyValues);
+        }
+    }
+
+    /**
+     * Apply sorting to the query based on request parameters.
+     *
+     * @param  Builder<Order>  $query
+     */
+    private function applySorting(Builder $query, Request $request): void
+    {
         $sort = $request->string('sort')->toString() ?: 'parsed_at';
         $direction = $request->string('direction')->toString() ?: 'desc';
 
@@ -172,22 +215,25 @@ final class OrderController extends Controller
         } else {
             $query->latest();
         }
+    }
 
-        $orders = $query->paginate($request->integer('perPage', 20));
-
-        return response()->json([
-            'data' => $orders->map(fn (Order $order): array => [
-                'id' => $order->id,
-                'number' => $order->displayNumber(),
-                'title' => $order->title ?? '—',
-                'awardees_count' => $order->awardees_count ?? 0,
-                'parsed_at' => $order->parsed_at->toDateTimeString(),
-                'parsed_at_sort' => $order->parsed_at->format('Y-m-d H:i:s'),
-                'trashed' => (bool) $order->trashed(),
-                'order_id' => $order->id,
-            ]),
-            'pagination' => PaginationResponse::fromPaginator($orders),
-        ]);
+    /**
+     * Convert an Order model to an array for JSON response.
+     *
+     * @return array<string, mixed>
+     */
+    private function orderToArray(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'number' => $order->displayNumber(),
+            'title' => $order->title ?? '—',
+            'awardees_count' => $order->awardees_count ?? 0,
+            'parsed_at' => $order->parsed_at->toDateTimeString(),
+            'parsed_at_sort' => $order->parsed_at->format('Y-m-d H:i:s'),
+            'trashed' => (bool) $order->trashed(),
+            'order_id' => $order->id,
+        ];
     }
 
     /**

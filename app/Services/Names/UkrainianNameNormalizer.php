@@ -44,199 +44,234 @@ final class UkrainianNameNormalizer
         $part = preg_replace('/(\p{L})\s*-\s*(\p{L})/u', '\1-\2', $part) ?? $part;
 
         if (str_contains($part, '-')) {
-            $segments = explode('-', $part);
-            $normalized = [];
-
-            foreach ($segments as $segment) {
-                $normalized[] = $this->normalizePart($segment, $index, $gender);
-            }
-
-            return implode('-', $normalized);
+            return $this->normalizeHyphenatedPart($part, $index, $gender);
         }
 
         $isUppercase = mb_strtoupper($part, 'UTF-8') === $part;
 
         if ($isUppercase) {
-            if ($index === 0 && $gender === 'male') {
-                foreach ([
-                    'ОГО' => 'ИЙ',
-                    'ЕГО' => 'ИЙ',
-                    'ОВА' => 'ОВ',
-                    'ЄВА' => 'ЄВ',
-                    'ІНА' => 'ІН',
-                    'ИНА' => 'ИН',
-                ] as $ending => $nominativeEnding) {
-                    if (mb_substr($part, -mb_strlen($ending, 'UTF-8'), null, 'UTF-8') === $ending) {
-                        return mb_substr($part, 0, -mb_strlen($ending, 'UTF-8'), 'UTF-8').$nominativeEnding;
-                    }
-                }
-
-                if (mb_substr($part, -2, 2, 'UTF-8') === 'КА') {
-                    $stem = mb_substr($part, 0, -2, 'UTF-8');
-                    $lastStemCharacter = mb_strtolower(mb_substr($stem, -1, 1, 'UTF-8'), 'UTF-8');
-
-                    if (! in_array($lastStemCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)
-                        && class_exists(Shevchenko::class)) {
-                        try {
-                            $shevchenko = new Shevchenko;
-                            $candidate = mb_strtolower($stem.'КО', 'UTF-8');
-
-                            if ($shevchenko->inAccusative([
-                                'familyName' => $candidate,
-                                'gender' => GrammaticalGender::MASCULINE,
-                            ])['familyName'] === mb_strtolower($part, 'UTF-8')) {
-                                return mb_strtoupper($candidate, 'UTF-8');
-                            }
-                        } catch (\Throwable) {
-                            // Fall through to the generic rules.
-                        }
-                    }
-                }
-
-                $lastTwo = mb_substr($part, -2, 2, 'UTF-8');
-
-                // Indeclinable masculine surnames ending in -р may acquire
-                // a spurious trailing -а/-о (e.g. Білозіра/Білозіро -> Білозір).
-                if ($lastTwo === 'РА' || $lastTwo === 'РО') {
-                    return mb_substr($part, 0, -1, 'UTF-8');
-                }
-
-                // Adjective-type surnames ending in -ло take -ла in the
-                // genitive (e.g. Смаровидла -> Смаровидло, Корнила -> Корнило).
-                $previousCharacter = mb_strtolower(mb_substr($part, -3, 1, 'UTF-8'), 'UTF-8');
-
-                if ($lastTwo === 'ЛА'
-                    && (in_array($previousCharacter, ['е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я', 'д'], true))) {
-                    return mb_substr($part, 0, -1, 'UTF-8').'О';
-                }
-
-                // Some indeclinable surnames surface without their final -о
-                // (e.g. Смаровидл -> Смаровидло).
-                if ($lastTwo === 'ДЛ' && mb_substr($part, -3, 1, 'UTF-8') !== 'О') {
-                    return $part.'О';
-                }
-
-                // Adjective-type surnames ending in -но take -на in the
-                // genitive (e.g. Махна -> Махно).
-                if ($lastTwo === 'НА'
-                    && mb_strtolower(mb_substr($part, -3, 1, 'UTF-8'), 'UTF-8') === 'х') {
-                    return mb_substr($part, 0, -1, 'UTF-8').'О';
-                }
-
-                $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'familyName', $gender);
-
-                if ($candidate !== null) {
-                    $normalizedCandidate = mb_strtoupper($candidate, 'UTF-8');
-
-                    if (mb_substr($normalizedCandidate, -3, 3, 'UTF-8') === 'ОКО') {
-                        $normalizedCandidate = mb_substr($normalizedCandidate, 0, -1, 'UTF-8');
-                    }
-
-                    // A soft-sign candidate after a vowel is the iotated
-                    // nominative (e.g. Гоціь -> Гоцій).
-                    if (mb_substr($normalizedCandidate, -1, 1, 'UTF-8') === 'Ь') {
-                        $previousCharacter = mb_strtolower(mb_substr($normalizedCandidate, -2, 1, 'UTF-8'), 'UTF-8');
-
-                        if (in_array($previousCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
-                            $normalizedCandidate = mb_substr($normalizedCandidate, 0, -1, 'UTF-8').'Й';
-                        }
-                    }
-
-                    return $normalizedCandidate;
-                }
-
-                // Genitive/accusative surnames ending in -цй can lose the
-                // restored vowel (e.g. Ємця -> Ємцй); recover the nominative.
-                if (mb_substr($part, -2, 2, 'UTF-8') === 'ЦЙ') {
-                    return mb_substr($part, 0, -2, 'UTF-8').'ЕЦЬ';
-                }
-
-                // Soft-sign surnames can be wrongly inflected to -й
-                // (e.g. Грозя -> Грозй); recover the nominative -ь.
-                if (mb_strlen($part, 'UTF-8') >= 2
-                    && mb_substr($part, -1, 1, 'UTF-8') === 'Й') {
-                    $previous = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
-
-                    if (! in_array($previous, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
-                        return mb_substr($part, 0, -1, 'UTF-8').'Ь';
-                    }
-                }
-
-                $lastTwo = mb_substr($part, -2, 2, 'UTF-8');
-
-                // Indeclinable masculine surnames ending in -р may acquire
-                // a spurious trailing -а/-о (e.g. Білозіра/Білозіро -> Білозір).
-                if ($lastTwo === 'РА' || $lastTwo === 'РО') {
-                    return mb_substr($part, 0, -1, 'UTF-8');
-                }
-
-                // Adjective-type surnames ending in -ло take -ла in the genitive
-                // (e.g. Смаровидла -> Смаровидло).
-                if ($lastTwo === 'ЛА') {
-                    return mb_substr($part, 0, -1, 'UTF-8').'О';
-                }
-            }
-
-            // An uppercase vowel-final word ending in a soft sign is the
-            // iotated nominative (e.g. БУГАЬ -> БУГАЙ).
-            if (mb_substr($part, -1, 1, 'UTF-8') === 'Ь') {
-                $previousCharacter = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
-
-                if (in_array($previousCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
-                    return mb_substr($part, 0, -1, 'UTF-8').'Й';
-                }
-            }
-
-            if ($index !== 0) {
-                $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'givenName', $gender);
-
-                if ($candidate !== null) {
-                    return mb_strtoupper($candidate, 'UTF-8');
-                }
-            }
-
-            // The nominative -є- can also surface as -й- in an already
-            // normalized surname (e.g. КОЛОМОЙЦЬ -> КОЛОМОЄЦЬ).
-            if (mb_substr($part, -3, 3, 'UTF-8') === 'ЙЦЬ') {
-                return mb_substr($part, 0, -3, 'UTF-8').'ЄЦЬ';
-            }
-
-            // Some surnames take the -ко ending incorrectly from an extra -о
-            // (e.g. Тягнибоко -> Тягнибок).
-            if (mb_substr($part, -3, 3, 'UTF-8') === 'ОКО') {
-                return mb_substr($part, 0, -1, 'UTF-8');
-            }
-
-            return $part;
+            return $this->normalizeUppercasePart($part, $index, $gender);
         }
 
+        return $this->normalizeLowercasePart($part, $index, $gender);
+    }
+
+    private function normalizeHyphenatedPart(string $part, int $index, string $gender): string
+    {
+        $segments = explode('-', $part);
+        $normalized = [];
+
+        foreach ($segments as $segment) {
+            $normalized[] = $this->normalizePart($segment, $index, $gender);
+        }
+
+        return implode('-', $normalized);
+    }
+
+    private function normalizeUppercasePart(string $part, int $index, string $gender): string
+    {
+        if ($index === 0 && $gender === 'male') {
+            $result = $this->applyUppercaseGenitiveEndings($part);
+            if ($result !== null) {
+                return $result;
+            }
+
+            $result = $this->applyUppercaseKaEnding($part);
+            if ($result !== null) {
+                return $result;
+            }
+
+            $result = $this->applyUppercaseFamilyNameCandidate($part, $gender);
+            if ($result !== null) {
+                return $result;
+            }
+        }
+
+        $result = $this->applyUppercaseCommonRules($part);
+        if ($result !== null) {
+            return $result;
+        }
+
+        if ($index !== 0) {
+            $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'givenName', $gender);
+
+            if ($candidate !== null) {
+                return mb_strtoupper($candidate, 'UTF-8');
+            }
+        }
+
+        // The nominative -є- can also surface as -й- in an already
+        // normalized surname (e.g. КОЛОМОЙЦЬ -> КОЛОМОЄЦЬ).
+        if (mb_substr($part, -3, 3, 'UTF-8') === 'ЙЦЬ') {
+            return mb_substr($part, 0, -3, 'UTF-8').'ЄЦЬ';
+        }
+
+        // Some surnames take the -ко ending incorrectly from an extra -о
+        // (e.g. Тягнибоко -> Тягнибок).
+        if (mb_substr($part, -3, 3, 'UTF-8') === 'ОКО') {
+            return mb_substr($part, 0, -1, 'UTF-8');
+        }
+
+        return $part;
+    }
+
+    private function applyUppercaseGenitiveEndings(string $part): ?string
+    {
+        foreach ([
+            'ОГО' => 'ИЙ',
+            'ЕГО' => 'ИЙ',
+            'ОВА' => 'ОВ',
+            'ЄВА' => 'ЄВ',
+            'ІНА' => 'ІН',
+            'ИНА' => 'ИН',
+        ] as $ending => $nominativeEnding) {
+            if (mb_substr($part, -mb_strlen($ending, 'UTF-8'), null, 'UTF-8') === $ending) {
+                return mb_substr($part, 0, -mb_strlen($ending, 'UTF-8'), 'UTF-8').$nominativeEnding;
+            }
+        }
+
+        return null;
+    }
+
+    private function applyUppercaseKaEnding(string $part): ?string
+    {
+        if (mb_substr($part, -2, 2, 'UTF-8') !== 'КА') {
+            return null;
+        }
+
+        $stem = mb_substr($part, 0, -2, 'UTF-8');
+        $lastStemCharacter = mb_strtolower(mb_substr($stem, -1, 1, 'UTF-8'), 'UTF-8');
+
+        if (! in_array($lastStemCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)
+            && class_exists(Shevchenko::class)) {
+            try {
+                $shevchenko = new Shevchenko;
+                $candidate = mb_strtolower($stem.'КО', 'UTF-8');
+
+                if ($shevchenko->inAccusative([
+                    'familyName' => $candidate,
+                    'gender' => GrammaticalGender::MASCULINE,
+                ])['familyName'] === mb_strtolower($part, 'UTF-8')) {
+                    return mb_strtoupper($candidate, 'UTF-8');
+                }
+            } catch (\Throwable) {
+                // Fall through to the generic rules.
+            }
+        }
+
+        return null;
+    }
+
+    private function applyUppercaseFamilyNameCandidate(string $part, string $gender): ?string
+    {
+        $lastTwo = mb_substr($part, -2, 2, 'UTF-8');
+
+        // Indeclinable masculine surnames ending in -р may acquire
+        // a spurious trailing -а/-о (e.g. Білозіра/Білозіро -> Білозір).
+        if ($lastTwo === 'РА' || $lastTwo === 'РО') {
+            return mb_substr($part, 0, -1, 'UTF-8');
+        }
+
+        // Adjective-type surnames ending in -ло take -ла in the
+        // genitive (e.g. Смаровидла -> Смаровидло, Корнила -> Корнило).
+        $previousCharacter = mb_strtolower(mb_substr($part, -3, 1, 'UTF-8'), 'UTF-8');
+
+        if ($lastTwo === 'ЛА'
+            && in_array($previousCharacter, ['е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я', 'д'], true)) {
+            return mb_substr($part, 0, -1, 'UTF-8').'О';
+        }
+
+        // Some indeclinable surnames surface without their final -о
+        // (e.g. Смаровидл -> Смаровидло).
+        if ($lastTwo === 'ДЛ' && mb_substr($part, -3, 1, 'UTF-8') !== 'О') {
+            return $part.'О';
+        }
+
+        // Adjective-type surnames ending in -но take -на in the
+        // genitive (e.g. Махна -> Махно).
+        if ($lastTwo === 'НА'
+            && mb_strtolower(mb_substr($part, -3, 1, 'UTF-8'), 'UTF-8') === 'х') {
+            return mb_substr($part, 0, -1, 'UTF-8').'О';
+        }
+
+        $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'familyName', $gender);
+
+        if ($candidate !== null) {
+            $normalizedCandidate = mb_strtoupper($candidate, 'UTF-8');
+
+            if (mb_substr($normalizedCandidate, -3, 3, 'UTF-8') === 'ОКО') {
+                $normalizedCandidate = mb_substr($normalizedCandidate, 0, -1, 'UTF-8');
+            }
+
+            // A soft-sign candidate after a vowel is the iotated
+            // nominative (e.g. Гоціь -> Гоцій).
+            if (mb_substr($normalizedCandidate, -1, 1, 'UTF-8') === 'Ь') {
+                $previousCharacter = mb_strtolower(mb_substr($normalizedCandidate, -2, 1, 'UTF-8'), 'UTF-8');
+
+                if (in_array($previousCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
+                    $normalizedCandidate = mb_substr($normalizedCandidate, 0, -1, 'UTF-8').'Й';
+                }
+            }
+
+            return $normalizedCandidate;
+        }
+
+        // Genitive/accusative surnames ending in -цй can lose the
+        // restored vowel (e.g. Ємця -> Ємцй); recover the nominative.
+        if (mb_substr($part, -2, 2, 'UTF-8') === 'ЦЙ') {
+            return mb_substr($part, 0, -2, 'UTF-8').'ЕЦЬ';
+        }
+
+        // Soft-sign surnames can be wrongly inflected to -й
+        // (e.g. Грозя -> Грозй); recover the nominative -ь.
+        if (mb_strlen($part, 'UTF-8') >= 2
+            && mb_substr($part, -1, 1, 'UTF-8') === 'Й') {
+            $previous = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
+
+            if (! in_array($previous, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
+                return mb_substr($part, 0, -1, 'UTF-8').'Ь';
+            }
+        }
+
+        // Indeclinable masculine surnames ending in -р may acquire
+        // a spurious trailing -а/-о (e.g. Білозіра/Білозіро -> Білозір).
+        if ($lastTwo === 'РА' || $lastTwo === 'РО') {
+            return mb_substr($part, 0, -1, 'UTF-8');
+        }
+
+        // Adjective-type surnames ending in -ло take -ла in the genitive
+        // (e.g. Смаровидла -> Смаровидло).
+        if ($lastTwo === 'ЛА') {
+            return mb_substr($part, 0, -1, 'UTF-8').'О';
+        }
+
+        return null;
+    }
+
+    private function applyUppercaseCommonRules(string $part): ?string
+    {
+        // An uppercase vowel-final word ending in a soft sign is the
+        // iotated nominative (e.g. БУГАЬ -> БУГАЙ).
+        if (mb_substr($part, -1, 1, 'UTF-8') === 'Ь') {
+            $previousCharacter = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
+
+            if (in_array($previousCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
+                return mb_substr($part, 0, -1, 'UTF-8').'Й';
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeLowercasePart(string $part, int $index, string $gender): string
+    {
         if (mb_strlen($part, 'UTF-8') <= 2) {
             return $part;
         }
 
-        $exceptions = [
-            'михайла' => 'михайло',
-            'павла' => 'павло',
-            'данила' => 'данило',
-            'дмитра' => 'дмитро',
-            'євгенія' => 'євгеній',
-            'андрія' => 'андрій',
-            'юрія' => 'юрій',
-            'сергія' => 'сергій',
-            'анатолія' => 'анатолій',
-            'тимофія' => 'тимофій',
-            'григорія' => 'григорій',
-            'геннадія' => 'геннадій',
-            'рафаеля' => 'рафаель',
-        ];
-
-        $lower = mb_strtolower($part, 'UTF-8');
-
-        if (isset($exceptions[$lower])) {
-            $converted = $exceptions[$lower];
-
-            return mb_strtoupper(mb_substr($converted, 0, 1, 'UTF-8'), 'UTF-8')
-                .mb_substr($converted, 1, null, 'UTF-8');
+        $result = $this->applyLowercaseExceptions($part);
+        if ($result !== null) {
+            return $result;
         }
 
         if ($index === 1) {
@@ -248,60 +283,20 @@ final class UkrainianNameNormalizer
             }
         }
 
-        $last = mb_substr($part, -1, null, 'UTF-8');
-
-        if (in_array($last, ['а', 'я'], true)) {
-            return mb_substr($part, 0, -1, 'UTF-8');
+        $result = $this->applyLowercaseEndingRules($part);
+        if ($result !== null) {
+            return $result;
         }
 
-        if ($last === 'у') {
-            return mb_substr($part, 0, -1, 'UTF-8').'а';
+        $result = $this->applyLowercaseSoftSignRules($part);
+        if ($result !== null) {
+            return $result;
         }
 
-        if ($last === 'ю') {
-            return mb_substr($part, 0, -1, 'UTF-8').'я';
-        }
-
-        // Recover the nominative form for surnames that lost a vowel
-        // before -ць (e.g. Ємцй -> Ємець).
-        if (mb_substr($part, -2, 2, 'UTF-8') === 'цй') {
-            return mb_substr($part, 0, -2, 'UTF-8').'ець';
-        }
-
-        // Recover soft-sign surnames wrongly inflected to -й (e.g. грозй -> грозь).
-        if (mb_substr($part, -1, 1, 'UTF-8') === 'й') {
-            $previous = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
-
-            if (! in_array($previous, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
-                return mb_substr($part, 0, -1, 'UTF-8').'ь';
-            }
-        }
-
-        // Masculine surnames ending in -р are indeclinable; trim a spurious
-        // trailing -а/-о introduced by case inflection (e.g. Білозіра/Білозіро -> Білозір).
         if ($index === 0) {
-            $lastTwo = mb_substr($part, -2, 2, 'UTF-8');
-
-            if (in_array($lastTwo, ['РА', 'РО', 'ра', 'ро'], true)) {
-                return mb_substr($part, 0, -1, 'UTF-8');
-            }
-
-            // Adjective-type surnames ending in -ло -> -ла in the genitive.
-            $previousCharacter = mb_strtolower(mb_substr($part, -3, 1, 'UTF-8'), 'UTF-8');
-
-            if ($lastTwo === 'ла'
-                && in_array($previousCharacter, ['е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я', 'д'], true)) {
-                return mb_substr($part, 0, -1, 'UTF-8').'о';
-            }
-
-            // Bare indeclinable surname stems ending in -дл acquire -о.
-            if ($lastTwo === 'дл' && mb_substr($part, -3, 1, 'UTF-8') !== 'о') {
-                return $part.'о';
-            }
-
-            // Adjective-type surnames ending in -но take -на in the genitive.
-            if ($lastTwo === 'на' && mb_substr($part, -3, 1, 'UTF-8') === 'х') {
-                return mb_substr($part, 0, -1, 'UTF-8').'о';
+            $result = $this->applyLowercaseSurnameRules($part);
+            if ($result !== null) {
+                return $result;
             }
         }
 
@@ -329,6 +324,106 @@ final class UkrainianNameNormalizer
         return $part;
     }
 
+    private function applyLowercaseExceptions(string $part): ?string
+    {
+        $exceptions = [
+            'михайла' => 'михайло',
+            'павла' => 'павло',
+            'данила' => 'данило',
+            'дмитра' => 'дмитро',
+            'євгенія' => 'євгеній',
+            'андрія' => 'андрій',
+            'юрія' => 'юрій',
+            'сергія' => 'сергій',
+            'анатолія' => 'анатолій',
+            'тимофія' => 'тимофій',
+            'григорія' => 'григорій',
+            'геннадія' => 'геннадій',
+            'рафаеля' => 'рафаель',
+        ];
+
+        $lower = mb_strtolower($part, 'UTF-8');
+
+        if (isset($exceptions[$lower])) {
+            $converted = $exceptions[$lower];
+
+            return mb_strtoupper(mb_substr($converted, 0, 1, 'UTF-8'), 'UTF-8')
+                .mb_substr($converted, 1, null, 'UTF-8');
+        }
+
+        return null;
+    }
+
+    private function applyLowercaseEndingRules(string $part): ?string
+    {
+        $last = mb_substr($part, -1, null, 'UTF-8');
+
+        if (in_array($last, ['а', 'я'], true)) {
+            return mb_substr($part, 0, -1, 'UTF-8');
+        }
+
+        if ($last === 'у') {
+            return mb_substr($part, 0, -1, 'UTF-8').'а';
+        }
+
+        if ($last === 'ю') {
+            return mb_substr($part, 0, -1, 'UTF-8').'я';
+        }
+
+        // Recover the nominative form for surnames that lost a vowel
+        // before -ць (e.g. Ємцй -> Ємець).
+        if (mb_substr($part, -2, 2, 'UTF-8') === 'цй') {
+            return mb_substr($part, 0, -2, 'UTF-8').'ець';
+        }
+
+        return null;
+    }
+
+    private function applyLowercaseSoftSignRules(string $part): ?string
+    {
+        // Recover soft-sign surnames wrongly inflected to -й (e.g. грозй -> грозь).
+        if (mb_substr($part, -1, 1, 'UTF-8') === 'й') {
+            $previous = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
+
+            if (! in_array($previous, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
+                return mb_substr($part, 0, -1, 'UTF-8').'ь';
+            }
+        }
+
+        return null;
+    }
+
+    private function applyLowercaseSurnameRules(string $part): ?string
+    {
+        $lastTwo = mb_substr($part, -2, 2, 'UTF-8');
+
+        // Masculine surnames ending in -р are indeclinable; trim a spurious
+        // trailing -а/-о introduced by case inflection (e.g. Білозіра/Білозіро -> Білозір).
+        if (in_array($lastTwo, ['РА', 'РО', 'ра', 'ро'], true)) {
+            return mb_substr($part, 0, -1, 'UTF-8');
+        }
+
+        // Adjective-type surnames ending in -ло -> -ла in the genitive.
+        $previousCharacter = mb_strtolower(mb_substr($part, -3, 1, 'UTF-8'), 'UTF-8');
+
+        if ($lastTwo === 'ла'
+            && in_array($previousCharacter, ['е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я', 'д'], true)) {
+            return mb_substr($part, 0, -1, 'UTF-8').'о';
+        }
+
+        // Bare indeclinable surname stems ending in -дл acquire -о.
+        if ($lastTwo === 'дл' && mb_substr($part, -3, 1, 'UTF-8') !== 'о') {
+            return $part.'о';
+        }
+
+        // Adjective-type surnames ending in -но take -на in the genitive.
+        if ($lastTwo === 'на' && mb_substr($part, -3, 1, 'UTF-8') === 'х') {
+            return mb_substr($part, 0, -1, 'UTF-8').'о';
+        }
+
+        return null;
+    }
+
     private function findNominativeCandidate(string $source, string $field, string $gender): ?string
     {
         if (! class_exists(Shevchenko::class)) {
@@ -341,7 +436,7 @@ final class UkrainianNameNormalizer
                 ? GrammaticalGender::FEMININE
                 : GrammaticalGender::MASCULINE;
 
-            foreach ($this->candidateWords($source, $field) as $candidate) {
+            foreach ($this->candidateWords($source) as $candidate) {
                 if ($candidate === $source) {
                     continue;
                 }
@@ -380,7 +475,7 @@ final class UkrainianNameNormalizer
     /**
      * @return list<string>
      */
-    private function candidateWords(string $source, string $field = 'givenName'): array
+    private function candidateWords(string $source): array
     {
         $candidates = [$source];
 

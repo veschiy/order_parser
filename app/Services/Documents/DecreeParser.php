@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\Documents;
 
+use App\Exceptions\DecreeParseException;
 use App\Services\Http\BrowserlikeClient;
 use App\Services\Names\UkrainianNameNormalizer;
-use RuntimeException;
 
 final readonly class DecreeParser
 {
+    private const string WHITESPACE_PATTERN = '/\s+/u';
+
     private UkrainianNameNormalizer $normalizer;
 
     private BrowserlikeClient $client;
@@ -25,7 +27,7 @@ final readonly class DecreeParser
         [$status, $body] = $this->request($url);
 
         if ($status < 200 || $status >= 300) {
-            throw new RuntimeException("Decree request failed with status {$status}.");
+            throw new DecreeParseException("Decree request failed with status {$status}.");
         }
 
         $html = $body;
@@ -79,7 +81,7 @@ final readonly class DecreeParser
         }
 
         if ($awardees === [] && preg_match('/Нагородити/u', $text) === 1) {
-            throw new RuntimeException('Decree parsing incomplete: no awardees were extracted.');
+            throw new DecreeParseException('Decree parsing incomplete: no awardees were extracted.');
         }
 
         return $awardees;
@@ -90,16 +92,9 @@ final readonly class DecreeParser
      */
     private function parseNameEntries(string $namesText, string $award): array
     {
+        $candidatePositions = $this->findCandidatePositions($namesText);
+
         $entries = [];
-
-        preg_match_all('/(?:[А-ЯІЇЄҐ\.ʼ’\']{2,}\s+)+[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,}(?:-[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,})?/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
-        $candidatePositions = [];
-
-        foreach ($candidateMatches[0] as $candidateMatch) {
-            $candidatePositions[] = mb_strlen(substr($namesText, 0, $candidateMatch[1]), 'UTF-8');
-        }
-
-        $candidatePositions[] = mb_strlen($namesText, 'UTF-8');
 
         for ($i = 0, $count = count($candidatePositions) - 1; $i < $count; $i++) {
             $chunk = trim(mb_substr($namesText, $candidatePositions[$i], $candidatePositions[$i + 1] - $candidatePositions[$i], 'UTF-8'));
@@ -108,55 +103,112 @@ final readonly class DecreeParser
                 continue;
             }
 
-            if (! preg_match('/^(.+?)\s*(?:—|–|\s-\s)\s*(.+)$/u', $chunk, $matches)) {
+            $parsed = $this->parseNameRankChunk($chunk);
+            if ($parsed === null) {
                 continue;
             }
 
-            $namePart = trim($matches[1]);
-            $qualifier = null;
-
-            if (preg_match('/^(.*)\s*\(([^)]+)\)\s*$/u', $namePart, $qualifierMatch) === 1) {
-                $namePart = trim($qualifierMatch[1]);
-                $qualifier = trim($qualifierMatch[2]);
-            }
-
-            $rank = trim($matches[2]);
-            $rank = trim($rank);
-
-            $rankParts = preg_split('/\s+/u', $rank) ?: [];
-            $cleanRankParts = [];
-
-            foreach ($rankParts as $rankPart) {
-                if ($cleanRankParts !== [] && preg_match('/^[А-ЯІЇЄҐ]{3,}$/u', $rankPart) === 1) {
-                    break;
-                }
-
-                $cleanRankParts[] = $rankPart;
-            }
-
-            $rank = trim(implode(' ', $cleanRankParts));
-            $rank = preg_replace('/\s+(?:а|у)\s+(?:Національній|Державній|Спеціальній|Державній\s+прикордонній).+$/u', '', $rank) ?? $rank;
-            $rank = trim($rank);
-
-            $nameTokens = preg_split('/\s+/u', $namePart) ?: [];
-            $surname = $nameTokens[0] ?? '';
-            $given = $nameTokens[1] ?? '';
-            $patronymic = count($nameTokens) > 2 ? implode(' ', array_slice($nameTokens, 2)) : null;
-            $rawName = $namePart;
-            $normalizedName = $this->normalizer->toNominative($rawName);
-
             $entries[] = new ParsedAwardee(
-                fullName: $normalizedName,
-                surname: $surname !== '' ? $surname : null,
-                givenName: $given !== '' ? $given : null,
-                patronymic: $patronymic,
-                rank: $rank !== '' ? $this->normalizeRank($rank) : null,
+                fullName: $this->normalizer->toNominative($parsed['name']),
+                surname: $parsed['surname'] !== '' ? $parsed['surname'] : null,
+                givenName: $parsed['given'] !== '' ? $parsed['given'] : null,
+                patronymic: $parsed['patronymic'],
+                rank: $parsed['rank'] !== '' ? $this->normalizeRank($parsed['rank']) : null,
                 award: $this->normalizeAward($award),
-                positionNote: $qualifier,
+                positionNote: $parsed['qualifier'],
             );
         }
 
         return $entries;
+    }
+
+    /**
+     * Find the character positions of name candidates in the text.
+     *
+     * @return list<int>
+     */
+    private function findCandidatePositions(string $namesText): array
+    {
+        preg_match_all('/(?:[А-ЯІЇЄҐ\.ʼ’\']{2,}\s+)+[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,}(?:-[А-ЯІЇЄҐ][ʼ’а-яіїєґ]{2,})?/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
+
+        $positions = [];
+        foreach ($candidateMatches[0] as $candidateMatch) {
+            $positions[] = mb_strlen(substr($namesText, 0, $candidateMatch[1]), 'UTF-8');
+        }
+
+        $positions[] = mb_strlen($namesText, 'UTF-8');
+
+        return $positions;
+    }
+
+    /**
+     * Parse a chunk containing "NAME — RANK" format.
+     *
+     * @return array{name: string, surname: string, given: string, patronymic: string|null, rank: string, qualifier: string|null}|null
+     */
+    private function parseNameRankChunk(string $chunk): ?array
+    {
+        if (! preg_match('/^(.+?)\s*(?:—|–|\s-\s)\s*(.+)$/u', $chunk, $matches)) {
+            return null;
+        }
+
+        $namePart = trim($matches[1]);
+        $qualifier = $this->extractQualifier($namePart);
+        if ($qualifier['qualifier'] !== null) {
+            $namePart = $qualifier['name'];
+        }
+
+        $rank = $this->cleanRank(trim($matches[2]));
+
+        $nameTokens = preg_split(self::WHITESPACE_PATTERN, $namePart) ?: [];
+
+        return [
+            'name' => $namePart,
+            'surname' => $nameTokens[0] ?? '',
+            'given' => $nameTokens[1] ?? '',
+            'patronymic' => count($nameTokens) > 2 ? implode(' ', array_slice($nameTokens, 2)) : null,
+            'rank' => $rank,
+            'qualifier' => $qualifier['qualifier'],
+        ];
+    }
+
+    /**
+     * Extract qualifier from a name part like "Name (qualifier)".
+     *
+     * @return array{name: string, qualifier: string|null}
+     */
+    private function extractQualifier(string $namePart): array
+    {
+        if (preg_match('/^(.*)\s*\(([^)]+)\)\s*$/u', $namePart, $match) === 1) {
+            return [
+                'name' => trim($match[1]),
+                'qualifier' => trim($match[2]),
+            ];
+        }
+
+        return ['name' => $namePart, 'qualifier' => null];
+    }
+
+    /**
+     * Clean up rank string by removing abbreviations and trailing organization references.
+     */
+    private function cleanRank(string $rank): string
+    {
+        $rankParts = preg_split(self::WHITESPACE_PATTERN, $rank) ?: [];
+        $cleanRankParts = [];
+
+        foreach ($rankParts as $rankPart) {
+            if ($cleanRankParts !== [] && preg_match('/^[А-ЯІЇЄҐ]{3,}$/u', $rankPart) === 1) {
+                break;
+            }
+
+            $cleanRankParts[] = $rankPart;
+        }
+
+        $rank = trim(implode(' ', $cleanRankParts));
+        $rank = preg_replace('/\s+(?:а|у)\s+(?:Національній|Державній|Спеціальній|Державній\s+прикордонній).+$/u', '', $rank) ?? $rank;
+
+        return trim($rank);
     }
 
     private function normalizeRank(string $rank): string
@@ -167,7 +219,7 @@ final readonly class DecreeParser
             return '';
         }
 
-        $parts = preg_split('/\s+/u', $rank) ?: [];
+        $parts = preg_split(self::WHITESPACE_PATTERN, $rank) ?: [];
 
         foreach ($parts as $key => $word) {
             $parts[$key] = implode('-', array_map(
@@ -251,7 +303,7 @@ final readonly class DecreeParser
         // Keep hyphenated names compact when markup inserts whitespace around them.
         $text = preg_replace('/[\x{2010}\x{2011}\x{2012}]/u', '-', $text) ?? $text;
         $text = preg_replace('/(\p{L})\s*-\s*(\p{L})/u', '\1-\2', $text) ?? $text;
-        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+        $text = preg_replace(self::WHITESPACE_PATTERN, ' ', $text) ?? $text;
 
         return trim($text);
     }

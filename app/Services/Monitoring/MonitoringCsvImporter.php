@@ -17,40 +17,23 @@ final class MonitoringCsvImporter
      */
     public function import(UploadedFile|string $fileOrContent): int
     {
-        $content = $fileOrContent instanceof UploadedFile
-            ? (string) file_get_contents($fileOrContent->getRealPath())
-            : $fileOrContent;
-
-        $content = $this->prepareContent($content);
-
-        if (trim($content) === '') {
+        $content = $this->loadContent($fileOrContent);
+        if ($content === null) {
             return 0;
         }
 
-        $stream = fopen('php://memory', 'r+');
-        if ($stream === false) {
+        $stream = $this->createStream($content);
+        if ($stream === null) {
             return 0;
         }
 
-        fwrite($stream, $content);
-        rewind($stream);
-
-        // Read first non-empty line to detect delimiter and check headers
-        $firstLine = '';
-        while (($line = fgets($stream)) !== false) {
-            if (trim($line) !== '') {
-                $firstLine = $line;
-                break;
-            }
-        }
-
-        if ($firstLine === '') {
+        $delimiter = $this->findDelimiterAndRewind($stream);
+        if ($delimiter === null) {
             fclose($stream);
 
             return 0;
         }
 
-        $delimiter = $this->detectDelimiter($firstLine);
         rewind($stream);
 
         $firstRow = fgetcsv($stream, 0, $delimiter, '"', '\\');
@@ -60,21 +43,118 @@ final class MonitoringCsvImporter
             return 0;
         }
 
+        $columnIndices = $this->resolveColumnIndices($firstRow, $stream);
+
+        $imported = $this->importRows($stream, $delimiter, $columnIndices);
+
+        fclose($stream);
+
+        return $imported;
+    }
+
+    /**
+     * Load and prepare content from file or string. Returns null if empty.
+     */
+    private function loadContent(UploadedFile|string $fileOrContent): ?string
+    {
+        $content = $fileOrContent instanceof UploadedFile
+            ? (string) file_get_contents($fileOrContent->getRealPath())
+            : $fileOrContent;
+
+        $content = $this->prepareContent($content);
+
+        if (trim($content) === '') {
+            return null;
+        }
+
+        return $content;
+    }
+
+    /**
+     * Create a memory stream with the content written to it.
+     *
+     * @return resource|null
+     */
+    private function createStream(string $content)
+    {
+        $stream = fopen('php://memory', 'r+');
+        if ($stream === false) {
+            return null;
+        }
+
+        fwrite($stream, $content);
+        rewind($stream);
+
+        return $stream;
+    }
+
+    /**
+     * Find the first non-empty line, detect delimiter, and rewind. Returns null if no content.
+     *
+     * @param  resource  $stream
+     */
+    private function findDelimiterAndRewind($stream): ?string
+    {
+        $firstLine = $this->readFirstNonEmptyLine($stream);
+        if ($firstLine === '') {
+            return null;
+        }
+
+        return $this->detectDelimiter($firstLine);
+    }
+
+    /**
+     * Read the first non-empty line from the stream.
+     *
+     * @param  resource  $stream
+     */
+    private function readFirstNonEmptyLine($stream): string
+    {
+        $firstLine = '';
+        while (($line = fgets($stream)) !== false) {
+            if (trim($line) !== '') {
+                $firstLine = $line;
+                break;
+            }
+        }
+
+        return $firstLine;
+    }
+
+    /**
+     * Resolve column indices from the first row, handling header and non-header cases.
+     *
+     * @param  array<int, string|null>  $firstRow
+     * @param  resource  $stream
+     * @return array<string, int>
+     */
+    private function resolveColumnIndices(array $firstRow, $stream): array
+    {
         $headerMap = $this->extractHeaderMap($firstRow);
 
         if ($headerMap === null) {
-            // Not a header row, rewind to read this first row as data
             rewind($stream);
-            $columnIndices = [
+
+            return [
                 'sheet' => 0,
                 'full_name' => 1,
                 'submission_date' => 2,
                 'award' => 3,
             ];
-        } else {
-            $columnIndices = $headerMap;
         }
 
+        return $headerMap;
+    }
+
+    /**
+     * Import data rows from the CSV stream.
+     *
+     * @param  resource  $stream
+     * @param  array<string, int>  $columnIndices
+     * @return int Number of imported records
+     */
+    private function importRows($stream, string $delimiter, array $columnIndices): int
+    {
         $imported = 0;
 
         while (($row = fgetcsv($stream, 0, $delimiter, '"', '\\')) !== false) {
@@ -82,52 +162,88 @@ final class MonitoringCsvImporter
                 continue;
             }
 
-            $fullName = isset($columnIndices['full_name']) && isset($row[$columnIndices['full_name']])
-                ? trim((string) $row[$columnIndices['full_name']])
-                : '';
-
-            if ($fullName === '') {
+            $record = $this->rowToRecord($row, $columnIndices);
+            if ($record === null) {
                 continue;
             }
 
-            $sheet = isset($columnIndices['sheet']) && isset($row[$columnIndices['sheet']])
-                ? trim((string) $row[$columnIndices['sheet']])
-                : null;
-            $sheet = $sheet !== '' ? $sheet : null;
-
-            // Collect and parse dates (supporting single cell with multiple dates or date columns)
-            $dateStrings = [];
-            if (isset($columnIndices['submission_date']) && isset($row[$columnIndices['submission_date']])) {
-                $dateStrings[] = (string) $row[$columnIndices['submission_date']];
-            }
-
-            $submissionDate = $this->parseLatestDate($dateStrings);
-
-            $rank = isset($columnIndices['rank']) && isset($row[$columnIndices['rank']])
-                ? trim((string) $row[$columnIndices['rank']])
-                : null;
-            $rank = $rank !== '' ? $rank : null;
-
-            $award = isset($columnIndices['award']) && isset($row[$columnIndices['award']])
-                ? trim((string) $row[$columnIndices['award']])
-                : null;
-            $award = $award !== '' ? $award : null;
-
-            MonitoringRecord::query()->create([
-                'sheet' => $sheet,
-                'full_name' => $fullName,
-                'tax_id' => null, // Tax ID skipped per specification
-                'submission_date' => $submissionDate,
-                'rank' => $rank,
-                'award' => $award,
-            ]);
-
+            MonitoringRecord::query()->create($record);
             $imported++;
         }
 
-        fclose($stream);
-
         return $imported;
+    }
+
+    /**
+     * Convert a CSV row to a MonitoringRecord attributes array.
+     *
+     * @param  array<int, string|null>  $row
+     * @param  array<string, int>  $columnIndices
+     * @return array{sheet: string|null, full_name: string, tax_id: null, submission_date: DateTimeInterface|null, rank: string|null, award: string|null}|null
+     */
+    private function rowToRecord(array $row, array $columnIndices): ?array
+    {
+        $fullName = $this->getFieldValue($row, $columnIndices, 'full_name');
+        if ($fullName === '') {
+            return null;
+        }
+
+        $sheet = $this->getOptionalFieldValue($row, $columnIndices, 'sheet');
+        $rank = $this->getOptionalFieldValue($row, $columnIndices, 'rank');
+        $award = $this->getOptionalFieldValue($row, $columnIndices, 'award');
+
+        $submissionDate = $this->parseSubmissionDate($row, $columnIndices);
+
+        return [
+            'sheet' => $sheet,
+            'full_name' => $fullName,
+            'tax_id' => null,
+            'submission_date' => $submissionDate,
+            'rank' => $rank,
+            'award' => $award,
+        ];
+    }
+
+    /**
+     * Get a trimmed field value from a row by column index mapping.
+     *
+     * @param  array<int, string|null>  $row
+     * @param  array<string, int>  $columnIndices
+     */
+    private function getFieldValue(array $row, array $columnIndices, string $field): string
+    {
+        return isset($columnIndices[$field]) && isset($row[$columnIndices[$field]])
+            ? trim((string) $row[$columnIndices[$field]])
+            : '';
+    }
+
+    /**
+     * Get an optional trimmed field value (returns null if empty).
+     *
+     * @param  array<int, string|null>  $row
+     * @param  array<string, int>  $columnIndices
+     */
+    private function getOptionalFieldValue(array $row, array $columnIndices, string $field): ?string
+    {
+        $value = $this->getFieldValue($row, $columnIndices, $field);
+
+        return $value !== '' ? $value : null;
+    }
+
+    /**
+     * Parse the submission date from a row.
+     *
+     * @param  array<int, string|null>  $row
+     * @param  array<string, int>  $columnIndices
+     */
+    private function parseSubmissionDate(array $row, array $columnIndices): ?DateTimeInterface
+    {
+        $dateStrings = [];
+        if (isset($columnIndices['submission_date']) && isset($row[$columnIndices['submission_date']])) {
+            $dateStrings[] = (string) $row[$columnIndices['submission_date']];
+        }
+
+        return $this->parseLatestDate($dateStrings);
     }
 
     private function prepareContent(string $content): string

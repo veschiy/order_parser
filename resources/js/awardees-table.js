@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
-    const ajaxTable = new AjaxTable('awardeesTable', {
+    new AjaxTable('awardeesTable', {
         url: `/orders/${orderId}/awardees/json`,
         paginationSelector: '#awardeesTable-pagination',
         emptyMessageSelector: '#awardeesTable-empty',

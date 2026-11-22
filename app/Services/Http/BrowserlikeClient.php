@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Http;
 
+use App\Exceptions\HttpRequestFailedException;
 use Illuminate\Support\Facades\Http;
-use RuntimeException;
 
 final class BrowserlikeClient
 {
@@ -60,10 +60,10 @@ final class BrowserlikeClient
                     return [$response->status(), (string) $response->body()];
                 }
             } catch (\Throwable $throwable) {
-                throw new RuntimeException($throwable->getMessage(), 0, $throwable);
+                throw new HttpRequestFailedException($throwable->getMessage(), 0, $throwable);
             }
 
-            throw new RuntimeException('HTTP request failed with status '.$response->status().'.');
+            throw new HttpRequestFailedException('HTTP request failed with status '.$response->status().'.');
         }
 
         // The retry/backoff sleeps below can exceed PHP's default 30s limit,
@@ -125,7 +125,7 @@ final class BrowserlikeClient
         }
 
         if ($this->isBlocked($status, $body)) {
-            throw new RuntimeException('Request blocked by president.gov.ua after '.self::MAX_ATTEMPTS.' attempts.');
+            throw new HttpRequestFailedException('Request blocked by president.gov.ua after '.self::MAX_ATTEMPTS.' attempts.');
         }
 
         return [$status, $body];
@@ -152,7 +152,7 @@ final class BrowserlikeClient
         $handle = curl_init($url);
 
         if ($handle === false) {
-            throw new RuntimeException('Unable to initialize cURL.');
+            throw new HttpRequestFailedException('Unable to initialize cURL.');
         }
 
         $headerLines = [];
@@ -180,7 +180,7 @@ final class BrowserlikeClient
             $error = curl_error($handle) ?: 'Unable to configure cURL.';
             curl_close($handle);
 
-            throw new RuntimeException('cURL configuration failed: '.$error);
+            throw new HttpRequestFailedException('cURL configuration failed: '.$error);
         }
 
         $result = curl_exec($handle);
@@ -189,7 +189,7 @@ final class BrowserlikeClient
             $error = curl_error($handle);
             curl_close($handle);
 
-            throw new RuntimeException('cURL request failed: '.$error);
+            throw new HttpRequestFailedException('cURL request failed: '.$error);
         }
 
         $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);

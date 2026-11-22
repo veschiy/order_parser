@@ -194,7 +194,6 @@ export class AjaxTable {
             return;
         }
 
-        let pagesHtml = '';
         const range = 2;
         const toShow = {};
 
@@ -245,7 +244,7 @@ export class AjaxTable {
         container.querySelectorAll('.ajax-page-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                this.currentPage = parseInt(link.dataset.page, 10);
+                this.currentPage = Number.parseInt(link.dataset.page, 10);
                 this.load();
             });
         });
@@ -260,7 +259,10 @@ export class AjaxTable {
         }
     }
 
+
     bindPagination() {
+        // Pagination links are bound dynamically in renderPagination() after each load.
+        // This method is a placeholder for any initial setup if needed.
     }
 
     bindSortHeaders() {
@@ -271,7 +273,7 @@ export class AjaxTable {
 
             sortBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                const colIndex = parseInt(th.dataset.colIndex, 10);
+                const colIndex = Number.parseInt(th.dataset.colIndex, 10);
                 const col = th.dataset.title || th.querySelector('.col-title')?.textContent?.trim() || '';
 
                 const sortMap = this.getSortColumnMap();
@@ -299,7 +301,7 @@ export class AjaxTable {
     updateSortIcons(activeColIndex) {
         const headers = document.querySelectorAll(`#${this.tableId} thead th[data-col-index]`);
         headers.forEach(th => {
-            const idx = parseInt(th.dataset.colIndex, 10);
+            const idx = Number.parseInt(th.dataset.colIndex, 10);
             const icon = th.querySelector('.sort-icon');
             if (!icon) return;
             if (idx === activeColIndex) {
@@ -325,7 +327,7 @@ export class AjaxTable {
             filterBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const colIndex = parseInt(th.dataset.colIndex, 10);
+                const colIndex = Number.parseInt(th.dataset.colIndex, 10);
                 this.toggleFilterDropdown(filterBtn, colIndex);
             });
         });
@@ -672,7 +674,7 @@ export class AjaxTable {
     updateFilterButtons() {
         const headers = document.querySelectorAll(`#${this.tableId} thead th[data-col-index]`);
         headers.forEach(th => {
-            const colIndex = parseInt(th.dataset.colIndex, 10);
+            const colIndex = Number.parseInt(th.dataset.colIndex, 10);
             const filterBtn = th.querySelector('[data-action="filter"]');
             if (!filterBtn) return;
 

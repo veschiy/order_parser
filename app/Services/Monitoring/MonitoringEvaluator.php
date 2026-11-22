@@ -13,6 +13,14 @@ use Illuminate\Support\Collection;
 
 final readonly class MonitoringEvaluator
 {
+    private const string WHITESPACE_PATTERN = '/\s+/u';
+
+    private const string DEGREE_3 = '3 ступеня';
+
+    private const string DEGREE_2 = '2 ступеня';
+
+    private const string DEGREE_1 = '1 ступеня';
+
     private UkrainianNameNormalizer $normalizer;
 
     public function __construct(?UkrainianNameNormalizer $normalizer = null)
@@ -71,9 +79,9 @@ final readonly class MonitoringEvaluator
         }
 
         $lower = mb_strtolower($name, 'UTF-8');
-        $clean = preg_replace('/\s+/u', ' ', $lower) ?? $lower;
+        $clean = preg_replace(self::WHITESPACE_PATTERN, ' ', $lower) ?? $lower;
         $normalized = mb_strtolower($this->normalizer->toNominative($name), 'UTF-8');
-        $tokens = preg_split('/\s+/u', $normalized) ?: [];
+        $tokens = preg_split(self::WHITESPACE_PATTERN, $normalized) ?: [];
         sort($tokens);
 
         return ['exact:'.$clean, 'normalized:'.implode(' ', $tokens)];
@@ -163,8 +171,8 @@ final readonly class MonitoringEvaluator
             return true;
         }
 
-        $cleanMonitored = preg_replace('/\s+/u', ' ', $lowerMonitored) ?? $lowerMonitored;
-        $cleanAwardee = preg_replace('/\s+/u', ' ', $lowerAwardee) ?? $lowerAwardee;
+        $cleanMonitored = preg_replace(self::WHITESPACE_PATTERN, ' ', $lowerMonitored) ?? $lowerMonitored;
+        $cleanAwardee = preg_replace(self::WHITESPACE_PATTERN, ' ', $lowerAwardee) ?? $lowerAwardee;
 
         if ($cleanMonitored === $cleanAwardee) {
             return true;
@@ -177,8 +185,8 @@ final readonly class MonitoringEvaluator
             return true;
         }
 
-        $monitoredTokens = preg_split('/\s+/u', $normMonitored) ?: [];
-        $awardeeTokens = preg_split('/\s+/u', $normAwardee) ?: [];
+        $monitoredTokens = preg_split(self::WHITESPACE_PATTERN, $normMonitored) ?: [];
+        $awardeeTokens = preg_split(self::WHITESPACE_PATTERN, $normAwardee) ?: [];
 
         sort($monitoredTokens);
         sort($awardeeTokens);
@@ -230,8 +238,8 @@ final readonly class MonitoringEvaluator
 
         // Normalize Roman numerals / degree designations
         $award = str_replace(
-            ['3 ступеня', '2 ступеня', '1 ступеня', '3 ст.', '2 ст.', '1 ст.', '3 ст', '2 ст', '1 ст'],
-            ['3 ступеня', '2 ступеня', '1 ступеня', '3 ступеня', '2 ступеня', '1 ступеня', '3 ступеня', '2 ступеня', '1 ступеня'],
+            [self::DEGREE_3, self::DEGREE_2, self::DEGREE_1, '3 ст.', '2 ст.', '1 ст.', '3 ст', '2 ст', '1 ст'],
+            [self::DEGREE_3, self::DEGREE_2, self::DEGREE_1, self::DEGREE_3, self::DEGREE_2, self::DEGREE_1, self::DEGREE_3, self::DEGREE_2, self::DEGREE_1],
             $award
         );
 
@@ -245,7 +253,7 @@ final readonly class MonitoringEvaluator
         // Abbreviations
         $award = preg_replace('/\bб\.?\s*хмельницького\b/u', 'богдана хмельницького', $award) ?? $award;
 
-        return trim(preg_replace('/\s+/u', ' ', $award) ?? $award);
+        return trim(preg_replace(self::WHITESPACE_PATTERN, ' ', $award) ?? $award);
     }
 
     public function dateIsWithinSixMonths(?DateTimeInterface $orderDate, ?DateTimeInterface $submissionDate): bool
