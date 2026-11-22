@@ -31,6 +31,9 @@ export class AjaxTable {
         // Track all distinct values per column (for "all checked by default" logic)
         this.columnFilterAllValues = {};
 
+        // Cached distinct values from the main JSON response (e.g. distinctMatches)
+        this.cachedDistinctValues = {};
+
         // Merge config methods onto the instance so subclasses can override them via config.
         if (typeof config.getSortColumnMap === 'function') {
             this.getSortColumnMap = config.getSortColumnMap.bind(this);
@@ -129,6 +132,12 @@ export class AjaxTable {
 
             const json = await response.json();
             this.allData = Array.isArray(json.data) ? json.data : [];
+
+            // Cache distinct values from the main JSON response
+            if (Array.isArray(json.distinctMatches)) {
+                this.cachedDistinctValues.matches = json.distinctMatches;
+            }
+
             this.render(this.allData, json.pagination || {});
 
             if (this.onLoad) {
@@ -416,17 +425,25 @@ export class AjaxTable {
         const searchInput = document.getElementById(`${this.tableId}FilterSearch`);
         if (!dropdown || !listEl) return;
 
-        // Show loading state
-        listEl.innerHTML = '<div class="py-4 text-center text-xs text-slate-500">Завантаження...</div>';
-        if (searchInput) searchInput.value = '';
-
         // Position dropdown near button
         const rect = button.getBoundingClientRect();
         dropdown.style.top = Math.min(rect.bottom + 4, window.innerHeight - 400) + 'px';
         dropdown.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
         dropdown.classList.remove('hidden');
 
-        // Fetch distinct values
+        if (searchInput) searchInput.value = '';
+
+        // Use cached distinct values from the main JSON response (no separate AJAX request)
+        if (columnName in this.cachedDistinctValues) {
+            const values = this.cachedDistinctValues[columnName];
+            this.renderDistinctCheckboxes(values, listEl);
+            return;
+        }
+
+        // Show loading state for columns without cached values
+        listEl.innerHTML = '<div class="py-4 text-center text-xs text-slate-500">Завантаження...</div>';
+
+        // Fetch distinct values from server for other columns
         try {
             const params = { ...this.defaultParams, column: columnName };
             const url = new URL(this.url + '/distinct', window.location.origin);

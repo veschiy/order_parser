@@ -15,7 +15,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class MonitoringController extends Controller
@@ -278,10 +277,23 @@ final class MonitoringController extends Controller
 
         $hasMatchesFilter = ! empty($matchesFilter['decreeDisplays']) || $matchesFilter['hasNoMatches'];
 
+        // Collect distinct decree display numbers from ALL evaluations (before pagination) for the filter dropdown
+        $allRecords = $query->get();
+        $allEvaluations = $evaluator->evaluateAll($allRecords);
+        $decreeDisplays = [];
+        foreach ($allEvaluations as $evaluation) {
+            foreach ($evaluation->matches as $match) {
+                $display = $match->awardee->order ? $match->awardee->order->displayNumber() : 'Указ #'.$match->awardee->order_id;
+                $decreeDisplays[] = $display;
+            }
+        }
+        $decreeDisplays = array_values(array_unique($decreeDisplays));
+        sort($decreeDisplays, SORT_NATURAL | SORT_FLAG_CASE);
+        $decreeDisplays[] = '__empty__';
+
         if ($scoreFilter !== null || $hasMatchesFilter) {
             // Score or matches are computed, not stored — must evaluate all records first, then filter and paginate
-            $records = $query->get();
-            $evaluations = $evaluator->evaluateAll($records);
+            $evaluations = $allEvaluations;
 
             // Apply score filter
             if ($scoreFilter !== null) {
@@ -291,8 +303,8 @@ final class MonitoringController extends Controller
             // Apply matches filter (filter by specific decree displays and/or no matches)
             if ($hasMatchesFilter) {
                 $evaluations = $evaluations->filter(function ($evaluation) use ($matchesFilter): bool {
-                    $decreeDisplays = array_map(static fn (MonitoringMatch $m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches);
-                    $hasMatches = count($decreeDisplays) > 0;
+                    $evalDecreeDisplays = array_map(static fn (MonitoringMatch $m) => ($m->awardee->order ? $m->awardee->order->displayNumber() : 'Указ #'.$m->awardee->order_id), $evaluation->matches);
+                    $hasMatches = count($evalDecreeDisplays) > 0;
 
                     // If only "no matches" is selected
                     if ($matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] === []) {
@@ -301,12 +313,12 @@ final class MonitoringController extends Controller
 
                     // If only specific decrees are selected
                     if (! $matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] !== []) {
-                        return $hasMatches && count(array_intersect($decreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
+                        return $hasMatches && count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
                     }
 
                     // Both specific decrees and "no matches" selected
                     if ($matchesFilter['hasNoMatches'] && $matchesFilter['decreeDisplays'] !== []) {
-                        return ! $hasMatches || count(array_intersect($decreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
+                        return ! $hasMatches || count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
                     }
 
                     return true;
@@ -327,10 +339,8 @@ final class MonitoringController extends Controller
             $evaluations = $evaluations->forPage($page, $perPage);
         } else {
             // No score/matches filter — paginate at the DB level for efficiency
-            $total = $query->count();
-            $records = $query->forPage($page, $perPage)->get();
-            /** @var Collection<int, MonitoringRecord> $records */
-            $evaluations = $evaluator->evaluateAll($records);
+            $total = $allRecords->count();
+            $evaluations = $allEvaluations->forPage($page, $perPage);
 
             // Apply score sorting post-evaluation (score is computed, not a DB column)
             if ($sort === 'score') {
@@ -376,6 +386,7 @@ final class MonitoringController extends Controller
                 'to' => min($page * $perPage, $total),
             ],
             'totalCount' => MonitoringRecord::query()->count(),
+            'distinctMatches' => $decreeDisplays,
         ]);
     }
 
