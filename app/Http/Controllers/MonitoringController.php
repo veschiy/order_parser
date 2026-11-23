@@ -279,43 +279,46 @@ final class MonitoringController extends Controller
         $allEvaluations = $evaluator->evaluateAll($allRecords);
         $decreeDisplays = $this->buildDecreeDisplays($allEvaluations);
 
-        if ($scoreFilter !== null || $hasMatchesFilter) {
-            // Score or matches are computed, not stored — must evaluate all records first, then filter and paginate
-            $evaluations = $allEvaluations;
+        $evaluations = $this->applyFilters($allEvaluations, $scoreFilter, $hasMatchesFilter, $matchesFilter);
+        $evaluations = $this->applyComputedSorting($evaluations, $sort, $direction);
 
-            // Apply score filter
-            if ($scoreFilter !== null) {
-                $evaluations = $evaluations->filter(fn ($evaluation): bool => in_array($evaluation->score, $scoreFilter, true));
-            }
-
-            // Apply matches filter (filter by specific decree displays and/or no matches)
-            if ($hasMatchesFilter) {
-                $evaluations = $evaluations->filter(function ($evaluation) use ($matchesFilter): bool {
-                    $evalDecreeDisplays = array_map(
-                        static fn (MonitoringMatch $m) => $m->awardee->order ? $m->awardee->order->displayNumber() : self::DECREE_PREFIX.$m->awardee->order_id,
-                        $evaluation->matches
-                    );
-                    $hasMatches = count($evalDecreeDisplays) > 0;
-
-                    return $this->passesMatchesFilter($hasMatches, $evalDecreeDisplays, $matchesFilter);
-                });
-            }
-
-            $evaluations = $this->applyComputedSorting($evaluations, $sort, $direction);
-
-            $total = $evaluations->count();
-            $evaluations = $evaluations->forPage($page, $perPage);
-        } else {
-            // No score/matches filter — sort first, then paginate
-            $total = $allRecords->count();
-            $evaluations = $allEvaluations;
-
-            $evaluations = $this->applyComputedSorting($evaluations, $sort, $direction);
-
-            $evaluations = $evaluations->forPage($page, $perPage);
-        }
+        $total = $evaluations->count();
+        $evaluations = $evaluations->forPage($page, $perPage);
 
         return response()->json($this->buildJsonResponse($evaluations, $page, $total, $perPage, $decreeDisplays));
+    }
+
+    /**
+     * Apply score and matches filters to evaluations.
+     *
+     * @param  Collection<int, MonitoringEvaluation>  $evaluations
+     * @param  int[]|null  $scoreFilter
+     * @param  array{decreeDisplays: list<string>, hasNoMatches: bool}  $matchesFilter
+     * @return Collection<int, MonitoringEvaluation>
+     */
+    private function applyFilters(Collection $evaluations, ?array $scoreFilter, bool $hasMatchesFilter, array $matchesFilter): Collection
+    {
+        if ($scoreFilter === null && ! $hasMatchesFilter) {
+            return $evaluations;
+        }
+
+        if ($scoreFilter !== null) {
+            $evaluations = $evaluations->filter(fn ($evaluation): bool => in_array($evaluation->score, $scoreFilter, true));
+        }
+
+        if ($hasMatchesFilter) {
+            $evaluations = $evaluations->filter(function ($evaluation) use ($matchesFilter): bool {
+                $evalDecreeDisplays = array_map(
+                    static fn (MonitoringMatch $m) => $m->awardee->order ? $m->awardee->order->displayNumber() : self::DECREE_PREFIX.$m->awardee->order_id,
+                    $evaluation->matches
+                );
+                $hasMatches = count($evalDecreeDisplays) > 0;
+
+                return $this->passesMatchesFilter($hasMatches, $evalDecreeDisplays, $matchesFilter);
+            });
+        }
+
+        return $evaluations;
     }
 
     /**
@@ -405,12 +408,18 @@ final class MonitoringController extends Controller
         $hasDecreeMatch = $hasMatches && count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
 
         if ($hasNoMatchFilter) {
-            return $hasDecreeFilter
-                ? (! $hasMatches || $hasDecreeMatch)
-                : ! $hasMatches;
+            if ($hasDecreeFilter) {
+                return ! $hasMatches || $hasDecreeMatch;
+            }
+
+            return ! $hasMatches;
         }
 
-        return $hasDecreeFilter ? $hasDecreeMatch : true;
+        if ($hasDecreeFilter) {
+            return $hasDecreeMatch;
+        }
+
+        return true;
     }
 
     /**
@@ -544,16 +553,15 @@ final class MonitoringController extends Controller
 
         $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
 
-        if (! in_array($column, $allowedColumns, true)) {
-            return [];
+        $values = [];
+        if (in_array($column, $allowedColumns, true)) {
+            ['query' => $query] = $this->buildFilteredQuery($search);
+            /** @var list<string> $values */
+            $values = $query->distinct()->pluck($column)->filter()
+                ->map($formatValue)
+                ->sort()->values()->toArray();
+            $values[] = '__empty__';
         }
-
-        ['query' => $query] = $this->buildFilteredQuery($search);
-        /** @var list<string> $values */
-        $values = $query->distinct()->pluck($column)->filter()
-            ->map($formatValue)
-            ->sort()->values()->toArray();
-        $values[] = '__empty__';
 
         return $values;
     }

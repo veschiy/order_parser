@@ -70,28 +70,29 @@ final class UkrainianNameNormalizer
 
     private function normalizeUppercasePart(string $part, int $index, string $gender): string
     {
+        $result = null;
+
         if ($index === 0 && $gender === 'male') {
             $result = $this->tryUppercaseSurnameRules($part);
-            if ($result !== null) {
-                return $result;
-            }
         }
 
-        if (mb_substr($part, -1, 1, 'UTF-8') === 'Ь') {
+        if ($result === null && mb_substr($part, -1, 1, 'UTF-8') === 'Ь') {
             $previousCharacter = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
             if (in_array($previousCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
-                return mb_substr($part, 0, -1, 'UTF-8').'Й';
+                $result = mb_substr($part, 0, -1, 'UTF-8').'Й';
             }
         }
 
-        if ($index !== 0) {
+        if ($result === null && $index !== 0) {
             $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'givenName', $gender);
             if ($candidate !== null) {
-                return mb_strtoupper($candidate, 'UTF-8');
+                $result = mb_strtoupper($candidate, 'UTF-8');
             }
         }
 
-        return $this->applyUppercaseFallbackRules($part) ?? $part;
+        $result ??= $this->applyUppercaseFallbackRules($part);
+
+        return $result ?? $part;
     }
 
     private function tryUppercaseSurnameRules(string $part): ?string
@@ -192,21 +193,20 @@ final class UkrainianNameNormalizer
             return mb_substr($part, 0, -1, 'UTF-8').'О';
         }
 
+        $result = null;
+
         $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'familyName', $gender);
         if ($candidate !== null) {
-            return $this->normalizeUppercaseCandidate($candidate);
+            $result = $this->normalizeUppercaseCandidate($candidate);
         }
 
-        $result = $this->applyUppercaseSoftSignRecovery($part);
-        if ($result !== null) {
-            return $result;
+        $result ??= $this->applyUppercaseSoftSignRecovery($part);
+
+        if ($result === null && $lastTwo === 'ЛА') {
+            $result = mb_substr($part, 0, -1, 'UTF-8').'О';
         }
 
-        if ($lastTwo === 'ЛА') {
-            return mb_substr($part, 0, -1, 'UTF-8').'О';
-        }
-
-        return null;
+        return $result;
     }
 
     private function normalizeUppercaseCandidate(string $candidate): string
@@ -250,57 +250,49 @@ final class UkrainianNameNormalizer
         }
 
         $result = $this->applyLowercaseExceptions($part);
-        if ($result !== null) {
-            return $result;
-        }
 
-        if ($index === 1) {
+        if ($result === null && $index === 1) {
             $candidate = $this->findNominativeCandidate(mb_strtolower($part, 'UTF-8'), 'givenName', $gender);
             if ($candidate !== null) {
-                return mb_strtoupper(mb_substr($candidate, 0, 1, 'UTF-8'), 'UTF-8')
+                $result = mb_strtoupper(mb_substr($candidate, 0, 1, 'UTF-8'), 'UTF-8')
                     .mb_substr($candidate, 1, null, 'UTF-8');
             }
         }
 
-        $result = $this->applyLowercaseEndingRules($part)
+        $result ??= $this->applyLowercaseEndingRules($part)
             ?? $this->applyLowercaseSoftSignRules($part);
 
-        if ($result !== null) {
-            return $result;
+        if ($result === null && $index === 0) {
+            $result = $this->applyLowercaseSurnameRules($part);
         }
 
-        if ($index === 0) {
-            $surnameResult = $this->applyLowercaseSurnameRules($part);
-            if ($surnameResult !== null) {
-                return $surnameResult;
-            }
-        }
+        $result ??= $this->applyLowercaseFallbackRules($part);
 
-        $fallback = $this->applyLowercaseFallbackRules($part);
-
-        return $fallback ?? $part;
+        return $result ?? $part;
     }
 
     private function applyLowercaseFallbackRules(string $part): ?string
     {
+        $result = null;
+
         if (mb_substr($part, -1, 1, 'UTF-8') === 'ь') {
             $previousCharacter = mb_strtolower(mb_substr($part, -2, 1, 'UTF-8'), 'UTF-8');
             if (in_array($previousCharacter, ['а', 'е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я'], true)) {
-                return mb_substr($part, 0, -1, 'UTF-8').'й';
+                $result = mb_substr($part, 0, -1, 'UTF-8').'й';
             }
         }
 
-        $lastThree = mb_substr($part, -3, 3, 'UTF-8');
+        if ($result === null) {
+            $lastThree = mb_substr($part, -3, 3, 'UTF-8');
 
-        if ($lastThree === 'йць') {
-            return mb_substr($part, 0, -3, 'UTF-8').'єць';
+            if ($lastThree === 'йць') {
+                $result = mb_substr($part, 0, -3, 'UTF-8').'єць';
+            } elseif ($lastThree === 'око') {
+                $result = mb_substr($part, 0, -1, 'UTF-8');
+            }
         }
 
-        if ($lastThree === 'око') {
-            return mb_substr($part, 0, -1, 'UTF-8');
-        }
-
-        return null;
+        return $result;
     }
 
     private function applyLowercaseExceptions(string $part): ?string
@@ -382,25 +374,27 @@ final class UkrainianNameNormalizer
             return mb_substr($part, 0, -1, 'UTF-8');
         }
 
+        $result = null;
+
         // Adjective-type surnames ending in -ло -> -ла in the genitive.
         $previousCharacter = mb_strtolower(mb_substr($part, -3, 1, 'UTF-8'), 'UTF-8');
 
         if ($lastTwo === 'ла'
             && in_array($previousCharacter, ['е', 'є', 'и', 'і', 'о', 'у', 'ю', 'я', 'д'], true)) {
-            return mb_substr($part, 0, -1, 'UTF-8').'о';
+            $result = mb_substr($part, 0, -1, 'UTF-8').'о';
         }
 
         // Bare indeclinable surname stems ending in -дл acquire -о.
-        if ($lastTwo === 'дл' && mb_substr($part, -3, 1, 'UTF-8') !== 'о') {
-            return $part.'о';
+        if ($result === null && $lastTwo === 'дл' && mb_substr($part, -3, 1, 'UTF-8') !== 'о') {
+            $result = $part.'о';
         }
 
         // Adjective-type surnames ending in -но take -на in the genitive.
-        if ($lastTwo === 'на' && mb_substr($part, -3, 1, 'UTF-8') === 'х') {
-            return mb_substr($part, 0, -1, 'UTF-8').'о';
+        if ($result === null && $lastTwo === 'на' && mb_substr($part, -3, 1, 'UTF-8') === 'х') {
+            $result = mb_substr($part, 0, -1, 'UTF-8').'о';
         }
 
-        return null;
+        return $result;
     }
 
     private function findNominativeCandidate(string $source, string $field, string $gender): ?string

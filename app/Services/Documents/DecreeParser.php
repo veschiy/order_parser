@@ -148,7 +148,7 @@ final readonly class DecreeParser
      */
     private function parseNameRankChunk(string $chunk): ?array
     {
-        if (! preg_match('/^(.+?)\s*(?:—|–|\s-\s)\s*(.+)$/u', $chunk, $matches)) {
+        if (! preg_match('/^(.+?)\s*[—–\-]\s*(.+)$/u', $chunk, $matches)) {
             return null;
         }
 
@@ -240,20 +240,17 @@ final readonly class DecreeParser
         }
 
         $lower = mb_strtolower($segment, 'UTF-8');
+        $result = $segment;
 
         if (str_ends_with($lower, 'ого') && mb_strlen($segment, 'UTF-8') > 3) {
-            return mb_substr($segment, 0, -3, 'UTF-8').'ий';
+            $result = mb_substr($segment, 0, -3, 'UTF-8').'ий';
+        } elseif (str_ends_with($lower, 'у')) {
+            $result = mb_substr($segment, 0, -1, 'UTF-8').'а';
+        } elseif (str_ends_with($lower, 'а')) {
+            $result = mb_substr($segment, 0, -1, 'UTF-8');
         }
 
-        if (str_ends_with($lower, 'у')) {
-            return mb_substr($segment, 0, -1, 'UTF-8').'а';
-        }
-
-        if (str_ends_with($lower, 'а')) {
-            return mb_substr($segment, 0, -1, 'UTF-8');
-        }
-
-        return $segment;
+        return $result;
     }
 
     private function normalizeAward(string $award): string

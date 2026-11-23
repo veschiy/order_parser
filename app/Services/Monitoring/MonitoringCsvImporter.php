@@ -28,13 +28,14 @@ final class MonitoringCsvImporter
         }
 
         $delimiter = $this->findDelimiterAndRewind($stream);
-        if ($delimiter === null) {
+        $imported = 0;
+        if ($delimiter !== null) {
+            $imported = $this->importFromStream($stream, $delimiter);
+        } else {
             fclose($stream);
-
-            return 0;
         }
 
-        return $this->importFromStream($stream, $delimiter);
+        return $imported;
     }
 
     /**

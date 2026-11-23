@@ -181,7 +181,12 @@ final readonly class MonitoringEvaluator
         $normMonitored = mb_strtolower($this->normalizer->toNominative($monitoredName), 'UTF-8');
         $normAwardee = mb_strtolower($this->normalizer->toNominative($awardeeName), 'UTF-8');
 
-        return $normMonitored === $normAwardee || $this->tokensMatch($normMonitored, $normAwardee);
+        $exactNormalizedMatch = $normMonitored === $normAwardee;
+        if ($exactNormalizedMatch) {
+            return true;
+        }
+
+        return $this->tokensMatch($normMonitored, $normAwardee);
     }
 
     private function tokensMatch(string $normMonitored, string $normAwardee): bool
