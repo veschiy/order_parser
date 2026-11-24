@@ -10,6 +10,7 @@ use App\Models\ParseRun;
 use App\Services\Documents\DecreeParser;
 use App\Services\Documents\ParsedDecree;
 use App\Services\Http\BrowserlikeClient;
+use App\Services\Monitoring\MonitoringEvaluationCache;
 use App\Services\Rss\FeedItem;
 use App\Services\Rss\FeedParser;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,12 @@ final class AwardsParserService
 
     private readonly BrowserlikeClient $client;
 
-    public function __construct(?FeedParser $feedParser = null, ?DecreeParser $decreeParser = null, ?BrowserlikeClient $client = null)
-    {
+    public function __construct(
+        private readonly MonitoringEvaluationCache $evaluationCache,
+        ?FeedParser $feedParser = null,
+        ?DecreeParser $decreeParser = null,
+        ?BrowserlikeClient $client = null,
+    ) {
         $this->client = $client ?? new BrowserlikeClient;
         $this->feedParser = $feedParser ?? new FeedParser($this->client);
         $this->decreeParser = $decreeParser ?? new DecreeParser(null, $this->client);
@@ -57,6 +62,7 @@ final class AwardsParserService
 
         $status = $summary['errors'] === [] ? 'completed' : 'completed_with_errors';
         $this->finishParseRun($run, $summary, $status);
+        $this->evaluationCache->invalidate();
 
         return $summary;
     }
@@ -182,6 +188,7 @@ final class AwardsParserService
             'error' => $error,
             'finished_at' => now(),
         ])->save();
+        $this->evaluationCache->invalidate();
 
         return $summary;
     }

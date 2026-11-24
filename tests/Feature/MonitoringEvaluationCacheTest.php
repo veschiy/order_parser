@@ -7,11 +7,13 @@ namespace Tests\Feature;
 use App\Models\Awardee;
 use App\Models\MonitoringRecord;
 use App\Models\Order;
+use App\Services\Parsers\AwardsParserService;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 final class MonitoringEvaluationCacheTest extends TestCase
@@ -75,6 +77,43 @@ final class MonitoringEvaluationCacheTest extends TestCase
         $secondPage->assertJsonPath('data.0.full_name', 'Друга Особа');
 
         $this->assertSame(1, $awardeeSelectQueries);
+    }
+
+    public function test_refreshes_cached_evaluations_after_rss_parsing_creates_an_order(): void
+    {
+        MonitoringRecord::query()->create(['full_name' => 'БАКАЛ Олександр Вікторович']);
+
+        $this->getJson(route('monitoring.indexJson'))
+            ->assertOk()
+            ->assertJsonPath('data.0.score', 0);
+
+        $rss = <<<'XML'
+<rss version="2.0"><channel><item>
+    <title>УКАЗ ПРЕЗИДЕНТА УКРАЇНИ 425/2025</title>
+    <link>https://example.com/decree</link>
+    <description>Про відзначення державними нагородами України</description>
+    <pubDate>Tue, 10 Feb 2026 15:58:05 +0200</pubDate>
+</item></channel></rss>
+XML;
+        $decree = <<<'HTML'
+<!DOCTYPE html>
+<html><head><title>Указ № 425/2025</title></head><body>
+<p>Нагородити орденом «За мужність» III ступеня БАКАЛА Олександра Вікторовича – солдата.</p>
+</body></html>
+HTML;
+
+        Http::fake([
+            'https://example.com/rss' => Http::response($rss, 200),
+            'https://example.com/decree' => Http::response($decree, 200),
+        ]);
+
+        $summary = app(AwardsParserService::class)->parseRss('https://example.com/rss');
+
+        $this->assertSame(1, $summary['orders_created']);
+        $this->assertSame(1, $summary['awardees_created']);
+        $this->getJson(route('monitoring.indexJson'))
+            ->assertOk()
+            ->assertJsonPath('data.0.score', 1);
     }
 
     public function test_refreshes_cached_evaluations_when_a_monitoring_record_changes(): void
