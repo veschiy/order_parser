@@ -43,4 +43,27 @@ final class ParseRealDecreeTest extends TestCase
         $this->assertStringStartsWith('орден', $awardeesByName['АРЕНДАРУК Михайло Володимирович']->award ?? '');
         $this->assertSame('посмертно', $awardeesByName['БІЛАН Олександр Григорович']->positionNote);
     }
+
+    public function test_rank_does_not_include_the_following_award_segment(): void
+    {
+        $html = <<<'HTML'
+<!DOCTYPE html>
+<html><body>
+<p>Нагородити орденом Богдана Хмельницького ІІ ступеня СЕРГІЄНКА Олександра Адамовича (посмертно) — підполковника.</p>
+<p>Нагородити орденом Богдана Хмельницького І ступеня ІВАНЕНКА Івана Івановича — майора.</p>
+</body></html>
+HTML;
+
+        Http::fake([
+            'https://example.com/decree' => Http::response($html, 200),
+        ]);
+
+        $decree = (new DecreeParser)->parse('https://example.com/decree');
+
+        $this->assertCount(2, $decree->awardees);
+        $this->assertSame('СЕРГІЄНКО Олександр Адамович', $decree->awardees[0]->fullName);
+        $this->assertSame('підполковник', $decree->awardees[0]->rank);
+        $this->assertSame('орден Богдана Хмельницького ІІ ступеня', $decree->awardees[0]->award);
+        $this->assertSame('майор', $decree->awardees[1]->rank);
+    }
 }

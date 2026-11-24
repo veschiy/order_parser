@@ -63,7 +63,7 @@ final readonly class DecreeParser
             }
         }
 
-        preg_match_all('/Нагородити\s+(.+)(?=Нагородити\s+|$)/us', $text, $segments, PREG_SET_ORDER);
+        preg_match_all('/Нагородити\s+(.+?)(?=Нагородити\s+|$)/us', $text, $segments, PREG_SET_ORDER);
 
         foreach ($segments as $segmentMatch) {
             $body = $segmentMatch[1];
