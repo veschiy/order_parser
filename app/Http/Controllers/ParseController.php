@@ -8,6 +8,7 @@ use App\Http\Requests\ParseRequest;
 use App\Models\Awardee;
 use App\Models\Order;
 use App\Models\ParseRun;
+use App\Services\Monitoring\MonitoringEvaluationCache;
 use App\Services\Parsers\AwardsParserService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -22,7 +23,7 @@ final class ParseController extends Controller
         return view('parse.index');
     }
 
-    public function store(ParseRequest $request): RedirectResponse
+    public function store(ParseRequest $request, MonitoringEvaluationCache $evaluationCache): RedirectResponse
     {
         $mode = $request->string('mode')->toString();
 
@@ -30,6 +31,7 @@ final class ParseController extends Controller
             $url = $request->string('rss_url')->toString();
             $maxItems = $request->integer('max_items');
             $summary = $this->parser->parseRss($url, $maxItems > 0 ? $maxItems : null);
+            $evaluationCache->invalidate();
 
             return redirect()
                 ->route('parse.index')
@@ -38,19 +40,21 @@ final class ParseController extends Controller
 
         $url = $request->string('document_url')->toString();
         $summary = $this->parser->parseSingle($url);
+        $evaluationCache->invalidate();
 
         return redirect()
             ->route('parse.index')
             ->with('status', $this->formatSummary($summary));
     }
 
-    public function clearDatabase(): RedirectResponse
+    public function clearDatabase(MonitoringEvaluationCache $evaluationCache): RedirectResponse
     {
         DB::transaction(function (): void {
             Awardee::query()->delete();
             Order::withTrashed()->forceDelete();
             ParseRun::query()->delete();
         });
+        $evaluationCache->invalidate();
 
         return redirect()
             ->route('parse.index')

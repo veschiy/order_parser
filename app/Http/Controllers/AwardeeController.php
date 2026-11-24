@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Awardee;
+use App\Services\Monitoring\MonitoringEvaluationCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 final class AwardeeController extends Controller
 {
-    public function update(Request $request, Awardee $awardee): JsonResponse
+    public function update(Request $request, Awardee $awardee, MonitoringEvaluationCache $evaluationCache): JsonResponse
     {
         $validated = $request->validate([
             'full_name' => ['required', 'string', 'max:255'],
@@ -21,6 +22,7 @@ final class AwardeeController extends Controller
         $awardee->update([
             'full_name' => $fullName,
         ]);
+        $evaluationCache->invalidate();
 
         return response()->json([
             'id' => $awardee->id,

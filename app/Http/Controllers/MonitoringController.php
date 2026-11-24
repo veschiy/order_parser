@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\MonitoringRecord;
 use App\Services\Monitoring\MonitoringCsvImporter;
 use App\Services\Monitoring\MonitoringEvaluation;
+use App\Services\Monitoring\MonitoringEvaluationCache;
 use App\Services\Monitoring\MonitoringEvaluator;
 use App\Services\Monitoring\MonitoringMatch;
 use App\Services\PaginationResponse;
@@ -111,7 +112,7 @@ final class MonitoringController extends Controller
         return [$query, array_map(intval(...), $values)];
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, MonitoringEvaluationCache $evaluationCache): RedirectResponse
     {
         $validated = $request->validate([
             'sheet' => ['nullable', 'string', 'max:255'],
@@ -132,11 +133,12 @@ final class MonitoringController extends Controller
             'rank' => is_string($validated['rank'] ?? null) ? trim($validated['rank']) : null,
             'award' => $validated['award'] ?? null,
         ]);
+        $evaluationCache->invalidate();
 
         return redirect()->route('monitoring.index')->with('status', 'Запис моніторингу успішно додано.');
     }
 
-    public function update(Request $request, int $id): RedirectResponse
+    public function update(Request $request, MonitoringEvaluationCache $evaluationCache, int $id): RedirectResponse
     {
         $record = MonitoringRecord::query()->findOrFail($id);
 
@@ -159,26 +161,29 @@ final class MonitoringController extends Controller
             'rank' => is_string($validated['rank'] ?? null) ? trim($validated['rank']) : null,
             'award' => $validated['award'] ?? null,
         ]);
+        $evaluationCache->invalidate();
 
         return redirect()->route('monitoring.index')->with('status', 'Запис моніторингу оновлено.');
     }
 
-    public function destroy(int $id): RedirectResponse
+    public function destroy(MonitoringEvaluationCache $evaluationCache, int $id): RedirectResponse
     {
         $record = MonitoringRecord::query()->findOrFail($id);
         $record->delete();
+        $evaluationCache->invalidate();
 
         return redirect()->route('monitoring.index')->with('status', 'Запис моніторингу видалено.');
     }
 
-    public function clear(): RedirectResponse
+    public function clear(MonitoringEvaluationCache $evaluationCache): RedirectResponse
     {
         MonitoringRecord::query()->delete();
+        $evaluationCache->invalidate();
 
         return redirect()->route('monitoring.index')->with('status', 'Усі записи моніторингу видалено.');
     }
 
-    public function import(Request $request, MonitoringCsvImporter $importer): RedirectResponse
+    public function import(Request $request, MonitoringCsvImporter $importer, MonitoringEvaluationCache $evaluationCache): RedirectResponse
     {
         $request->validate([
             'csv_file' => ['required', 'file', 'max:20480'],
@@ -191,6 +196,9 @@ final class MonitoringController extends Controller
         }
 
         $imported = $importer->import($file);
+        if ($imported > 0) {
+            $evaluationCache->invalidate();
+        }
 
         return redirect()->route('monitoring.index')->with('status', "Успішно імпортовано {$imported} записів у таблицю моніторингу.");
     }
@@ -259,7 +267,7 @@ final class MonitoringController extends Controller
         }, 200, $headers);
     }
 
-    public function indexJson(Request $request, MonitoringEvaluator $evaluator): JsonResponse
+    public function indexJson(Request $request, MonitoringEvaluationCache $evaluationCache): JsonResponse
     {
         $search = trim($request->string('q')->toString());
         $perPage = $request->integer('perPage', 15);
@@ -276,7 +284,7 @@ final class MonitoringController extends Controller
 
         // Collect distinct decree display numbers from ALL evaluations (before pagination) for the filter dropdown
         $allRecords = $query->get();
-        $allEvaluations = $evaluator->evaluateAll($allRecords);
+        $allEvaluations = $evaluationCache->forRecords($allRecords);
         $decreeDisplays = $this->buildDecreeDisplays($allEvaluations);
 
         $evaluations = $this->applyFilters($allEvaluations, $scoreFilter, $hasMatchesFilter, $matchesFilter);
@@ -511,13 +519,13 @@ final class MonitoringController extends Controller
     /**
      * Return distinct values for a given column, used by the filter dropdown UI.
      */
-    public function distinctJson(Request $request): JsonResponse
+    public function distinctJson(Request $request, MonitoringEvaluationCache $evaluationCache): JsonResponse
     {
         $columnString = $request->string('column')->toString();
         $column = $columnString !== '' ? $columnString : null;
         $search = trim($request->string('q')->toString());
 
-        $values = $this->resolveDistinctValues($column, $search);
+        $values = $this->resolveDistinctValues($column, $search, $evaluationCache);
 
         return response()->json(['values' => $values]);
     }
@@ -525,7 +533,7 @@ final class MonitoringController extends Controller
     /**
      * @return list<string>
      */
-    private function resolveDistinctValues(?string $column, string $search): array
+    private function resolveDistinctValues(?string $column, string $search, MonitoringEvaluationCache $evaluationCache): array
     {
         $formatValue = static function (mixed $v): string {
             if ($v instanceof Carbon) {
@@ -546,7 +554,7 @@ final class MonitoringController extends Controller
         if ($column === 'matches') {
             ['query' => $matchQuery] = $this->buildFilteredQuery($search);
             $records = $matchQuery->get();
-            $evaluations = (new MonitoringEvaluator)->evaluateAll($records);
+            $evaluations = $evaluationCache->forRecords($records);
 
             return $this->buildDecreeDisplays($evaluations);
         }

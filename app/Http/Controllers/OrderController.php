@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Services\Monitoring\MonitoringEvaluationCache;
 use App\Services\PaginationResponse;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -99,18 +100,20 @@ final class OrderController extends Controller
         ]);
     }
 
-    public function destroy(int $id): RedirectResponse
+    public function destroy(MonitoringEvaluationCache $evaluationCache, int $id): RedirectResponse
     {
         $order = Order::withTrashed()->findOrFail($id);
         $order->delete();
+        $evaluationCache->invalidate();
 
         return redirect()->route('orders.index')->with('status', 'Указ позначено як видалений.');
     }
 
-    public function restore(int $id): RedirectResponse
+    public function restore(MonitoringEvaluationCache $evaluationCache, int $id): RedirectResponse
     {
         $order = Order::withTrashed()->findOrFail($id);
         $order->restore();
+        $evaluationCache->invalidate();
 
         return redirect()->route('orders.show', $order->id)->with('status', 'Указ відновлено.');
     }
