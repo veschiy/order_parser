@@ -168,6 +168,7 @@ final class MonitoringController extends Controller
     {
         $record = MonitoringRecord::query()->findOrFail($id);
         $record->delete();
+
         $evaluationCache->invalidate();
 
         return redirect()->route('monitoring.index')->with('status', 'Запис моніторингу видалено.');

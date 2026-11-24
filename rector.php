@@ -9,7 +9,7 @@ return RectorConfig::configure()
         __DIR__.'/app',
         __DIR__.'/tests',
     ])
-    ->withPhpSets(php84: true)
+    ->withPhpSets(php83: true)
     ->withComposerBased(laravel: true, phpunit: true)
     ->withPreparedSets(
         codeQuality: true,

@@ -104,6 +104,7 @@ final class OrderController extends Controller
     {
         $order = Order::withTrashed()->findOrFail($id);
         $order->delete();
+
         $evaluationCache->invalidate();
 
         return redirect()->route('orders.index')->with('status', 'Указ позначено як видалений.');
@@ -113,6 +114,7 @@ final class OrderController extends Controller
     {
         $order = Order::withTrashed()->findOrFail($id);
         $order->restore();
+
         $evaluationCache->invalidate();
 
         return redirect()->route('orders.show', $order->id)->with('status', 'Указ відновлено.');

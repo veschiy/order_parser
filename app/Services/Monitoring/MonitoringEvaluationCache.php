@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
  * @phpstan-type CachedMatch array{awardee: CachedAwardee, order: CachedOrder|null, nameMatched: bool, rankMatched: bool, awardMatched: bool, dateMatched: bool, score: int}
  * @phpstan-type CachedEvaluation array{score: int, matches: list<CachedMatch>, bestMatchIndex: int|null}
  */
-final class MonitoringEvaluationCache
+final readonly class MonitoringEvaluationCache
 {
     private const string VERSION_KEY = 'monitoring.evaluations.version';
 
@@ -25,7 +25,7 @@ final class MonitoringEvaluationCache
 
     private const int CACHE_SECONDS = 3600;
 
-    public function __construct(private readonly MonitoringEvaluator $evaluator) {}
+    public function __construct(private MonitoringEvaluator $evaluator) {}
 
     /**
      * @param  iterable<MonitoringRecord>  $records
