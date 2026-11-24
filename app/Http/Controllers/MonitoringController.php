@@ -25,16 +25,14 @@ final class MonitoringController extends Controller
 {
     private const string DECREE_PREFIX = 'Указ #';
 
-    public function index(Request $request, MonitoringEvaluator $evaluator): View
+    public function index(Request $request): View
     {
         $search = trim($request->string('q')->toString());
 
         ['query' => $query] = $this->buildFilteredQuery($search);
         $records = $query->paginate(15);
-        $evaluations = $evaluator->evaluateAll($records->items());
 
         return view('monitoring.index', [
-            'evaluations' => $evaluations,
             'paginator' => $records,
             'search' => $search,
             'totalCount' => MonitoringRecord::query()->count(),
