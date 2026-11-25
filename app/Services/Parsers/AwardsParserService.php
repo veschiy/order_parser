@@ -36,7 +36,7 @@ final class AwardsParserService
     }
 
     /**
-     * @return array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}
+     * @return array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, orders_processed: int, awardees_processed: int, errors: list<string>}
      */
     public function parseRss(string $url, ?int $limit = null): array
     {
@@ -68,7 +68,7 @@ final class AwardsParserService
     }
 
     /**
-     * @return array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}
+     * @return array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, orders_processed: int, awardees_processed: int, errors: list<string>}
      */
     private function createSummary(string $mode, string $url): array
     {
@@ -79,6 +79,8 @@ final class AwardsParserService
             'items_parsed' => 0,
             'orders_created' => 0,
             'awardees_created' => 0,
+            'orders_processed' => 0,
+            'awardees_processed' => 0,
             'errors' => [],
         ];
     }
@@ -98,7 +100,7 @@ final class AwardsParserService
     }
 
     /**
-     * @param array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}& $summary
+     * @param array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, orders_processed: int, awardees_processed: int, errors: list<string>}& $summary
      * @return list<FeedItem>|null
      */
     private function fetchRssItems(string $url, array &$summary): ?array
@@ -113,7 +115,7 @@ final class AwardsParserService
     }
 
     /**
-     * @param array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}& $summary
+     * @param array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, orders_processed: int, awardees_processed: int, errors: list<string>}& $summary
      */
     private function processRssItem(FeedItem $item, array &$summary): void
     {
@@ -134,10 +136,12 @@ final class AwardsParserService
         $summary['items_parsed']++;
         $summary['orders_created'] += $order?->wasRecentlyCreated ? 1 : 0;
         $summary['awardees_created'] += $awardeesCreated;
+        $summary['orders_processed'] += $order === null ? 0 : 1;
+        $summary['awardees_processed'] += $order?->awardees()->count() ?? 0;
     }
 
     /**
-     * @param  array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}  $summary
+     * @param  array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, orders_processed: int, awardees_processed: int, errors: list<string>}  $summary
      */
     private function finishParseRun(ParseRun $run, array $summary, string $status): void
     {
@@ -153,7 +157,7 @@ final class AwardsParserService
     }
 
     /**
-     * @return array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}
+     * @return array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, orders_processed: int, awardees_processed: int, errors: list<string>}
      */
     public function parseSingle(string $url): array
     {
@@ -177,6 +181,8 @@ final class AwardsParserService
             'items_parsed' => $error === null ? 1 : 0,
             'orders_created' => $order?->wasRecentlyCreated ? 1 : 0,
             'awardees_created' => $awardeesCreated,
+            'orders_processed' => $order === null ? 0 : 1,
+            'awardees_processed' => $order?->awardees()->count() ?? 0,
             'errors' => $error === null ? [] : [$error],
         ];
 

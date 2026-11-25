@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Awardee;
 use App\Services\Documents\DecreeParser;
 use App\Services\Documents\ParsedAwardee;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -65,5 +66,31 @@ HTML;
         $this->assertSame('підполковник', $decree->awardees[0]->rank);
         $this->assertSame('орден Богдана Хмельницького ІІ ступеня', $decree->awardees[0]->award);
         $this->assertSame('майор', $decree->awardees[1]->rank);
+    }
+
+    public function test_reparsing_existing_decree_reports_its_stored_awardees(): void
+    {
+        $html = file_get_contents(base_path('tests/Fixtures/decree_107.html')) ?: '';
+
+        Http::fake([
+            'https://example.com/decree' => Http::response($html, 200),
+        ]);
+
+        $this->post('/parse', [
+            'mode' => 'single',
+            'document_url' => 'https://example.com/decree',
+        ]);
+
+        $response = $this->post('/parse', [
+            'mode' => 'single',
+            'document_url' => 'https://example.com/decree',
+        ]);
+
+        $awardeesCount = Awardee::query()->count();
+        $this->assertGreaterThan(100, $awardeesCount);
+        $response->assertSessionHas('status', sprintf(
+            'Режим: single. Знайдено: 1, розібрано: 1, указів: 1, нагороджених: %d.',
+            $awardeesCount,
+        ));
     }
 }

@@ -60,7 +60,7 @@ final class ParseController extends Controller
     }
 
     /**
-     * @param  array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, errors: list<string>}  $summary
+     * @param  array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, orders_processed: int, awardees_processed: int, errors: list<string>}  $summary
      */
     private function formatSummary(array $summary): string
     {
@@ -69,8 +69,8 @@ final class ParseController extends Controller
             $summary['mode'],
             $summary['items_found'],
             $summary['items_parsed'],
-            $summary['orders_created'],
-            $summary['awardees_created']
+            $summary['orders_processed'],
+            $summary['awardees_processed']
         );
 
         if ($summary['errors'] !== []) {
