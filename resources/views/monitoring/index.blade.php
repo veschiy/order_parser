@@ -152,7 +152,7 @@
                             </svg>
                             Експорт у CSV
                         </a>
-                        <form method="POST" action="{{ route('monitoring.clear') }}" onsubmit="return confirm('Видалити всі записи моніторингу?');" class="inline-block">
+                        <form method="POST" action="{{ route('monitoring.clear') }}" data-confirm="Видалити всі записи моніторингу?" class="inline-block">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="inline-flex items-center gap-1.5 rounded-xl border border-rose-900/60 bg-rose-950/40 px-3.5 py-2 text-sm font-medium text-rose-300 transition hover:bg-rose-900/60 hover:text-rose-100">

@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             >
                                 Редагувати
                             </button>
-                            <form method="POST" action="/monitoring/${row.id}" onsubmit="return confirm('Видалити цей запис?');" class="inline">
+                            <form method="POST" action="/monitoring/${row.id}" data-confirm="Видалити цей запис?" class="inline">
                                 <input type="hidden" name="_token" value="${document.querySelector('meta[name=csrf-token]')?.content || ''}">
                                 <input type="hidden" name="_method" value="DELETE">
                                 <button type="submit" class="rounded-lg border border-rose-900/60 px-2 py-1 text-xs text-rose-400 hover:bg-rose-950/50">

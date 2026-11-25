@@ -1,0 +1,121 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+class Form {
+    constructor(submitListener) {
+        this.dataset = { confirm: 'Delete this item?' };
+        this.isConnected = true;
+        this.submissions = 0;
+        this.submitListener = submitListener;
+    }
+
+    hasAttribute(name) {
+        return name === 'data-confirm';
+    }
+
+    requestSubmit(submitter) {
+        this.submissions++;
+        this.submitListener({
+            target: this,
+            submitter,
+            preventDefault() {
+                throw new Error('Confirmed forms should submit without reopening the dialog.');
+            },
+        });
+    }
+}
+
+function createDialog() {
+    const documentListeners = {};
+    const dialogListeners = {};
+    const cancelListeners = {};
+    const confirmListeners = {};
+    const message = { textContent: '' };
+    const dialog = {
+        open: false,
+        addEventListener: (type, listener) => { dialogListeners[type] = listener; },
+        close() {
+            this.open = false;
+            dialogListeners.close();
+        },
+        querySelector(selector) {
+            return selector === '[data-confirm-cancel]'
+                ? { addEventListener: (type, listener) => { cancelListeners[type] = listener; } }
+                : { addEventListener: (type, listener) => { confirmListeners[type] = listener; } };
+        },
+        showModal() {
+            this.open = true;
+        },
+    };
+    const elements = {
+        confirmationDialog: dialog,
+        'confirmationDialog-message': message,
+    };
+    const document = {
+        addEventListener(type, listener) {
+            if (type === 'DOMContentLoaded') {
+                listener();
+            } else {
+                documentListeners[type] = listener;
+            }
+        },
+        getElementById: (id) => elements[id],
+    };
+    const context = vm.createContext({
+        document,
+        HTMLButtonElement: class HTMLButtonElement {},
+        HTMLFormElement: Form,
+        HTMLInputElement: class HTMLInputElement {},
+    });
+    const source = readFileSync('public/js/confirmation-dialog.js', 'utf8');
+    vm.runInContext(source, context);
+
+    return {
+        cancel() {
+            cancelListeners.click();
+        },
+        confirm() {
+            confirmListeners.click();
+        },
+        dialog,
+        message,
+        submit(form) {
+            let prevented = false;
+            documentListeners.submit({
+                target: form,
+                submitter: null,
+                preventDefault() {
+                    prevented = true;
+                },
+            });
+            return prevented;
+        },
+    };
+}
+
+test('confirmation dialog cancels destructive submissions', () => {
+    const confirmation = createDialog();
+    const form = new Form((event) => confirmation.submit(event.target));
+
+    assert.equal(confirmation.submit(form), true);
+    assert.equal(confirmation.dialog.open, true);
+    assert.equal(confirmation.message.textContent, 'Delete this item?');
+
+    confirmation.cancel();
+
+    assert.equal(confirmation.dialog.open, false);
+    assert.equal(form.submissions, 0);
+});
+
+test('confirmation dialog submits the pending form after approval', () => {
+    const confirmation = createDialog();
+    const form = new Form((event) => confirmation.submit(event.target));
+
+    confirmation.submit(form);
+    confirmation.confirm();
+
+    assert.equal(confirmation.dialog.open, false);
+    assert.equal(form.submissions, 1);
+});

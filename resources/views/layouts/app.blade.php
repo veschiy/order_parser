@@ -58,6 +58,27 @@
         </footer>
     </div>
 
+    <dialog id="confirmationDialog" role="alertdialog" aria-labelledby="confirmationDialog-title" aria-describedby="confirmationDialog-message" class="w-[calc(100%-2rem)] max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-0 text-slate-100 shadow-2xl backdrop:bg-slate-950/75 backdrop:backdrop-blur-sm">
+        <div class="p-6 sm:p-7">
+            <div class="flex items-start gap-4">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-300">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <h2 id="confirmationDialog-title" class="text-lg font-semibold text-white">Підтвердження дії</h2>
+                    <p id="confirmationDialog-message" class="mt-2 text-sm leading-6 text-slate-300">Ви впевнені, що хочете продовжити?</p>
+                </div>
+            </div>
+            <div class="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button type="button" data-confirm-cancel autofocus class="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-400">Скасувати</button>
+                <button type="button" data-confirm-submit class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400">Підтвердити</button>
+            </div>
+        </div>
+    </dialog>
+
+    <script src="{{ asset('js/confirmation-dialog.js') }}"></script>
     <script src="{{ asset('js/excel-table.js') }}"></script>
     <script src="{{ asset('js/monitoring.js') }}"></script>
     <script src="{{ asset('js/order-details.js') }}"></script>

@@ -36,7 +36,7 @@
                         <button type="submit" class="rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400">Відновити</button>
                     </form>
                 @else
-                    <form method="POST" action="{{ route('orders.destroy', $order->id) }}" onsubmit="return confirm('Видалити указ і приховати його з пошуку?');">
+                    <form method="POST" action="{{ route('orders.destroy', $order->id) }}" data-confirm="Видалити указ і приховати його з пошуку?">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="rounded-lg bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-500">Видалити</button>
