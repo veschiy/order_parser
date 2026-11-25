@@ -4,15 +4,20 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 class Form {
-    constructor(submitListener) {
-        this.dataset = { confirm: 'Delete this item?' };
+    constructor(submitListener, confirmMessage = 'Delete this item?') {
+        this.dataset = confirmMessage ? { confirm: confirmMessage } : {};
         this.isConnected = true;
         this.submissions = 0;
         this.submitListener = submitListener;
+        this.methodOverride = 'DELETE';
     }
 
     hasAttribute(name) {
-        return name === 'data-confirm';
+        return name === 'data-confirm' && Object.hasOwn(this.dataset, 'confirm');
+    }
+
+    querySelector(selector) {
+        return selector === 'input[name="_method"]' ? { value: this.methodOverride } : null;
     }
 
     requestSubmit(submitter) {
@@ -63,9 +68,24 @@ function createDialog() {
         },
         getElementById: (id) => elements[id],
     };
+    class Element {
+        constructor(submitter) {
+            this.submitter = submitter;
+        }
+
+        closest() {
+            return this.submitter;
+        }
+    }
+    class HTMLButtonElement {
+        constructor(form) {
+            this.form = form;
+        }
+    }
     const context = vm.createContext({
         document,
-        HTMLButtonElement: class HTMLButtonElement {},
+        Element,
+        HTMLButtonElement,
         HTMLFormElement: Form,
         HTMLInputElement: class HTMLInputElement {},
     });
@@ -78,6 +98,16 @@ function createDialog() {
         },
         confirm() {
             confirmListeners.click();
+        },
+        clickSubmit(form) {
+            let prevented = false;
+            documentListeners.click({
+                target: new Element(new HTMLButtonElement(form)),
+                preventDefault() {
+                    prevented = true;
+                },
+            });
+            return prevented;
         },
         dialog,
         message,
@@ -114,6 +144,20 @@ test('confirmation dialog submits the pending form after approval', () => {
     const form = new Form((event) => confirmation.submit(event.target));
 
     confirmation.submit(form);
+    confirmation.confirm();
+
+    assert.equal(confirmation.dialog.open, false);
+    assert.equal(form.submissions, 1);
+});
+
+test('confirmation dialog intercepts dynamically rendered delete buttons without confirmation attributes', () => {
+    const confirmation = createDialog();
+    const form = new Form((event) => confirmation.submit(event.target), null);
+
+    assert.equal(confirmation.clickSubmit(form), true);
+    assert.equal(confirmation.dialog.open, true);
+    assert.equal(confirmation.message.textContent, 'Ви впевнені, що хочете продовжити?');
+
     confirmation.confirm();
 
     assert.equal(confirmation.dialog.open, false);

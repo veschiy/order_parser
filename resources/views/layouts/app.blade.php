@@ -58,7 +58,7 @@
         </footer>
     </div>
 
-    <dialog id="confirmationDialog" role="alertdialog" aria-labelledby="confirmationDialog-title" aria-describedby="confirmationDialog-message" class="w-[calc(100%-2rem)] max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-0 text-slate-100 shadow-2xl backdrop:bg-slate-950/75 backdrop:backdrop-blur-sm">
+    <dialog id="confirmationDialog" role="alertdialog" aria-labelledby="confirmationDialog-title" aria-describedby="confirmationDialog-message" class="fixed inset-0 m-auto max-h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-0 text-slate-100 shadow-2xl backdrop:bg-slate-950/75 backdrop:backdrop-blur-sm">
         <div class="p-6 sm:p-7">
             <div class="flex items-start gap-4">
                 <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-300">

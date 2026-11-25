@@ -12,23 +12,46 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingSubmitter = null;
     let formBeingConfirmed = null;
 
-    document.addEventListener('submit', (event) => {
-        const form = event.target;
+    const requiresConfirmation = (form) => {
+        const methodOverride = form.querySelector('input[name="_method"]')?.value;
 
-        if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-confirm') || form === formBeingConfirmed) {
-            return;
-        }
+        return form.hasAttribute('data-confirm') || methodOverride?.toUpperCase() === 'DELETE';
+    };
 
-        event.preventDefault();
-
+    const showConfirmation = (form, submitter) => {
         if (dialog.open) {
             return;
         }
 
         pendingForm = form;
-        pendingSubmitter = event.submitter;
+        pendingSubmitter = submitter;
         confirmationMessage.textContent = form.dataset.confirm || 'Ви впевнені, що хочете продовжити?';
         dialog.showModal();
+    };
+
+    document.addEventListener('click', (event) => {
+        const submitter = event.target instanceof Element
+            ? event.target.closest('button[type="submit"], input[type="submit"]')
+            : null;
+        const form = submitter?.form;
+
+        if (!(form instanceof HTMLFormElement) || !requiresConfirmation(form)) {
+            return;
+        }
+
+        event.preventDefault();
+        showConfirmation(form, submitter);
+    });
+
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+
+        if (!(form instanceof HTMLFormElement) || !requiresConfirmation(form) || form === formBeingConfirmed) {
+            return;
+        }
+
+        event.preventDefault();
+        showConfirmation(form, event.submitter);
     });
 
     const closeDialog = () => {
