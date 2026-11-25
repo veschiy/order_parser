@@ -4,11 +4,11 @@
 
 @section('content')
     <div class="grid gap-6 lg:grid-cols-2">
-        <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
+        <section class="relative rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
             <h2 class="text-xl font-semibold text-white">Розбір RSS-стрічки</h2>
             <p class="mt-1 text-sm text-slate-400">Вкажіть URL RSS. Будуть взяті тільки документи з описом «Про відзначення державними нагородами України».</p>
 
-            <form method="POST" action="{{ route('parse.store') }}" class="mt-5 space-y-4">
+            <form method="POST" action="{{ route('parse.store') }}" class="mt-5 space-y-4" onsubmit="document.getElementById('parseRss-loading').classList.remove('hidden')">
                 @csrf
                 <input type="hidden" name="mode" value="rss">
                 <div>
@@ -37,13 +37,19 @@
                     Розібрати RSS
                 </button>
             </form>
+            <div id="parseRss-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-slate-900/60 backdrop-blur-sm pointer-events-auto">
+                <div class="text-center">
+                    <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+                    <p class="mt-3 text-sm text-slate-300">Завантаження...</p>
+                </div>
+            </div>
         </section>
 
-        <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
+        <section class="relative rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
             <h2 class="text-xl font-semibold text-white">Розбір одного указу</h2>
             <p class="mt-1 text-sm text-slate-400">Вкажіть пряме посилання на документ. Це корисно для старих або довільних указів.</p>
 
-            <form method="POST" action="{{ route('parse.store') }}" class="mt-5 space-y-4">
+            <form method="POST" action="{{ route('parse.store') }}" class="mt-5 space-y-4" onsubmit="document.getElementById('parseSingle-loading').classList.remove('hidden')">
                 @csrf
                 <input type="hidden" name="mode" value="single">
                 <div>
@@ -61,6 +67,12 @@
                     Розібрати документ
                 </button>
             </form>
+            <div id="parseSingle-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-slate-900/60 backdrop-blur-sm pointer-events-auto">
+                <div class="text-center">
+                    <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+                    <p class="mt-3 text-sm text-slate-300">Завантаження...</p>
+                </div>
+            </div>
         </section>
     </div>
 

@@ -7,13 +7,13 @@
         <!-- Top Action & Input Forms -->
         <div class="grid gap-6 lg:grid-cols-2">
             <!-- Manual Entry Form -->
-            <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
+            <section class="relative rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
                 <div class="mb-4">
                     <h2 class="text-xl font-semibold text-white">Додати особу до моніторингу</h2>
                     <p class="mt-1 text-sm text-slate-400">Введіть дані вручну для перевірки наявності в указах Президента.</p>
                 </div>
 
-                <form method="POST" action="{{ route('monitoring.store') }}" class="space-y-4">
+                <form method="POST" action="{{ route('monitoring.store') }}" class="space-y-4" onsubmit="document.getElementById('monitoringStore-loading').classList.remove('hidden')">
                     @csrf
                     <div>
                         <label for="full_name" class="mb-1 block text-sm font-medium text-slate-300">ПІБ <span class="text-rose-400">*</span></label>
@@ -78,16 +78,22 @@
                         Додати запис
                     </button>
                 </form>
+                <div id="monitoringStore-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-slate-900/60 backdrop-blur-sm pointer-events-auto">
+                    <div class="text-center">
+                        <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+                        <p class="mt-3 text-sm text-slate-300">Завантаження...</p>
+                    </div>
+                </div>
             </section>
 
             <!-- CSV Import Form -->
-            <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
+            <section class="relative rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
                 <div class="mb-4">
                     <h2 class="text-xl font-semibold text-white">Імпорт з CSV</h2>
                     <p class="mt-1 text-sm text-slate-400">Завантажте CSV-файл із переліком осіб для масового моніторингу.</p>
                 </div>
 
-                <form method="POST" action="{{ route('monitoring.import') }}" enctype="multipart/form-data" class="space-y-4">
+                <form method="POST" action="{{ route('monitoring.import') }}" enctype="multipart/form-data" class="space-y-4" onsubmit="document.getElementById('monitoringImport-loading').classList.remove('hidden')">
                     @csrf
                     <div>
                         <label for="csv_file" class="mb-1 block text-sm font-medium text-slate-300">Виберіть CSV файл</label>
@@ -119,6 +125,12 @@
                         </a>
                     </div>
                 </form>
+                <div id="monitoringImport-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-slate-900/60 backdrop-blur-sm pointer-events-auto">
+                    <div class="text-center">
+                        <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+                        <p class="mt-3 text-sm text-slate-300">Завантаження...</p>
+                    </div>
+                </div>
             </section>
         </div>
 
