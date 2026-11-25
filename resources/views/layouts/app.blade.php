@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Нагороди Президента України')</title>
+    <title>@yield('title', 'Державні нагороди України')</title>
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
@@ -21,7 +21,7 @@
         <header class="mb-8 border-b border-slate-800 pb-4">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-white">Нагороди Президента України</h1>
+                    <h1 class="text-2xl font-bold tracking-tight text-white">Державні нагороди України</h1>
                     <p class="text-sm text-slate-400">Пошук нагороджених осіб, укази та розбір RSS-стрічки</p>
                 </div>
                 <nav class="flex flex-wrap gap-2 text-sm">
