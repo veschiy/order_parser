@@ -35,3 +35,8 @@
 *::-webkit-scrollbar-corner {
     background-color: #0f172a;
 }
+
+input[type='date']::-webkit-calendar-picker-indicator {
+    filter: brightness(0) invert(1);
+    opacity: 1;
+}
