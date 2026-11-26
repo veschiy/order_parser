@@ -6,6 +6,7 @@ namespace App\Services\Monitoring;
 
 use App\Models\Awardee;
 use App\Models\MonitoringRecord;
+use App\Services\Names\NameNormalizer;
 use App\Services\Names\UkrainianNameNormalizer;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,9 +25,9 @@ final readonly class MonitoringEvaluator
 
     private const string DEGREE_1 = '1 ступеня';
 
-    private UkrainianNameNormalizer $normalizer;
+    private NameNormalizer $normalizer;
 
-    public function __construct(?UkrainianNameNormalizer $normalizer = null)
+    public function __construct(?NameNormalizer $normalizer = null)
     {
         $this->normalizer = $normalizer ?? new UkrainianNameNormalizer;
     }
@@ -45,10 +46,10 @@ final readonly class MonitoringEvaluator
         }
 
         $recordIndexesByNameKey = [];
-        $recordIndexesByInitialKey = [];
+        $recordIndexesByPrefixKey = [];
 
         foreach ($records as $recordIndex => $record) {
-            $recordIndexesByInitialKey[$this->nameInitialKey($record->full_name)][] = $recordIndex;
+            $recordIndexesByPrefixKey[$this->namePrefixKey($record->full_name)][] = $recordIndex;
 
             foreach ($this->nameKeys($record->full_name) as $key) {
                 $recordIndexesByNameKey[$key][] = $recordIndex;
@@ -57,11 +58,11 @@ final readonly class MonitoringEvaluator
 
         $candidateAwardeesByRecord = array_fill(0, $records->count(), []);
 
-        $this->activeAwardees()->chunkById(self::AWARDEE_CHUNK_SIZE, function (Collection $awardees) use (&$candidateAwardeesByRecord, $recordIndexesByInitialKey, $recordIndexesByNameKey): void {
+        $this->activeAwardees()->chunkById(self::AWARDEE_CHUNK_SIZE, function (Collection $awardees) use (&$candidateAwardeesByRecord, $recordIndexesByPrefixKey, $recordIndexesByNameKey): void {
             foreach ($awardees as $awardee) {
-                $initialKey = $this->nameInitialKey($awardee->full_name);
+                $prefixKey = $this->namePrefixKey($awardee->full_name);
 
-                if (! isset($recordIndexesByInitialKey[$initialKey])) {
+                if (! isset($recordIndexesByPrefixKey[$prefixKey])) {
                     continue;
                 }
 
@@ -104,20 +105,20 @@ final readonly class MonitoringEvaluator
         return ['exact:'.$clean, 'normalized:'.implode(' ', $tokens)];
     }
 
-    private function nameInitialKey(string $name): string
+    private function namePrefixKey(string $name): string
     {
         $tokens = preg_split(self::WHITESPACE_PATTERN, trim($name)) ?: [];
-        $initials = [];
+        $prefixes = [];
 
         foreach ($tokens as $token) {
             if ($token !== '') {
-                $initials[] = mb_strtolower(mb_substr($token, 0, 1, 'UTF-8'), 'UTF-8');
+                $prefixes[] = mb_strtolower(mb_substr($token, 0, 2, 'UTF-8'), 'UTF-8');
             }
         }
 
-        sort($initials);
+        sort($prefixes);
 
-        return implode(' ', $initials);
+        return implode(' ', $prefixes);
     }
 
     /**

@@ -7,7 +7,7 @@ namespace App\Services\Names;
 use Shevchenko\Language\GrammaticalGender;
 use Shevchenko\Shevchenko;
 
-final class UkrainianNameNormalizer
+final class UkrainianNameNormalizer implements NameNormalizer
 {
     public function toNominative(string $name): string
     {

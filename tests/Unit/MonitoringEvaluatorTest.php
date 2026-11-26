@@ -9,6 +9,7 @@ use App\Models\MonitoringRecord;
 use App\Models\Order;
 use App\Services\Monitoring\MonitoringEvaluator;
 use App\Services\Monitoring\MonitoringMatch;
+use App\Services\Names\NameNormalizer;
 use App\Services\Names\UkrainianNameNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -50,6 +51,42 @@ final class MonitoringEvaluatorTest extends TestCase
         $this->assertSame(0, $evaluation->score);
         $this->assertEmpty($evaluation->matches);
         $this->assertNull($evaluation->bestMatch);
+    }
+
+    public function test_skips_normalizing_awardees_with_different_name_prefixes(): void
+    {
+        $order = Order::query()->create([
+            'document_url' => 'https://example.com/order-2',
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $order->id,
+            'full_name' => 'Борисенко Олена Василівна',
+        ]);
+
+        $record = MonitoringRecord::query()->create([
+            'full_name' => 'Бакал Олександр Вікторович',
+        ]);
+
+        $normalizer = new class implements NameNormalizer
+        {
+            public int $normalizationCount = 0;
+
+            public function toNominative(string $name): string
+            {
+                $this->normalizationCount++;
+
+                return $name;
+            }
+        };
+
+        $evaluator = new MonitoringEvaluator($normalizer);
+
+        $evaluation = $evaluator->evaluateAll([$record])->first();
+
+        $this->assertSame(0, $evaluation->score);
+        $this->assertSame(1, $normalizer->normalizationCount);
     }
 
     public function test_score_is_one_when_name_matches_only(): void
