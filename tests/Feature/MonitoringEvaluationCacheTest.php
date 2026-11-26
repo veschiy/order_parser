@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Awardee;
 use App\Models\MonitoringRecord;
 use App\Models\Order;
+use App\Services\Monitoring\MonitoringEvaluation;
 use App\Services\Monitoring\MonitoringEvaluator;
 use App\Services\Parsers\AwardsParserService;
 use Illuminate\Database\Events\QueryExecuted;
@@ -115,8 +116,10 @@ final class MonitoringEvaluationCacheTest extends TestCase
 
         $this->assertCount(2, $awardeeQueries);
         $this->assertStringContainsString('limit 500', $awardeeQueries[0]);
-        $this->assertSame(1, $evaluations->first()->score);
-        $this->assertSame('БАКАЛА Олександра Вікторовича', $evaluations->first()->matches[0]->awardee->full_name);
+        $evaluation = $evaluations->first();
+        $this->assertInstanceOf(MonitoringEvaluation::class, $evaluation);
+        $this->assertSame(1, $evaluation->score);
+        $this->assertSame('БАКАЛА Олександра Вікторовича', $evaluation->matches[0]->awardee->full_name);
     }
 
     public function test_refreshes_cached_evaluations_after_rss_parsing_creates_an_order(): void

@@ -33,7 +33,7 @@ final readonly class MonitoringEvaluator
     }
 
     /**
-     * @param  iterable<MonitoringRecord>  $records
+     * @param  iterable<array-key, MonitoringRecord>  $records
      * @return Collection<int, MonitoringEvaluation>
      */
     public function evaluateAll(iterable $records): Collection
@@ -126,12 +126,15 @@ final readonly class MonitoringEvaluator
      */
     private function activeAwardees(): Builder
     {
-        return Awardee::query()
-            ->select(['awardees.id', 'awardees.order_id', 'awardees.full_name', 'awardees.rank', 'awardees.award'])
+        $awardees = Awardee::query()
             ->with('order:id,number,published_at,deleted_at')
             ->whereHas('order', function ($builder): void {
                 $builder->whereNull('deleted_at');
             });
+
+        $awardees->getQuery()->select(['awardees.id', 'awardees.order_id', 'awardees.full_name', 'awardees.rank', 'awardees.award']);
+
+        return $awardees;
     }
 
     /**

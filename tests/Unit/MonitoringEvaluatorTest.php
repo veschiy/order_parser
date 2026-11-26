@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Models\Awardee;
 use App\Models\MonitoringRecord;
 use App\Models\Order;
+use App\Services\Monitoring\MonitoringEvaluation;
 use App\Services\Monitoring\MonitoringEvaluator;
 use App\Services\Monitoring\MonitoringMatch;
 use App\Services\Names\NameNormalizer;
@@ -85,6 +86,7 @@ final class MonitoringEvaluatorTest extends TestCase
 
         $evaluation = $evaluator->evaluateAll([$record])->first();
 
+        $this->assertInstanceOf(MonitoringEvaluation::class, $evaluation);
         $this->assertSame(0, $evaluation->score);
         $this->assertSame(1, $normalizer->normalizationCount);
     }

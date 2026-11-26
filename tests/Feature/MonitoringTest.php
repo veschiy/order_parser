@@ -162,10 +162,7 @@ final class MonitoringTest extends TestCase
         file_put_contents($hotFilePath, 'http://localhost:5173');
 
         try {
-            $this->get(route('monitoring.index'))
-                ->assertOk()
-                ->assertSee('http://localhost:5173/@vite/client', false)
-                ->assertSee('http://localhost:5173/resources/js/app.js', false);
+            $this->get(route('monitoring.index'))->assertOk()->assertSeeHtml('http://localhost:5173/@vite/client')->assertSeeHtml('http://localhost:5173/resources/js/app.js');
         } finally {
             if ($previousHotFileContents === null) {
                 if (is_file($hotFilePath)) {
