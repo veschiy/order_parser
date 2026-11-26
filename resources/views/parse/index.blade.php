@@ -3,7 +3,7 @@
 @section('title', 'Розбір стрічки або указу')
 
 @section('content')
-    <div class="grid gap-6 lg:grid-cols-2">
+    <div class="grid gap-6 lg:grid-cols-3">
         <section class="relative rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
             <h2 class="text-xl font-semibold text-white">Розбір RSS-стрічки</h2>
             <p class="mt-1 text-sm text-slate-400">Вкажіть URL RSS. Будуть взяті тільки документи з описом «Про відзначення державними нагородами України».</p>
@@ -68,6 +68,36 @@
                 </button>
             </form>
             <div id="parseSingle-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-slate-900/60 backdrop-blur-sm pointer-events-auto">
+                <div class="text-center">
+                    <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
+                    <p class="mt-3 text-sm text-slate-300">Завантаження...</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="relative rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
+            <h2 class="text-xl font-semibold text-white">Розбір з файлу</h2>
+            <p class="mt-1 text-sm text-slate-400">Завантажте TXT-файл із HTTPS-посиланнями на president.gov.ua — одне посилання на рядок, до 200 посилань.</p>
+
+            <form method="POST" action="{{ route('parse.store') }}" enctype="multipart/form-data" class="mt-5 space-y-4" onsubmit="document.getElementById('parseFile-loading').classList.remove('hidden')">
+                @csrf
+                <input type="hidden" name="mode" value="file">
+                <div>
+                    <label for="urls_file" class="mb-1 block text-sm font-medium text-slate-300">TXT-файл зі списком URL</label>
+                    <input
+                        id="urls_file"
+                        type="file"
+                        name="urls_file"
+                        accept=".txt,text/plain"
+                        required
+                        class="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30"
+                    >
+                </div>
+                <button type="submit" class="rounded-xl bg-indigo-500 px-5 py-3 font-medium text-white transition hover:bg-indigo-400">
+                    Розібрати файл
+                </button>
+            </form>
+            <div id="parseFile-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-slate-900/60 backdrop-blur-sm pointer-events-auto">
                 <div class="text-center">
                     <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent"></div>
                     <p class="mt-3 text-sm text-slate-300">Завантаження...</p>

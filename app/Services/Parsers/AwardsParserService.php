@@ -207,11 +207,7 @@ final class AwardsParserService
         $publicationDate = $this->parsePublishedAt($publishedAt);
         $existingOrder = Order::withTrashed()->where('document_url', $url)->first();
 
-        if ($existingOrder !== null && $existingOrder->awardees()->exists()) {
-            if ($existingOrder->trashed()) {
-                $existingOrder->restore();
-            }
-
+        if ($existingOrder !== null && ! $existingOrder->trashed()) {
             return [$existingOrder, 0, null];
         }
 

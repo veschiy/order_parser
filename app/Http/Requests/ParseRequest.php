@@ -19,10 +19,11 @@ final class ParseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'mode' => ['required', 'in:rss,single'],
+            'mode' => ['required', 'in:rss,single,file'],
             'rss_url' => ['required_if:mode,rss', 'url'],
             'max_items' => ['nullable', 'integer', 'min:1', 'max:100'],
             'document_url' => ['required_if:mode,single', 'url'],
+            'urls_file' => ['required_if:mode,file', 'file', 'mimes:txt', 'extensions:txt', 'max:1024'],
         ];
     }
 }

@@ -12,6 +12,7 @@ use App\Services\Monitoring\MonitoringEvaluationCache;
 use App\Services\Parsers\AwardsParserService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 final class ParseController extends Controller
@@ -37,12 +38,98 @@ final class ParseController extends Controller
                 ->with('status', $this->formatSummary($summary));
         }
 
+        if ($mode === 'file') {
+            return $this->parseUploadedUrls($request);
+        }
+
         $url = $request->string('document_url')->toString();
         $summary = $this->parser->parseSingle($url);
 
         return redirect()
             ->route('parse.index')
             ->with('status', $this->formatSummary($summary));
+    }
+
+    private function parseUploadedUrls(ParseRequest $request): RedirectResponse
+    {
+        $file = $request->file('urls_file');
+        if (! $file instanceof UploadedFile) {
+            return redirect()
+                ->route('parse.index')
+                ->withErrors(['urls_file' => 'Завантажте текстовий файл зі списком URL.']);
+        }
+
+        $contents = $file->get();
+        if (is_string($contents)) {
+            $contents = preg_replace('/^\xEF\xBB\xBF/', '', $contents) ?? $contents;
+        }
+
+        $lines = is_string($contents) ? preg_split('/\R/', $contents) : false;
+        $urls = array_values(array_filter(
+            array_map(trim(...), $lines ?: []),
+            static fn (string $url): bool => $url !== '',
+        ));
+
+        if ($urls === [] || count($urls) > 200) {
+            return redirect()
+                ->route('parse.index')
+                ->withErrors(['urls_file' => 'Файл має містити від 1 до 200 URL-адрес, по одній на рядок.']);
+        }
+
+        foreach ($urls as $url) {
+            if (! $this->isAllowedFileUrl($url)) {
+                return redirect()
+                    ->route('parse.index')
+                    ->withErrors(['urls_file' => 'Дозволені лише HTTPS-посилання на president.gov.ua.']);
+            }
+        }
+
+        $summary = [
+            'mode' => 'file',
+            'source_url' => 'Uploaded URL list',
+            'items_found' => count($urls),
+            'items_parsed' => 0,
+            'orders_created' => 0,
+            'awardees_created' => 0,
+            'orders_processed' => 0,
+            'awardees_processed' => 0,
+            'errors' => [],
+        ];
+
+        foreach ($urls as $url) {
+            $singleSummary = $this->parser->parseSingle($url);
+            $summary['items_parsed'] += $singleSummary['items_parsed'];
+            $summary['orders_created'] += $singleSummary['orders_created'];
+            $summary['awardees_created'] += $singleSummary['awardees_created'];
+            $summary['orders_processed'] += $singleSummary['orders_processed'];
+            $summary['awardees_processed'] += $singleSummary['awardees_processed'];
+
+            foreach ($singleSummary['errors'] as $error) {
+                $summary['errors'][] = $url.': '.$error;
+            }
+        }
+
+        return redirect()
+            ->route('parse.index')
+            ->with('status', $this->formatSummary($summary));
+    }
+
+    private function isAllowedFileUrl(string $url): bool
+    {
+        if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+            return false;
+        }
+
+        $parts = parse_url($url);
+        if (! is_array($parts)) {
+            return false;
+        }
+
+        return strtolower($parts['scheme'] ?? '') === 'https'
+            && in_array(strtolower($parts['host'] ?? ''), ['president.gov.ua', 'www.president.gov.ua'], true)
+            && ! isset($parts['user'])
+            && ! isset($parts['pass'])
+            && (! isset($parts['port']) || $parts['port'] === 443);
     }
 
     public function clearDatabase(MonitoringEvaluationCache $evaluationCache): RedirectResponse

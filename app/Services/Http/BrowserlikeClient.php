@@ -20,6 +20,9 @@ final class BrowserlikeClient
     /** @var callable(int): void */
     private $sleeper;
 
+    /** @var (callable(string, array<string, string>): array{0: int, 1: string})|null */
+    private $requester;
+
     private ?float $lastRequestAt = null;
 
     /** @var non-empty-string|null */
@@ -31,10 +34,12 @@ final class BrowserlikeClient
         ?callable $sleeper = null,
         private readonly int $minIntervalMs = 1000,
         private readonly bool $useCookies = true,
+        ?callable $requester = null,
     ) {
         $this->sleeper = $sleeper ?? static function (int $microseconds): void {
             usleep($microseconds);
         };
+        $this->requester = $requester;
     }
 
     public function __destruct()
@@ -186,6 +191,10 @@ final class BrowserlikeClient
      */
     private function perform(string $url, array $headers): array
     {
+        if ($this->requester !== null) {
+            return ($this->requester)($url, $headers);
+        }
+
         $handle = curl_init($url);
 
         if ($handle === false) {
