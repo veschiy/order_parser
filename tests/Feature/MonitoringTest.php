@@ -151,6 +151,36 @@ final class MonitoringTest extends TestCase
         $response->assertDontSee('>ІПН<');
     }
 
+    public function test_monitoring_loads_vite_assets_and_new_records_in_development(): void
+    {
+        $fullName = 'Нова Особа';
+        $this->post(route('monitoring.store'), ['full_name' => $fullName])
+            ->assertRedirect(route('monitoring.index'));
+
+        $hotFilePath = public_path('hot');
+        $previousHotFileContents = is_file($hotFilePath) ? (file_get_contents($hotFilePath) ?: '') : null;
+        file_put_contents($hotFilePath, 'http://localhost:5173');
+
+        try {
+            $this->get(route('monitoring.index'))
+                ->assertOk()
+                ->assertSee('http://localhost:5173/@vite/client', false)
+                ->assertSee('http://localhost:5173/resources/js/app.js', false);
+        } finally {
+            if ($previousHotFileContents === null) {
+                if (is_file($hotFilePath)) {
+                    unlink($hotFilePath);
+                }
+            } else {
+                file_put_contents($hotFilePath, $previousHotFileContents);
+            }
+        }
+
+        $this->getJson(route('monitoring.indexJson'))
+            ->assertOk()
+            ->assertJsonFragment(['full_name' => $fullName]);
+    }
+
     public function test_can_manually_add_monitoring_record(): void
     {
         $response = $this->post(route('monitoring.store'), [
