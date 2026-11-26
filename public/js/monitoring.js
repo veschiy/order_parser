@@ -3,24 +3,69 @@
  */
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-monitoring-export]').forEach(link => {
-        link.addEventListener('click', (e) => {
+        link.addEventListener('click', async (e) => {
             e.preventDefault();
+            if (link.dataset.exporting === 'true') return;
+
             const ids = Array.from(document.querySelectorAll('#monitoringTable tbody tr[data-row]'))
                 .filter(row => row.style.display !== 'none')
                 .map(row => Number(row.dataset.row));
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = link.href;
-            for (const [name, value] of [['_token', link.dataset.token], ['record_ids', JSON.stringify(ids)]]) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = name;
-                input.value = value;
-                form.appendChild(input);
+
+            const label = link.querySelector('[data-export-label]');
+            const loading = link.querySelector('[data-export-loading]');
+            const status = link.closest('section')?.querySelector('[data-monitoring-export-status]');
+            link.dataset.exporting = 'true';
+            link.setAttribute('aria-busy', 'true');
+            link.classList.add('pointer-events-none', 'opacity-70');
+            label?.classList.remove('inline-flex');
+            label?.classList.add('hidden');
+            loading?.classList.remove('hidden');
+            loading?.classList.add('inline-flex');
+            if (status) {
+                status.textContent = '';
+                status.classList.add('hidden');
             }
-            document.body.appendChild(form);
-            form.submit();
-            form.remove();
+
+            try {
+                const response = await fetch(link.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    },
+                    body: new URLSearchParams({
+                        _token: link.dataset.token,
+                        record_ids: JSON.stringify(ids),
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('CSV export request failed');
+                }
+
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                const downloadLink = document.createElement('a');
+                const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/i)?.[1] || 'monitoring_export.csv';
+                downloadLink.href = objectUrl;
+                downloadLink.download = filename;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                downloadLink.remove();
+                window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+            } catch (error) {
+                if (status) {
+                    status.textContent = 'Не вдалося експортувати CSV. Спробуйте ще раз.';
+                    status.classList.remove('hidden');
+                }
+            } finally {
+                delete link.dataset.exporting;
+                link.removeAttribute('aria-busy');
+                link.classList.remove('pointer-events-none', 'opacity-70');
+                label?.classList.remove('hidden');
+                label?.classList.add('inline-flex');
+                loading?.classList.add('hidden');
+                loading?.classList.remove('inline-flex');
+            }
         });
     });
     const editModal = document.getElementById('editModal');

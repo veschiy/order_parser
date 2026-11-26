@@ -120,9 +120,6 @@
                         <button type="submit" class="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500">
                             Імпортувати CSV
                         </button>
-                        <a href="{{ route('monitoring.export', $search !== '' ? ['q' => $search] : []) }}" data-monitoring-export data-token="{{ csrf_token() }}" class="rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white">
-                            Експорт у CSV
-                        </a>
                     </div>
                 </form>
                 <div id="monitoringImport-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-slate-900/60 backdrop-blur-sm pointer-events-auto">
@@ -147,10 +144,16 @@
                 @if ($totalCount > 0)
                     <div class="flex flex-wrap items-center gap-2">
                         <a href="{{ route('monitoring.export', $search !== '' ? ['q' => $search] : []) }}" data-monitoring-export data-token="{{ csrf_token() }}" class="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white">
-                            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                            </svg>
-                            Експорт у CSV
+                            <span data-export-label class="inline-flex items-center gap-1.5">
+                                <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
+                                Експорт у CSV
+                            </span>
+                            <span data-export-loading class="hidden items-center gap-1.5" role="status">
+                                <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></span>
+                                Формування CSV...
+                            </span>
                         </a>
                         <form method="POST" action="{{ route('monitoring.clear') }}" data-confirm="Видалити всі записи моніторингу?" class="inline-block">
                             @csrf
@@ -163,6 +166,7 @@
                             </button>
                         </form>
                     </div>
+                    <p data-monitoring-export-status class="mt-2 hidden text-sm text-rose-300" role="status" aria-live="polite"></p>
                 @endif
             </div>
 
