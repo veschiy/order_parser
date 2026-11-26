@@ -6,7 +6,7 @@
     <section class="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/30">
         <div class="mb-6">
             <h2 class="text-xl font-semibold text-white">Перевірка нагородження особи</h2>
-            <p class="mt-1 text-sm text-slate-400">Введіть ПІБ у називному або пошуковому вигляді, і система покаже знайдені нагороди.</p>
+            <p class="mt-1 text-sm text-slate-400">Введіть ПІБ у називному або знахідному відмінку, і система покаже знайдені нагороди.</p>
         </div>
 
         <form id="searchForm" method="GET" action="{{ route('search.index') }}" class="flex flex-col gap-3 sm:flex-row">
