@@ -223,7 +223,7 @@
                     <table id="monitoringTable" class="min-w-full divide-y divide-slate-800 text-xs">
                     <thead class="bg-slate-900 select-none">
                         <tr>
-                            <th class="relative px-2.5 py-2 text-left font-bold text-slate-300" data-col-index="0" data-type="text">
+                            <th class="relative px-1.5 py-2 text-left font-bold text-slate-300" data-col-index="0" data-type="text">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Аркуш</span>
                                     <div class="flex items-center gap-1">
@@ -237,7 +237,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-2.5 py-2 text-left font-bold text-slate-300" data-col-index="1" data-type="text">
+                            <th class="relative px-1.5 py-2 text-left font-bold text-slate-300" data-col-index="1" data-type="text">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Звання</span>
                                     <div class="flex items-center gap-1">
@@ -251,7 +251,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-2.5 py-2 text-left font-bold text-slate-300" data-col-index="2" data-type="text">
+                            <th class="relative px-1.5 py-2 text-left font-bold text-slate-300" data-col-index="2" data-type="text">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">ПІБ</span>
                                     <div class="flex items-center gap-1">
@@ -265,7 +265,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-2.5 py-2 text-left font-bold text-slate-300" data-col-index="3" data-type="date">
+                            <th class="relative px-1.5 py-2 text-left font-bold text-slate-300" data-col-index="3" data-type="date">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Дата подання</span>
                                     <div class="flex items-center gap-1">
@@ -279,7 +279,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-2.5 py-2 text-left font-bold text-slate-300" data-col-index="4" data-type="text">
+                            <th class="relative px-1.5 py-2 text-left font-bold text-slate-300" data-col-index="4" data-type="text">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Нагорода</span>
                                     <div class="flex items-center gap-1">
@@ -293,7 +293,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-2.5 py-2 text-left font-bold text-slate-300" data-col-index="5" data-type="number">
+                            <th class="relative px-1.5 py-2 text-left font-bold text-slate-300" data-col-index="5" data-type="number">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Бал</span>
                                     <div class="flex items-center gap-1">
@@ -307,7 +307,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="relative px-2.5 py-2 text-left font-bold text-slate-300" data-col-index="6" data-type="text">
+                            <th class="relative px-1.5 py-2 text-left font-bold text-slate-300" data-col-index="6" data-type="text">
                                 <div class="flex items-center text-left justify-between gap-1">
                                     <span class="col-title">Збіги в указах</span>
                                     <div class="flex items-center gap-1">
@@ -321,7 +321,7 @@
                                     </div>
                                 </div>
                             </th>
-                            <th class="px-2.5 py-2 text-left font-bold text-slate-300">Дії</th>
+                            <th class="px-1.5 py-2 text-left font-bold text-slate-300">Дії</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">

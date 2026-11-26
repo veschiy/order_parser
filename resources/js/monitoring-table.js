@@ -30,30 +30,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return `
                 <tr class="hover:bg-slate-800/40 monitoring-row" id="row-${row.id}" data-row="${row.id}">
-                    <td class="px-2.5 py-2 text-slate-300" data-col-index="0" data-col="sheet" data-value="${row.sheet}">
+                    <td class="px-1.5 py-2 text-slate-300" data-col-index="0" data-col="sheet" data-value="${row.sheet}">
                         ${row.sheet || '—'}
                     </td>
-                    <td class="px-2.5 py-2 text-slate-300" data-col-index="1" data-col="rank" data-value="${row.rank}">
+                    <td class="px-1.5 py-2 text-slate-300" data-col-index="1" data-col="rank" data-value="${row.rank}">
                         ${row.rank || '—'}
                     </td>
-                    <td class="px-2.5 py-2 font-bold text-slate-100" data-col-index="2" data-col="full_name" data-value="${row.full_name}">
+                    <td class="px-1.5 py-2 font-bold text-slate-100" data-col-index="2" data-col="full_name" data-value="${row.full_name}">
                         <div class="flex items-center gap-2">
                             <span>${row.full_name}</span>
                         </div>
                     </td>
-                    <td class="px-2.5 py-2 text-slate-300" data-col-index="3" data-col="submission_date" data-value="${row.submission_date}">
+                    <td class="px-1.5 py-2 text-slate-300" data-col-index="3" data-col="submission_date" data-value="${row.submission_date}">
                         ${row.submission_date_display}
                     </td>
-                    <td class="px-2.5 py-2 text-slate-300" data-col-index="4" data-col="award" data-value="${row.award}">
+                    <td class="px-1.5 py-2 text-slate-300" data-col-index="4" data-col="award" data-value="${row.award}">
                         ${row.award || '—'}
                     </td>
-                    <td class="px-2.5 py-2 text-center" data-col-index="5" data-col="score" data-value="${row.score}">
+                    <td class="px-1.5 py-2 text-center" data-col-index="5" data-col="score" data-value="${row.score}">
                         ${scoreBadge}
                     </td>
-                    <td class="px-2.5 py-2 text-xs" data-col="matches" data-value="${row.matchesSummary}">
+                    <td class="px-1.5 py-2 text-xs" data-col="matches" data-value="${row.matchesSummary}">
                         ${matchesHtml}
                     </td>
-                    <td class="px-2.5 py-2 text-right">
+                    <td class="px-1.5 py-2 text-right">
                         <div class="flex items-center justify-end gap-2">
                             <button
                                 type="button"
@@ -186,7 +186,7 @@ function renderMatches(row) {
         if (match.dateMatched) badges += '<span class="rounded px-1.5 py-0.5 bg-blue-900/40 text-blue-300">Дата протягом 6 місяців після подання ✓</span>';
 
         html += `
-            <div class="rounded-lg bg-slate-950/60 p-2 border border-slate-800">
+            <div class="rounded-lg bg-slate-950/60 px-1.5 py-1.5 border border-slate-800">
                 <div class="flex items-center justify-between gap-2">
                     ${orderLink}
                     <span class="text-[11px] font-semibold text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">бал: ${match.score}</span>
