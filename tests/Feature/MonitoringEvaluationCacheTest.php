@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Awardee;
 use App\Models\MonitoringRecord;
 use App\Models\Order;
+use App\Services\Monitoring\MonitoringEvaluator;
 use App\Services\Parsers\AwardsParserService;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -77,6 +78,45 @@ final class MonitoringEvaluationCacheTest extends TestCase
         $secondPage->assertJsonPath('data.0.full_name', 'Друга Особа');
 
         $this->assertSame(1, $awardeeSelectQueries);
+    }
+
+    public function test_evaluates_awardees_in_bounded_batches(): void
+    {
+        $order = Order::query()->create([
+            'number' => '900/2026',
+            'document_url' => 'https://example.com/order-900',
+            'parsed_at' => now(),
+        ]);
+
+        $awardees = [];
+
+        for ($index = 1; $index <= 501; $index++) {
+            $awardees[] = [
+                'order_id' => $order->id,
+                'full_name' => $index === 501 ? 'БАКАЛА Олександра Вікторовича' : 'Особа '.$index,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        Awardee::query()->insert($awardees);
+        $record = MonitoringRecord::query()->create(['full_name' => 'Бакал Олександр Вікторович']);
+        $awardeeQueries = [];
+
+        DB::listen(function (QueryExecuted $query) use (&$awardeeQueries): void {
+            $sql = strtolower(ltrim($query->sql));
+
+            if (str_starts_with($sql, 'select') && str_contains($sql, 'from "awardees"')) {
+                $awardeeQueries[] = $sql;
+            }
+        });
+
+        $evaluations = app(MonitoringEvaluator::class)->evaluateAll([$record]);
+
+        $this->assertCount(2, $awardeeQueries);
+        $this->assertStringContainsString('limit 500', $awardeeQueries[0]);
+        $this->assertSame(1, $evaluations->first()->score);
+        $this->assertSame('БАКАЛА Олександра Вікторовича', $evaluations->first()->matches[0]->awardee->full_name);
     }
 
     public function test_refreshes_cached_evaluations_after_rss_parsing_creates_an_order(): void

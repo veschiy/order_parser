@@ -8,12 +8,15 @@ use App\Models\Awardee;
 use App\Models\MonitoringRecord;
 use App\Services\Names\UkrainianNameNormalizer;
 use DateTimeInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 final readonly class MonitoringEvaluator
 {
     private const string WHITESPACE_PATTERN = '/\s+/u';
+
+    private const int AWARDEE_CHUNK_SIZE = 500;
 
     private const string DEGREE_3 = '3 ступеня';
 
@@ -34,32 +37,46 @@ final readonly class MonitoringEvaluator
      */
     public function evaluateAll(iterable $records): Collection
     {
-        $awardees = Awardee::query()
-            ->with('order')
-            ->whereHas('order', function ($builder): void {
-                $builder->whereNull('deleted_at');
-            })
-            ->get();
+        /** @var Collection<int, MonitoringRecord> $records */
+        $records = collect($records)->values();
 
-        $nameIndex = [];
+        if ($records->isEmpty()) {
+            return new Collection;
+        }
 
-        foreach ($awardees as $index => $awardee) {
-            foreach ($this->nameKeys($awardee->full_name) as $key) {
-                $nameIndex[$key][$index] = $awardee;
+        $recordIndexesByNameKey = [];
+        $recordIndexesByInitialKey = [];
+
+        foreach ($records as $recordIndex => $record) {
+            $recordIndexesByInitialKey[$this->nameInitialKey($record->full_name)][] = $recordIndex;
+
+            foreach ($this->nameKeys($record->full_name) as $key) {
+                $recordIndexesByNameKey[$key][] = $recordIndex;
             }
         }
 
-        $evaluations = new Collection;
+        $candidateAwardeesByRecord = array_fill(0, $records->count(), []);
 
-        foreach ($records as $record) {
-            $candidates = [];
+        $this->activeAwardees()->chunkById(self::AWARDEE_CHUNK_SIZE, function (Collection $awardees) use (&$candidateAwardeesByRecord, $recordIndexesByInitialKey, $recordIndexesByNameKey): void {
+            foreach ($awardees as $awardee) {
+                $initialKey = $this->nameInitialKey($awardee->full_name);
 
-            foreach ($this->nameKeys($record->full_name) as $key) {
-                foreach ($nameIndex[$key] ?? [] as $index => $awardee) {
-                    $candidates[$index] = $awardee;
+                if (! isset($recordIndexesByInitialKey[$initialKey])) {
+                    continue;
+                }
+
+                foreach ($this->nameKeys($awardee->full_name) as $key) {
+                    foreach ($recordIndexesByNameKey[$key] ?? [] as $recordIndex) {
+                        $candidateAwardeesByRecord[$recordIndex][$awardee->id] = $awardee;
+                    }
                 }
             }
+        });
 
+        $evaluations = new Collection;
+
+        foreach ($records as $recordIndex => $record) {
+            $candidates = $candidateAwardeesByRecord[$recordIndex];
             ksort($candidates);
             $evaluations->push($this->evaluate($record, $candidates));
         }
@@ -87,17 +104,41 @@ final readonly class MonitoringEvaluator
         return ['exact:'.$clean, 'normalized:'.implode(' ', $tokens)];
     }
 
+    private function nameInitialKey(string $name): string
+    {
+        $tokens = preg_split(self::WHITESPACE_PATTERN, trim($name)) ?: [];
+        $initials = [];
+
+        foreach ($tokens as $token) {
+            if ($token !== '') {
+                $initials[] = mb_strtolower(mb_substr($token, 0, 1, 'UTF-8'), 'UTF-8');
+            }
+        }
+
+        sort($initials);
+
+        return implode(' ', $initials);
+    }
+
+    /**
+     * @return Builder<Awardee>
+     */
+    private function activeAwardees(): Builder
+    {
+        return Awardee::query()
+            ->select(['awardees.id', 'awardees.order_id', 'awardees.full_name', 'awardees.rank', 'awardees.award'])
+            ->with('order:id,number,published_at,deleted_at')
+            ->whereHas('order', function ($builder): void {
+                $builder->whereNull('deleted_at');
+            });
+    }
+
     /**
      * @param  iterable<Awardee>|null  $awardees
      */
     public function evaluate(MonitoringRecord $record, ?iterable $awardees = null): MonitoringEvaluation
     {
-        $awardees ??= Awardee::query()
-            ->with('order')
-            ->whereHas('order', function ($builder): void {
-                $builder->whereNull('deleted_at');
-            })
-            ->get();
+        $awardees ??= $this->activeAwardees()->lazyById(self::AWARDEE_CHUNK_SIZE);
 
         $matches = [];
         $bestScore = 0;
