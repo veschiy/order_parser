@@ -1,3 +1,5 @@
+import { escapeHtml } from './html.js';
+
 /**
  * AJAX-powered table loading, pagination, sorting and filtering.
  * Each table declares its configuration via data attributes.
@@ -43,7 +45,7 @@ export class AjaxTable {
         this.bindSortHeaders();
         this.bindFilterHeaders();
         this.initFilterDropdown();
-        this.load();
+        void this.load();
     }
 
     buildParams(overrides = {}) {
@@ -245,7 +247,7 @@ export class AjaxTable {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.currentPage = Number.parseInt(link.dataset.page, 10);
-                this.load();
+                void this.load();
             });
         });
     }
@@ -287,7 +289,7 @@ export class AjaxTable {
                 }
 
                 this.currentPage = 1;
-                this.load();
+                void this.load();
 
                 this.updateSortIcons(colIndex);
             });
@@ -558,8 +560,8 @@ export class AjaxTable {
         for (const value of values) {
             const isChecked = selected.has(value);
             if (isChecked) checkedCount++;
-            const escapedValue = value.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const displayLabel = value === '__empty__' ? 'Пусто' : value;
+            const escapedValue = escapeHtml(value);
+            const displayLabel = escapeHtml(value === '__empty__' ? 'Пусто' : value);
             html += `
                 <label class="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-800/50 cursor-pointer filter-checkbox-item">
                     <input type="checkbox" value="${escapedValue}" ${isChecked ? 'checked' : ''} class="rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0 filter-checkbox">
@@ -610,7 +612,7 @@ export class AjaxTable {
 
         this.updateSortIcons(colIndex);
         this.closeFilterDropdown();
-        this.load();
+        void this.load();
     }
 
     applyFilterDropdown() {
@@ -641,7 +643,7 @@ export class AjaxTable {
 
         this.closeFilterDropdown();
         this.currentPage = 1;
-        this.load();
+        void this.load();
     }
 
     isSubsetOf(subset, superset) {
@@ -660,7 +662,7 @@ export class AjaxTable {
         }
         this.closeFilterDropdown();
         this.currentPage = 1;
-        this.load();
+        void this.load();
     }
 
     closeFilterDropdown() {
@@ -711,6 +713,6 @@ export class AjaxTable {
         this.columnFilters = {};
         this.updateFilterButtons();
         this.currentPage = 1;
-        this.load();
+        void this.load();
     }
 }

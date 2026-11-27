@@ -7,7 +7,7 @@ class ExcelTable {
         this.table = typeof tableElement === 'string' ? document.querySelector(tableElement) : tableElement;
         if (!this.table) return;
 
-        this.tableId = this.table.id || 'excel-table-' + Math.random().toString(36).substr(2, 9);
+        this.tableId = this.table.id || 'excel-table-' + Math.random().toString(36).slice(2, 11);
         this.columnFilters = {}; // colIndex => Set of allowed values
         this.currentSort = { colIndex: null, direction: 'asc' };
         this.activeFilterColIndex = null;
@@ -414,18 +414,13 @@ class ExcelTable {
         const activeCols = Object.keys(this.columnFilters).map(Number);
 
         rows.forEach(row => {
-            let matches = true;
-
-            for (const colIndex of activeCols) {
+            const matches = activeCols.every(colIndex => {
                 const allowedSet = this.columnFilters[colIndex];
-                if (!allowedSet) continue;
+                if (!allowedSet) return true;
 
                 const cellVal = this.getCellText(row, colIndex);
-                if (!allowedSet.has(cellVal)) {
-                    matches = false;
-                    break;
-                }
-            }
+                return allowedSet.has(cellVal);
+            });
 
             if (matches) {
                 row.style.display = '';

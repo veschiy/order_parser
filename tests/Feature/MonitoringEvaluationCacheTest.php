@@ -8,6 +8,7 @@ use App\Models\Awardee;
 use App\Models\MonitoringRecord;
 use App\Models\Order;
 use App\Services\Monitoring\MonitoringEvaluation;
+use App\Services\Monitoring\MonitoringEvaluationCache;
 use App\Services\Monitoring\MonitoringEvaluator;
 use App\Services\Parsers\AwardsParserService;
 use Illuminate\Database\Events\QueryExecuted;
@@ -79,6 +80,29 @@ final class MonitoringEvaluationCacheTest extends TestCase
         $secondPage->assertJsonPath('data.0.full_name', 'Друга Особа');
 
         $this->assertSame(1, $awardeeSelectQueries);
+    }
+
+    public function test_restores_a_null_best_match_for_null_or_out_of_range_cached_indexes(): void
+    {
+        $record = MonitoringRecord::query()->create(['full_name' => 'Cache Restore Person']);
+        $cache = app(MonitoringEvaluationCache::class);
+
+        foreach ([null, 4] as $bestMatchIndex) {
+            $version = 'best-match-'.($bestMatchIndex ?? 'null');
+            Cache::forever('monitoring.evaluations.version', $version);
+            Cache::put('monitoring.evaluations.snapshot.'.$version, [
+                $record->id => [
+                    'score' => 0,
+                    'matches' => [],
+                    'bestMatchIndex' => $bestMatchIndex,
+                ],
+            ], 3600);
+
+            $evaluation = $cache->forRecords([$record])->first();
+
+            $this->assertInstanceOf(MonitoringEvaluation::class, $evaluation);
+            $this->assertNull($evaluation->bestMatch);
+        }
     }
 
     public function test_evaluates_awardees_in_bounded_batches(): void

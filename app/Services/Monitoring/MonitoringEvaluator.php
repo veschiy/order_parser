@@ -161,19 +161,7 @@ final readonly class MonitoringEvaluator
             $awardMatched = $this->awardsMatch($record->award, $awardee->award);
             $dateMatched = $this->dateIsWithinSixMonths($awardee->order->published_at, $record->submission_date);
 
-            $matchScore = 1; // Name match (base)
-
-            if ($rankMatched) {
-                $matchScore++;
-            }
-
-            if ($awardMatched) {
-                $matchScore++;
-            }
-
-            if ($dateMatched) {
-                $matchScore++;
-            }
+            $matchScore = $this->scoreForMatches($rankMatched, $awardMatched, $dateMatched);
 
             $match = new MonitoringMatch(
                 awardee: $awardee,
@@ -198,6 +186,11 @@ final readonly class MonitoringEvaluator
             matches: $matches,
             bestMatch: $bestMatch,
         );
+    }
+
+    private function scoreForMatches(bool $rankMatched, bool $awardMatched, bool $dateMatched): int
+    {
+        return 1 + (int) $rankMatched + (int) $awardMatched + (int) $dateMatched;
     }
 
     public function namesMatch(string $monitoredName, string $awardeeName): bool

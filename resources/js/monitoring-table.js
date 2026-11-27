@@ -1,6 +1,76 @@
 import { AjaxTable } from './ajax-table.js';
+import { escapeHtml } from './html.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+export function renderMonitoringRow(row, csrfToken = '') {
+    const id = escapeHtml(row.id);
+    const sheet = escapeHtml(row.sheet || '—');
+    const sheetValue = escapeHtml(row.sheet);
+    const rank = escapeHtml(row.rank || '—');
+    const rankValue = escapeHtml(row.rank);
+    const fullName = escapeHtml(row.full_name);
+    const submissionDate = escapeHtml(row.submission_date);
+    const submissionDateDisplay = escapeHtml(row.submission_date_display);
+    const award = escapeHtml(row.award || '—');
+    const awardValue = escapeHtml(row.award);
+    const score = escapeHtml(row.score);
+    const matchesSummary = escapeHtml(row.matchesSummary);
+    const escapedCsrfToken = escapeHtml(csrfToken);
+    const scoreBadge = getScoreBadge(row.score);
+    const matchesHtml = renderMatches(row);
+
+    return `
+        <tr class="hover:bg-slate-800/40 monitoring-row" id="row-${id}" data-row="${id}">
+            <td class="px-1.5 py-2 text-slate-300" data-col-index="0" data-col="sheet" data-value="${sheetValue}">
+                ${sheet}
+            </td>
+            <td class="px-1.5 py-2 text-slate-300" data-col-index="1" data-col="rank" data-value="${rankValue}">
+                ${rank}
+            </td>
+            <td class="px-1.5 py-2 font-bold text-slate-100" data-col-index="2" data-col="full_name" data-value="${fullName}">
+                <div class="flex items-center gap-2">
+                    <span>${fullName}</span>
+                </div>
+            </td>
+            <td class="px-1.5 py-2 text-slate-300" data-col-index="3" data-col="submission_date" data-value="${submissionDate}">
+                ${submissionDateDisplay}
+            </td>
+            <td class="px-1.5 py-2 text-slate-300" data-col-index="4" data-col="award" data-value="${awardValue}">
+                ${award}
+            </td>
+            <td class="px-1.5 py-2 text-center" data-col-index="5" data-col="score" data-value="${score}">
+                ${scoreBadge}
+            </td>
+            <td class="px-1.5 py-2 text-xs" data-col="matches" data-value="${matchesSummary}">
+                ${matchesHtml}
+            </td>
+            <td class="px-1.5 py-2 text-right">
+                <div class="flex items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        data-edit-monitoring
+                        data-id="${id}"
+                        data-sheet="${sheetValue}"
+                        data-full-name="${fullName}"
+                        data-submission-date="${submissionDate}"
+                        data-rank="${rankValue}"
+                        data-award="${awardValue}"
+                        class="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300 transition"
+                    >
+                        Редагувати
+                    </button>
+                    <form method="POST" action="/monitoring/${id}" data-confirm="Видалити цей запис?" class="inline">
+                        <input type="hidden" name="_token" value="${escapedCsrfToken}">
+                        <input type="hidden" name="_method" value="DELETE">
+                        <button type="submit" class="rounded-lg border border-rose-900/60 px-2 py-1 text-xs text-rose-400 hover:bg-rose-950/50">
+                            Видалити
+                        </button>
+                    </form>
+                </div>
+            </td>
+        </tr>`;
+}
+
+globalThis.document?.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('monitoringTable')) {
         return;
     }
@@ -25,59 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
             6: 'matches',
         },
         renderRow(row) {
-            const scoreBadge = getScoreBadge(row.score);
-            const matchesHtml = renderMatches(row);
+            const csrfToken = document.querySelector('meta[name=csrf-token]')?.content || '';
 
-            return `
-                <tr class="hover:bg-slate-800/40 monitoring-row" id="row-${row.id}" data-row="${row.id}">
-                    <td class="px-1.5 py-2 text-slate-300" data-col-index="0" data-col="sheet" data-value="${row.sheet}">
-                        ${row.sheet || '—'}
-                    </td>
-                    <td class="px-1.5 py-2 text-slate-300" data-col-index="1" data-col="rank" data-value="${row.rank}">
-                        ${row.rank || '—'}
-                    </td>
-                    <td class="px-1.5 py-2 font-bold text-slate-100" data-col-index="2" data-col="full_name" data-value="${row.full_name}">
-                        <div class="flex items-center gap-2">
-                            <span>${row.full_name}</span>
-                        </div>
-                    </td>
-                    <td class="px-1.5 py-2 text-slate-300" data-col-index="3" data-col="submission_date" data-value="${row.submission_date}">
-                        ${row.submission_date_display}
-                    </td>
-                    <td class="px-1.5 py-2 text-slate-300" data-col-index="4" data-col="award" data-value="${row.award}">
-                        ${row.award || '—'}
-                    </td>
-                    <td class="px-1.5 py-2 text-center" data-col-index="5" data-col="score" data-value="${row.score}">
-                        ${scoreBadge}
-                    </td>
-                    <td class="px-1.5 py-2 text-xs" data-col="matches" data-value="${row.matchesSummary}">
-                        ${matchesHtml}
-                    </td>
-                    <td class="px-1.5 py-2 text-right">
-                        <div class="flex items-center justify-end gap-2">
-                            <button
-                                type="button"
-                                data-edit-monitoring
-                                data-id="${row.id}"
-                                data-sheet="${row.sheet || ''}"
-                                data-full-name="${row.full_name}"
-                                data-submission-date="${row.submission_date}"
-                                data-rank="${row.rank || ''}"
-                                data-award="${row.award || ''}"
-                                class="rounded-lg border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300 transition"
-                            >
-                                Редагувати
-                            </button>
-                            <form method="POST" action="/monitoring/${row.id}" data-confirm="Видалити цей запис?" class="inline">
-                                <input type="hidden" name="_token" value="${document.querySelector('meta[name=csrf-token]')?.content || ''}">
-                                <input type="hidden" name="_method" value="DELETE">
-                                <button type="submit" class="rounded-lg border border-rose-900/60 px-2 py-1 text-xs text-rose-400 hover:bg-rose-950/50">
-                                    Видалити
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>`;
+            return renderMonitoringRow(row, csrfToken);
         },
         renderComplete() {
             initMonitoringEditModal();
@@ -102,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const q = searchInput?.value || '';
             ajaxTable.defaultParams = q ? { q } : {};
             ajaxTable.currentPage = 1;
-            ajaxTable.load();
+            void ajaxTable.load();
 
             const resetLink = document.getElementById('monitoringSearchReset');
             if (resetLink) {
@@ -118,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (searchInput) searchInput.value = '';
             ajaxTable.defaultParams = {};
             ajaxTable.currentPage = 1;
-            ajaxTable.load();
+            void ajaxTable.load();
             resetLink.classList.add('hidden');
         });
     }
@@ -166,7 +186,7 @@ function getScoreBadge(score) {
     if (score === 3) {
         return '<span class="inline-flex items-center rounded-full bg-purple-950/80 border border-purple-700/60 px-2.5 py-1 text-xs font-semibold text-purple-300" title="ПІБ + дві з характеристик (+3 бали)">3</span>';
     }
-    return `<span class="inline-flex items-center rounded-full bg-emerald-950/80 border border-emerald-600/60 px-2.5 py-1 text-xs font-bold text-emerald-300" title="ПІБ + звання + Нагорода + Дата (максимум, +4 бали)">${score}</span>`;
+    return `<span class="inline-flex items-center rounded-full bg-emerald-950/80 border border-emerald-600/60 px-2.5 py-1 text-xs font-bold text-emerald-300" title="ПІБ + звання + Нагорода + Дата (максимум, +4 бали)">${escapeHtml(score)}</span>`;
 }
 
 function renderMatches(row) {
@@ -176,9 +196,13 @@ function renderMatches(row) {
 
     let html = '<div class="space-y-1">';
     for (const match of row.matches) {
+        const orderId = escapeHtml(match.order_id);
+        const orderDisplay = escapeHtml(match.order_display);
+        const matchScore = escapeHtml(match.score);
+        const award = escapeHtml(match.award);
         const orderLink = match.order_id
-            ? `<a href="/orders/${match.order_id}" class="font-medium text-indigo-300 hover:underline">${match.order_display}</a>`
-            : `<span class="text-slate-300">${match.order_display}</span>`;
+            ? `<a href="/orders/${orderId}" class="font-medium text-indigo-300 hover:underline">${orderDisplay}</a>`
+            : `<span class="text-slate-300">${orderDisplay}</span>`;
 
         let badges = '<span class="rounded px-1.5 py-0.5 bg-indigo-900/40 text-indigo-300">ПІБ ✓</span>';
         if (match.rankMatched) badges += '<span class="rounded px-1.5 py-0.5 bg-purple-900/40 text-purple-300">Звання ✓</span>';
@@ -189,9 +213,9 @@ function renderMatches(row) {
             <div class="rounded-lg bg-slate-950/60 px-1.5 py-1.5 border border-slate-800">
                 <div class="flex items-center justify-between gap-2">
                     ${orderLink}
-                    <span class="text-[11px] font-semibold text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">бал: ${match.score}</span>
+                    <span class="text-[11px] font-semibold text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded">бал: ${matchScore}</span>
                 </div>
-                <div class="mt-0.5 text-slate-400">${match.award}</div>
+                <div class="mt-0.5 text-slate-400">${award}</div>
                 <div class="mt-1 flex flex-wrap gap-1 text-[10px]">${badges}</div>
             </div>`;
     }

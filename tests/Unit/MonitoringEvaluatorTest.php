@@ -383,7 +383,7 @@ final class MonitoringEvaluatorTest extends TestCase
         $this->assertSame(0, $evaluation->score);
     }
 
-    public function test_multiple_matching_orders_takes_maximum_score(): void
+    public function test_multiple_matching_orders_takes_maximum_score_and_keeps_first_match_on_tie(): void
     {
         $order1 = Order::query()->create([
             'document_url' => 'https://example.com/order-1',
@@ -409,6 +409,18 @@ final class MonitoringEvaluatorTest extends TestCase
             'award' => 'орден «За мужність» III ступеня',
         ]);
 
+        $order3 = Order::query()->create([
+            'document_url' => 'https://example.com/order-3',
+            'published_at' => '2026-11-15',
+            'parsed_at' => now(),
+        ]);
+
+        Awardee::query()->create([
+            'order_id' => $order3->id,
+            'full_name' => 'Бакал Олександр Вікторович',
+            'award' => 'орден «За мужність» III ступеня',
+        ]);
+
         $record = MonitoringRecord::query()->create([
             'full_name' => 'Бакал Олександр Вікторович',
             'award' => 'орден «За мужність» III ступеня',
@@ -418,7 +430,8 @@ final class MonitoringEvaluatorTest extends TestCase
         $evaluation = $this->evaluator->evaluate($record);
 
         $this->assertSame(3, $evaluation->score);
-        $this->assertCount(2, $evaluation->matches);
+        $this->assertCount(3, $evaluation->matches);
+        $this->assertSame($order2->id, $evaluation->bestMatch?->awardee->order_id);
     }
 
     public function test_bulk_evaluation_preserves_matching_and_order(): void

@@ -1,6 +1,30 @@
 import { AjaxTable } from './ajax-table.js';
+import { escapeHtml } from './html.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+export function renderOrderRow(row) {
+    const id = escapeHtml(row.order_id);
+    const orderPath = encodeURIComponent(String(row.order_id ?? ''));
+    const number = escapeHtml(row.number);
+    const title = escapeHtml(row.title);
+    const awardeesCount = escapeHtml(row.awardees_count);
+    const parsedAtSort = escapeHtml(row.parsed_at_sort);
+    const parsedAt = escapeHtml(row.parsed_at);
+    const trashedClass = row.trashed ? 'opacity-50' : '';
+    const lineThrough = row.trashed ? 'line-through' : '';
+
+    return `
+        <tr class="hover:bg-slate-800/50 ${trashedClass}" data-row="${id}">
+            <td class="px-4 py-3 text-indigo-300 ${lineThrough}" data-value="${number}">${number}</td>
+            <td class="px-4 py-3 text-slate-100 ${lineThrough}" data-value="${title}">${title}</td>
+            <td class="px-4 py-3 text-slate-300" data-value="${awardeesCount}">${awardeesCount}</td>
+            <td class="px-4 py-3 text-slate-300" data-value="${parsedAtSort}">${parsedAt}</td>
+            <td class="px-4 py-3">
+                <a href="/orders/${orderPath}" class="text-indigo-300 hover:text-indigo-200">Деталі</a>
+            </td>
+        </tr>`;
+}
+
+globalThis.document?.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('ordersTable')) {
         return;
     }
@@ -16,20 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         filterColumnMap: {
             0: 'number',
         },
-        renderRow(row) {
-            const trashedClass = row.trashed ? 'opacity-50' : '';
-            const lineThrough = row.trashed ? 'line-through' : '';
-            return `
-                <tr class="hover:bg-slate-800/50 ${trashedClass}" data-row="${row.order_id}">
-                    <td class="px-4 py-3 text-indigo-300 ${lineThrough}" data-value="${row.number}">${row.number}</td>
-                    <td class="px-4 py-3 text-slate-100 ${lineThrough}" data-value="${row.title}">${row.title}</td>
-                    <td class="px-4 py-3 text-slate-300" data-value="${row.awardees_count}">${row.awardees_count}</td>
-                    <td class="px-4 py-3 text-slate-300" data-value="${row.parsed_at_sort}">${row.parsed_at}</td>
-                    <td class="px-4 py-3">
-                        <a href="/orders/${row.order_id}" class="text-indigo-300 hover:text-indigo-200">Деталі</a>
-                    </td>
-                </tr>`;
-        },
+        renderRow: renderOrderRow,
         getSortColumnMap() {
             return {
                 0: 'number',
@@ -44,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
             table.resetAllFilters();
-            table.load();
+            void table.load();
         });
     }
 

@@ -12,6 +12,12 @@ final readonly class DecreeParser
 {
     private const string WHITESPACE_PATTERN = '/\s+/u';
 
+    private const string AWARD_SEGMENT_PATTERN = '/Нагородити\s+(.+?)(?=Нагородити\s+|$)/us';
+
+    private const string AWARD_NAME_BOUNDARY_PATTERN = '/^(.+?)(?=\s+[А-ЯІЇЄҐ][А-ЯІЇЄҐЬ]{2,}\s+[А-ЯІЇЄҐ][а-яіїєґ])/us';
+
+    private const string CANDIDATE_NAME_PATTERN = '/[А-ЯІЇЄҐ\.ʼ\x{2019}]{2,}(?:\s+[А-ЯІЇЄҐ\.ʼ\x{2019}]{2,})*\s+[А-ЯІЇЄҐ][ʼ\x{2019}а-яіїєґ]{2,}(?:-[А-ЯІЇЄҐ][ʼ\x{2019}а-яіїєґ]{2,})?/u';
+
     private UkrainianNameNormalizer $normalizer;
 
     private BrowserlikeClient $client;
@@ -63,12 +69,12 @@ final readonly class DecreeParser
             }
         }
 
-        preg_match_all('/Нагородити\s+(.+?)(?=Нагородити\s+|$)/us', $text, $segments, PREG_SET_ORDER);
+        preg_match_all(self::AWARD_SEGMENT_PATTERN, $text, $segments, PREG_SET_ORDER);
 
         foreach ($segments as $segmentMatch) {
             $body = $segmentMatch[1];
 
-            if (! preg_match('/^(.+?)(?=\s+[А-ЯІЇЄҐ][А-ЯІЇЄҐЬ]{2,}\s+[А-ЯІЇЄҐ][а-яіїєґ])/us', $body, $awardMatch, PREG_OFFSET_CAPTURE)) {
+            if (! preg_match(self::AWARD_NAME_BOUNDARY_PATTERN, $body, $awardMatch, PREG_OFFSET_CAPTURE)) {
                 continue;
             }
 
@@ -129,7 +135,7 @@ final readonly class DecreeParser
      */
     private function findCandidatePositions(string $namesText): array
     {
-        preg_match_all('/(?:[А-ЯІЇЄҐ\.ʼ\x{2019}]{2,}\s+)+[А-ЯІЇЄҐ][ʼ\x{2019}а-яіїєґ]{2,}(?:-[А-ЯІЇЄҐ][ʼ\x{2019}а-яіїєґ]{2,})?/u', $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
+        preg_match_all(self::CANDIDATE_NAME_PATTERN, $namesText, $candidateMatches, PREG_OFFSET_CAPTURE);
 
         $positions = [];
         foreach ($candidateMatches[0] as $candidateMatch) {

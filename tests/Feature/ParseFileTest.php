@@ -124,6 +124,20 @@ final class ParseFileTest extends TestCase
         $this->assertSame([], $requestedUrls);
     }
 
+    public function test_it_rejects_an_uploaded_file_with_no_urls(): void
+    {
+        $requestedUrls = [];
+        app()->instance(AwardsParserService::class, $this->createTestParserService('', $requestedUrls));
+
+        $response = $this->post(route('parse.store'), [
+            'mode' => 'file',
+            'urls_file' => UploadedFile::fake()->createWithContent('decrees.txt', "\n  \r\n"),
+        ]);
+
+        $response->assertSessionHasErrors('urls_file');
+        $this->assertSame([], $requestedUrls);
+    }
+
     public function test_it_rejects_an_uploaded_list_containing_a_url_outside_the_supported_site(): void
     {
         $requestedUrls = [];
@@ -139,6 +153,25 @@ final class ParseFileTest extends TestCase
 
         $response->assertSessionHasErrors('urls_file');
         $this->assertSame([], $requestedUrls);
+    }
+
+    public function test_it_rejects_uploaded_urls_with_credentials_or_nonstandard_ports(): void
+    {
+        foreach ([
+            'https://user:secret@president.gov.ua/documents/1',
+            'https://president.gov.ua:444/documents/1',
+        ] as $url) {
+            $requestedUrls = [];
+            app()->instance(AwardsParserService::class, $this->createTestParserService('', $requestedUrls));
+
+            $response = $this->post(route('parse.store'), [
+                'mode' => 'file',
+                'urls_file' => UploadedFile::fake()->createWithContent('decrees.txt', $url),
+            ]);
+
+            $response->assertSessionHasErrors('urls_file');
+            $this->assertSame([], $requestedUrls);
+        }
     }
 
     public function test_it_rejects_uploads_that_are_not_text_files(): void

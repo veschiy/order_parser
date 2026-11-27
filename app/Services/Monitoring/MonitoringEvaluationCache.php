@@ -240,15 +240,23 @@ final readonly class MonitoringEvaluationCache
             );
         }
 
-        $bestMatch = $evaluationData['bestMatchIndex'] === null
-            ? null
-            : ($matches[$evaluationData['bestMatchIndex']] ?? null);
-
         return new MonitoringEvaluation(
             record: $record,
             score: $evaluationData['score'],
             matches: $matches,
-            bestMatch: $bestMatch,
+            bestMatch: $this->restoreBestMatch($matches, $evaluationData['bestMatchIndex']),
         );
+    }
+
+    /**
+     * @param  list<MonitoringMatch>  $matches
+     */
+    private function restoreBestMatch(array $matches, ?int $bestMatchIndex): ?MonitoringMatch
+    {
+        if ($bestMatchIndex === null) {
+            return null;
+        }
+
+        return $matches[$bestMatchIndex] ?? null;
     }
 }

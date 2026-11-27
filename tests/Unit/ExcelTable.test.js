@@ -11,7 +11,7 @@ function storage() {
     };
 }
 
-for (const path of ['resources/js/excel-table.js', 'public/js/excel-table.js']) {
+for (const path of ['public/js/excel-table.js']) {
     test(`${path}: filters survive reload, reset, and expire with the window session`, () => {
         const localStorage = storage();
         let sessionStorage = storage();

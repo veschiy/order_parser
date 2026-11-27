@@ -12,6 +12,12 @@ use Throwable;
 
 final class MonitoringCsvImporter
 {
+    /** @var list<array{pattern: string, yearFirst: bool}> */
+    private const array DATE_PATTERNS = [
+        ['pattern' => '/\b(\d{1,2})[\.\/-](\d{1,2})[\.\/-](\d{4})\b/', 'yearFirst' => false],
+        ['pattern' => '/\b(\d{4})[\.\/-](\d{1,2})[\.\/-](\d{1,2})\b/', 'yearFirst' => true],
+    ];
+
     /**
      * @return int Number of imported records
      */
@@ -392,28 +398,46 @@ final class MonitoringCsvImporter
             }
 
             $cleaned = str_replace(['./', '/.'], '.', $input);
+            array_push($allFoundDates, ...$this->datesFromInput($cleaned));
+        }
 
-            foreach ([
-                ['pattern' => '/\b(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})\b/', 'yearFirst' => false],
-                ['pattern' => '/\b(\d{4})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})\b/', 'yearFirst' => true],
-            ] as $config) {
-                if (preg_match_all($config['pattern'], $cleaned, $matches, PREG_SET_ORDER)) {
-                    foreach ($matches as $m) {
-                        $date = $this->createDateFromMatch($m, $config['yearFirst']);
-                        if ($date instanceof DateTimeInterface) {
-                            $allFoundDates[] = $date;
-                        }
-                    }
+        return $this->latestDate($allFoundDates);
+    }
+
+    /**
+     * @return list<DateTimeInterface>
+     */
+    private function datesFromInput(string $input): array
+    {
+        $dates = [];
+
+        foreach (self::DATE_PATTERNS as $config) {
+            if (preg_match_all($config['pattern'], $input, $matches, PREG_SET_ORDER) === false) {
+                continue;
+            }
+
+            foreach ($matches as $match) {
+                $date = $this->createDateFromMatch($match, $config['yearFirst']);
+                if ($date instanceof DateTimeInterface) {
+                    $dates[] = $date;
                 }
             }
         }
 
-        if ($allFoundDates === []) {
+        return $dates;
+    }
+
+    /**
+     * @param  list<DateTimeInterface>  $dates
+     */
+    private function latestDate(array $dates): ?DateTimeInterface
+    {
+        if ($dates === []) {
             return null;
         }
 
-        $latest = $allFoundDates[0];
-        foreach ($allFoundDates as $date) {
+        $latest = $dates[0];
+        foreach ($dates as $date) {
             if ($date->getTimestamp() > $latest->getTimestamp()) {
                 $latest = $date;
             }

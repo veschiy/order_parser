@@ -5,31 +5,30 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\MonitoringRecord;
+use App\Services\Monitoring\MonitoringCsvExportService;
 use App\Services\Monitoring\MonitoringCsvImporter;
-use App\Services\Monitoring\MonitoringEvaluation;
 use App\Services\Monitoring\MonitoringEvaluationCache;
-use App\Services\Monitoring\MonitoringEvaluator;
-use App\Services\Monitoring\MonitoringMatch;
-use App\Services\PaginationResponse;
+use App\Services\Monitoring\MonitoringQueryService;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class MonitoringController extends Controller
 {
-    private const string DECREE_PREFIX = 'Указ #';
+    /** Maximum byte length of the posted JSON selection before it is validated or decoded. */
+    private const int MAX_RECORD_IDS_JSON_BYTES = 20_000;
 
-    public function index(Request $request): View
+    /** Maximum record IDs accepted from the visible-table export workflow. */
+    private const int MAX_SELECTED_RECORD_IDS = 500;
+
+    public function index(Request $request, MonitoringQueryService $queryService): View
     {
         $search = trim($request->string('q')->toString());
 
-        ['query' => $query] = $this->buildFilteredQuery($search);
+        ['query' => $query] = $queryService->buildFilteredQuery($search);
         $records = $query->paginate(15);
 
         return view('monitoring.index', [
@@ -37,77 +36,6 @@ final class MonitoringController extends Controller
             'search' => $search,
             'totalCount' => MonitoringRecord::query()->count(),
         ]);
-    }
-
-    /**
-     * @param  string[]  $filters
-     * @return array{query: Builder<MonitoringRecord>, scoreFilter: int[]|null, matchesFilter: array{decreeDisplays: list<string>, hasNoMatches: bool}}
-     */
-    private function buildFilteredQuery(string $search, array $filters = [], ?string $sort = null, string $direction = 'asc'): array
-    {
-        $query = MonitoringRecord::query();
-
-        if ($search !== '') {
-            $pattern = '%'.mb_strtolower($search, 'UTF-8').'%';
-            $query->where(function ($builder) use ($pattern): void {
-                $builder
-                    ->whereRaw('mb_lower(full_name) like ?', [$pattern])
-                    ->orWhereRaw("mb_lower(coalesce(tax_id, '')) like ?", [$pattern])
-                    ->orWhereRaw("mb_lower(coalesce(award, '')) like ?", [$pattern])
-                    ->orWhereRaw("mb_lower(coalesce(sheet, '')) like ?", [$pattern]);
-            });
-        }
-
-        $scoreFilter = null;
-        $matchesFilter = ['decreeDisplays' => [], 'hasNoMatches' => false];
-
-        foreach ($filters as $filter) {
-            $parts = explode(':', $filter, 2);
-            if (count($parts) !== 2) {
-                continue;
-            }
-
-            $column = $parts[0];
-            $values = $parts[1] === '' ? [] : explode(',', $parts[1]);
-
-            if ($column === 'score') {
-                [$query, $scoreFilter] = $this->applyScoreFilter($query, $values);
-
-                continue;
-            }
-
-            if ($column === 'matches') {
-                $matchesFilter['hasNoMatches'] = in_array('__empty__', $values, true);
-                $matchesFilter['decreeDisplays'] = array_values(array_filter($values, fn (string $v): bool => $v !== '__empty__'));
-
-                continue;
-            }
-
-            $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
-            if (in_array($column, $allowedColumns, true)) {
-                $this->applyColumnFilter($query, $column, $values);
-            }
-        }
-
-        $this->applySorting($query, $sort, $direction);
-
-        return ['query' => $query, 'scoreFilter' => $scoreFilter, 'matchesFilter' => $matchesFilter];
-    }
-
-    /**
-     * @param  Builder<MonitoringRecord>  $query
-     * @param  list<string>  $values
-     * @return array{Builder<MonitoringRecord>, int[]|null}
-     */
-    private function applyScoreFilter(Builder $query, array $values): array
-    {
-        if ($values === [] || $values === ['']) {
-            $query->whereRaw('1 = 0');
-
-            return [$query, null];
-        }
-
-        return [$query, array_map(intval(...), $values)];
     }
 
     public function store(Request $request, MonitoringEvaluationCache $evaluationCache): RedirectResponse
@@ -202,71 +130,36 @@ final class MonitoringController extends Controller
         return redirect()->route('monitoring.index')->with('status', "Успішно імпортовано {$imported} записів у таблицю моніторингу.");
     }
 
-    public function export(Request $request, MonitoringEvaluator $evaluator): StreamedResponse
+    public function export(Request $request, MonitoringQueryService $queryService, MonitoringCsvExportService $exportService): StreamedResponse
     {
-        ['query' => $query] = $this->buildFilteredQuery(trim($request->string('q')->toString()));
+        ['query' => $query] = $queryService->buildFilteredQuery(trim($request->string('q')->toString()));
 
         if ($request->isMethod('post')) {
-            $validated = $request->validate(['record_ids' => ['required', 'string', 'json']]);
-            $rawIds = is_string($validated['record_ids']) ? $validated['record_ids'] : '[]';
+            $rawIds = $request->input('record_ids');
+            if (! is_string($rawIds)) {
+                abort(422);
+            }
+
+            if (strlen($rawIds) > self::MAX_RECORD_IDS_JSON_BYTES) {
+                abort(422);
+            }
+
+            $request->validate(['record_ids' => ['required', 'string', 'json']]);
             $ids = json_decode($rawIds, true);
-            abort_unless(is_array($ids) && array_is_list($ids) && count(array_filter($ids, fn ($id): bool => ! is_int($id) || $id < 1)) === 0, 422);
+            abort_unless(
+                is_array($ids)
+                    && array_is_list($ids)
+                    && count($ids) <= self::MAX_SELECTED_RECORD_IDS
+                    && count(array_filter($ids, fn ($id): bool => ! is_int($id) || $id < 1)) === 0,
+                422,
+            );
             $query->whereKey($ids);
         }
 
-        $records = $query->get();
-        $evaluations = $evaluator->evaluateAll($records);
-
-        $headers = [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="monitoring_export.csv"',
-        ];
-
-        return response()->stream(function () use ($evaluations): void {
-            $handle = fopen('php://output', 'w');
-
-            if ($handle === false) {
-                return;
-            }
-
-            // Write UTF-8 BOM for Excel compatibility
-            fwrite($handle, "\xEF\xBB\xBF");
-
-            fputcsv($handle, [
-                'Аркуш',
-                'ПІБ',
-                'Звання',
-                'Дата подання',
-                'Нагорода',
-                'Бал',
-                'Знайдено в указах',
-            ], ';', '"', '');
-
-            foreach ($evaluations as $evaluation) {
-                $matchedDecrees = [];
-                foreach ($evaluation->matches as $match) {
-                    $display = $match->awardee->order
-                        ? $match->awardee->order->displayNumber()
-                        : self::DECREE_PREFIX.$match->awardee->order_id;
-                    $matchedDecrees[] = $display.' (бал: '.$match->score.')';
-                }
-
-                fputcsv($handle, [
-                    $evaluation->record->sheet ?? '',
-                    $evaluation->record->full_name,
-                    $evaluation->record->rank ?? '',
-                    $evaluation->record->submission_date?->format('d.m.Y') ?? '',
-                    $evaluation->record->award ?? '',
-                    $evaluation->score,
-                    implode('; ', $matchedDecrees),
-                ], ';', '"', '');
-            }
-
-            fclose($handle);
-        }, 200, $headers);
+        return $exportService->stream($query->get());
     }
 
-    public function indexJson(Request $request, MonitoringEvaluationCache $evaluationCache): JsonResponse
+    public function indexJson(Request $request, MonitoringQueryService $queryService, MonitoringEvaluationCache $evaluationCache): JsonResponse
     {
         $search = trim($request->string('q')->toString());
         $perPage = $request->integer('perPage', 15);
@@ -277,299 +170,22 @@ final class MonitoringController extends Controller
         /** @var array<string> $filters */
         $filters = is_array($filtersRaw) ? array_filter($filtersRaw, is_string(...)) : [];
 
-        ['query' => $query, 'scoreFilter' => $scoreFilter, 'matchesFilter' => $matchesFilter] = $this->buildFilteredQuery($search, $filters, $sort, $direction);
+        $responseData = $queryService->indexData($search, array_values($filters), $sort, $direction, $page, $perPage, $evaluationCache);
 
-        $hasMatchesFilter = ! empty($matchesFilter['decreeDisplays']) || $matchesFilter['hasNoMatches'];
-
-        // Collect distinct decree display numbers from ALL evaluations (before pagination) for the filter dropdown
-        $allRecords = $query->get();
-        $allEvaluations = $evaluationCache->forRecords($allRecords);
-        $decreeDisplays = $this->buildDecreeDisplays($allEvaluations);
-
-        $evaluations = $this->applyFilters($allEvaluations, $scoreFilter, $hasMatchesFilter, $matchesFilter);
-        $evaluations = $this->applyComputedSorting($evaluations, $sort, $direction);
-
-        $total = $evaluations->count();
-        $evaluations = $evaluations->forPage($page, $perPage);
-
-        return response()->json($this->buildJsonResponse($evaluations, $page, $total, $perPage, $decreeDisplays));
-    }
-
-    /**
-     * Apply score and matches filters to evaluations.
-     *
-     * @param  Collection<int, MonitoringEvaluation>  $evaluations
-     * @param  int[]|null  $scoreFilter
-     * @param  array{decreeDisplays: list<string>, hasNoMatches: bool}  $matchesFilter
-     * @return Collection<int, MonitoringEvaluation>
-     */
-    private function applyFilters(Collection $evaluations, ?array $scoreFilter, bool $hasMatchesFilter, array $matchesFilter): Collection
-    {
-        if ($scoreFilter === null && ! $hasMatchesFilter) {
-            return $evaluations;
-        }
-
-        if ($scoreFilter !== null) {
-            $evaluations = $evaluations->filter(fn ($evaluation): bool => in_array($evaluation->score, $scoreFilter, true));
-        }
-
-        if ($hasMatchesFilter) {
-            $evaluations = $evaluations->filter(function ($evaluation) use ($matchesFilter): bool {
-                $evalDecreeDisplays = array_map(
-                    static fn (MonitoringMatch $m) => $m->awardee->order ? $m->awardee->order->displayNumber() : self::DECREE_PREFIX.$m->awardee->order_id,
-                    $evaluation->matches
-                );
-                $hasMatches = count($evalDecreeDisplays) > 0;
-
-                return $this->passesMatchesFilter($hasMatches, $evalDecreeDisplays, $matchesFilter);
-            });
-        }
-
-        return $evaluations;
-    }
-
-    /**
-     * Apply a column filter, handling the '__empty__' sentinel for null/empty values.
-     *
-     * @param  Builder<MonitoringRecord>  $query
-     * @param  array<string>  $values
-     */
-    private function applyColumnFilter(Builder $query, string $column, array $values): void
-    {
-        $hasEmpty = in_array('__empty__', $values, true);
-        $nonEmptyValues = array_values(array_filter($values, fn (string $v): bool => $v !== '__empty__'));
-
-        if ($hasEmpty && $nonEmptyValues === []) {
-            $query->where(function ($builder) use ($column): void {
-                $builder->whereNull($column)->orWhere($column, '');
-            });
-
-            return;
-        }
-
-        $query->where(function (Builder $builder) use ($column, $nonEmptyValues, $hasEmpty): void {
-            $builder->whereIn($column, $nonEmptyValues);
-            if ($hasEmpty) {
-                $builder->orWhere(function (Builder $inner) use ($column): void {
-                    $inner->whereNull($column)->orWhere($column, '');
-                });
-            }
-        });
-    }
-
-    /**
-     * Apply post-evaluation sorting for computed columns (score, matches).
-     *
-     * @param  Collection<int, MonitoringEvaluation>  $evaluations
-     * @return Collection<int, MonitoringEvaluation>
-     */
-    private function applyComputedSorting(Collection $evaluations, ?string $sort, string $direction): Collection
-    {
-        if ($sort === 'score') {
-            $evaluations = $evaluations->sortBy(fn ($evaluation) => $evaluation->score, SORT_NUMERIC, $direction === 'desc');
-        }
-
-        if ($sort === 'matches') {
-            $evaluations = $evaluations->sortBy(fn ($evaluation): int => count($evaluation->matches), SORT_NUMERIC, $direction === 'desc');
-        }
-
-        return $evaluations;
-    }
-
-    /**
-     * Build a sorted array of distinct decree display numbers from evaluations.
-     *
-     * @param  Collection<int, MonitoringEvaluation>  $evaluations
-     * @return list<string>
-     */
-    private function buildDecreeDisplays(Collection $evaluations): array
-    {
-        $decreeDisplays = [];
-        foreach ($evaluations as $evaluation) {
-            foreach ($evaluation->matches as $match) {
-                $decreeDisplays[] = $match->awardee->order
-                    ? $match->awardee->order->displayNumber()
-                    : self::DECREE_PREFIX.$match->awardee->order_id;
-            }
-        }
-
-        $decreeDisplays = array_values(array_unique($decreeDisplays, SORT_STRING));
-        sort($decreeDisplays, SORT_NATURAL | SORT_FLAG_CASE);
-
-        $decreeDisplays[] = '__empty__';
-
-        /** @var list<string> $decreeDisplays */
-        return $decreeDisplays;
-    }
-
-    /**
-     * Check if an evaluation passes the matches filter criteria.
-     *
-     * @param  array<string>  $evalDecreeDisplays
-     * @param  array{decreeDisplays: list<string>, hasNoMatches: bool}  $matchesFilter
-     */
-    private function passesMatchesFilter(bool $hasMatches, array $evalDecreeDisplays, array $matchesFilter): bool
-    {
-        $hasDecreeFilter = ! empty($matchesFilter['decreeDisplays']);
-        $hasNoMatchFilter = $matchesFilter['hasNoMatches'];
-        $hasDecreeMatch = $hasMatches && count(array_intersect($evalDecreeDisplays, $matchesFilter['decreeDisplays'])) > 0;
-
-        if ($hasNoMatchFilter) {
-            if ($hasDecreeFilter) {
-                return ! $hasMatches || $hasDecreeMatch;
-            }
-
-            return ! $hasMatches;
-        }
-
-        if ($hasDecreeFilter) {
-            return $hasDecreeMatch;
-        }
-
-        return true;
-    }
-
-    /**
-     * Apply sorting to the query builder.
-     *
-     * @param  Builder<MonitoringRecord>  $query
-     */
-    private function applySorting(Builder $query, ?string $sort, string $direction): void
-    {
-        $sortableColumns = ['sheet', 'full_name', 'submission_date', 'award'];
-
-        if ($sort !== null && in_array($sort, $sortableColumns, true)) {
-            $query->orderBy($sort, $direction === 'desc' ? 'desc' : 'asc');
-
-            return;
-        }
-
-        $query->orderBy('id');
-    }
-
-    /**
-     * Build the JSON response array for indexJson.
-     *
-     * @param  Collection<int, MonitoringEvaluation>  $evaluations
-     * @param  list<string>  $decreeDisplays
-     * @return array{data: list<array<string, mixed>>, pagination: array<string, mixed>, totalCount: int, distinctMatches: list<string>}
-     */
-    private function buildJsonResponse(Collection $evaluations, int $page, int $total, int $perPage, array $decreeDisplays): array
-    {
-        /** @var list<array<string, mixed>> $data */
-        $data = $evaluations->map(fn ($evaluation): array => $this->evaluationToArray($evaluation))->values()->toArray();
-
-        return [
-            'data' => $data,
-            'pagination' => PaginationResponse::fromValues($page, $total, $perPage),
-            'totalCount' => MonitoringRecord::query()->count(),
-            'distinctMatches' => $decreeDisplays,
-        ];
-    }
-
-    /**
-     * Convert a single evaluation to an array for JSON response.
-     *
-     * @return array<string, mixed>
-     */
-    private function evaluationToArray(MonitoringEvaluation $evaluation): array
-    {
-        $matchesSummary = $evaluation->matches === []
-            ? 'Не знайдено'
-            : implode(', ', array_map(static fn (MonitoringMatch $m): string => $m->awardee->order
-                ? $m->awardee->order->displayNumber()
-                : self::DECREE_PREFIX.$m->awardee->order_id, $evaluation->matches));
-
-        return [
-            'id' => $evaluation->record->id,
-            'sheet' => $evaluation->record->sheet ?? '',
-            'full_name' => $evaluation->record->full_name,
-            'submission_date' => $evaluation->record->submission_date?->format('Y-m-d') ?? '',
-            'submission_date_display' => $evaluation->record->submission_date?->format('d.m.Y') ?? '—',
-            'award' => $evaluation->record->award ?? '',
-            'rank' => $evaluation->record->rank ?? '',
-            'score' => $evaluation->score,
-            'matches' => array_map($this->matchToArray(...), $evaluation->matches),
-            'matchesSummary' => $matchesSummary,
-        ];
-    }
-
-    /**
-     * Convert a single match to an array for JSON response.
-     *
-     * @return array<string, mixed>
-     */
-    private function matchToArray(MonitoringMatch $match): array
-    {
-        return [
-            'awardee_id' => $match->awardee->id,
-            'order_id' => $match->awardee->order_id,
-            'order_display' => $match->awardee->order
-                ? $match->awardee->order->displayNumber()
-                : self::DECREE_PREFIX.$match->awardee->order_id,
-            'award' => $match->awardee->award ?? '—',
-            'score' => $match->score,
-            'rankMatched' => $match->rankMatched,
-            'awardMatched' => $match->awardMatched,
-            'dateMatched' => $match->dateMatched,
-        ];
+        return response()->json($responseData);
     }
 
     /**
      * Return distinct values for a given column, used by the filter dropdown UI.
      */
-    public function distinctJson(Request $request, MonitoringEvaluationCache $evaluationCache): JsonResponse
+    public function distinctJson(Request $request, MonitoringQueryService $queryService, MonitoringEvaluationCache $evaluationCache): JsonResponse
     {
         $columnString = $request->string('column')->toString();
         $column = $columnString !== '' ? $columnString : null;
         $search = trim($request->string('q')->toString());
 
-        $values = $this->resolveDistinctValues($column, $search, $evaluationCache);
+        $values = $queryService->distinctValues($column, $search, $evaluationCache);
 
         return response()->json(['values' => $values]);
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function resolveDistinctValues(?string $column, string $search, MonitoringEvaluationCache $evaluationCache): array
-    {
-        $formatValue = static function (mixed $v): string {
-            if ($v instanceof Carbon) {
-                return $v->format('Y-m-d');
-            }
-
-            if (is_string($v) || is_int($v)) {
-                return (string) $v;
-            }
-
-            return '';
-        };
-
-        if ($column === 'score') {
-            return ['0', '1', '2', '3', '4', '__empty__'];
-        }
-
-        if ($column === 'matches') {
-            ['query' => $matchQuery] = $this->buildFilteredQuery($search);
-            $records = $matchQuery->get();
-            $evaluations = $evaluationCache->forRecords($records);
-
-            return $this->buildDecreeDisplays($evaluations);
-        }
-
-        $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
-
-        $values = [];
-        if (in_array($column, $allowedColumns, true)) {
-            ['query' => $query] = $this->buildFilteredQuery($search);
-            /** @var list<string> $values */
-            $values = $query->distinct()->pluck($column)->filter()
-                ->map($formatValue)
-                ->sort()->values()->toArray();
-            $values[] = '__empty__';
-        }
-
-        return $values;
     }
 }

@@ -1,6 +1,37 @@
 import { AjaxTable } from './ajax-table.js';
+import { escapeHtml } from './html.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+export function renderAwardeeRow(row) {
+    const id = escapeHtml(row.id);
+    const fullName = escapeHtml(row.full_name);
+    const rank = escapeHtml(row.rank === '—' ? '' : row.rank);
+    const award = escapeHtml(row.award);
+
+    return `
+        <tr class="hover:bg-slate-800/50" data-row="${id}">
+            <td class="px-4 py-3 text-slate-100">
+                <span class="awardee-name" data-id="${id}">${fullName}</span>
+                <button type="button" class="ml-2 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300" data-edit-awardee data-id="${id}">Редагувати</button>
+                <div class="hidden mt-2 flex gap-2" data-edit-form="${id}" style="display:none;">
+                    <input type="text" value="${fullName}" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none">
+                    <button type="button" class="rounded-md bg-indigo-500 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-400" data-save-awardee-edit data-id="${id}">Зберегти</button>
+                    <button type="button" class="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" data-cancel-awardee-edit data-id="${id}">Скасувати</button>
+                </div>
+            </td>
+            <td class="px-4 py-3 text-slate-300">
+                <span class="awardee-rank">${rank}</span>
+                <button type="button" class="ml-2 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300" data-edit-awardee-rank data-id="${id}">Редагувати</button>
+                <div class="hidden mt-2 flex gap-2" data-edit-rank-form="${id}" style="display:none;">
+                    <input type="text" maxlength="255" value="${rank}" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none">
+                    <button type="button" class="rounded-md bg-indigo-500 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-400" data-save-awardee-rank data-id="${id}">Зберегти</button>
+                    <button type="button" class="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" data-cancel-awardee-rank data-id="${id}">Скасувати</button>
+                </div>
+            </td>
+            <td class="px-4 py-3 text-slate-300">${award}</td>
+        </tr>`;
+}
+
+globalThis.document?.addEventListener('DOMContentLoaded', () => {
     const orderId = document.querySelector('#awardeesTable')?.dataset?.orderId;
     if (!orderId) return;
 
@@ -8,16 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('awardeesSearchInput');
     const currentSearch = searchInput?.value.trim() || '';
     let awardeeEditInitialized = false;
-    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (character) => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;',
-    })[character]);
-
     const table = new AjaxTable('awardeesTable', {
-        url: `/orders/${orderId}/awardees/json`,
+        url: `/orders/${encodeURIComponent(orderId)}/awardees/json`,
         paginationSelector: '#awardeesTable-pagination',
         emptyMessageSelector: '#awardeesTable-empty',
         loadingSelector: '#awardeesTable-loading',
@@ -28,32 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         filterColumnMap: {
             2: 'award',
         },
-        renderRow(row) {
-            const rank = row.rank === '—' ? '' : row.rank;
-
-            return `
-                <tr class="hover:bg-slate-800/50" data-row="${row.id}">
-                    <td class="px-4 py-3 text-slate-100">
-                        <span class="awardee-name" data-id="${row.id}">${row.full_name}</span>
-                        <button type="button" class="ml-2 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300" data-edit-awardee data-id="${row.id}">Редагувати</button>
-                        <div class="hidden mt-2 flex gap-2" data-edit-form="${row.id}" style="display:none;">
-                            <input type="text" value="${row.full_name}" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none">
-                            <button type="button" class="rounded-md bg-indigo-500 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-400" data-save-awardee-edit data-id="${row.id}">Зберегти</button>
-                            <button type="button" class="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" data-cancel-awardee-edit data-id="${row.id}">Скасувати</button>
-                        </div>
-                    </td>
-                    <td class="px-4 py-3 text-slate-300">
-                        <span class="awardee-rank">${escapeHtml(row.rank)}</span>
-                        <button type="button" class="ml-2 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:border-indigo-400 hover:text-indigo-300" data-edit-awardee-rank data-id="${row.id}">Редагувати</button>
-                        <div class="hidden mt-2 flex gap-2" data-edit-rank-form="${row.id}" style="display:none;">
-                            <input type="text" maxlength="255" value="${escapeHtml(rank)}" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none">
-                            <button type="button" class="rounded-md bg-indigo-500 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-400" data-save-awardee-rank data-id="${row.id}">Зберегти</button>
-                            <button type="button" class="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800" data-cancel-awardee-rank data-id="${row.id}">Скасувати</button>
-                        </div>
-                    </td>
-                    <td class="px-4 py-3 text-slate-300">${row.award}</td>
-                </tr>`;
-        },
+        renderRow: renderAwardeeRow,
         renderComplete() {
             if (!awardeeEditInitialized) {
                 initAwardeeEdit();
@@ -80,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const query = searchInput?.value.trim() || '';
             table.defaultParams = query ? { q: query } : {};
             table.currentPage = 1;
-            table.load();
+            void table.load();
 
             resetLink?.classList.toggle('hidden', !query);
             if (emptyMessage) {
@@ -97,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (searchInput) searchInput.value = '';
             table.defaultParams = {};
             table.currentPage = 1;
-            table.load();
+            void table.load();
             resetLink.classList.add('hidden');
             if (emptyMessage) {
                 emptyMessage.textContent = 'Список нагороджених ще не розібрано.';

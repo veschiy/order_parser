@@ -5,7 +5,8 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "test": "node --test tests/Unit/AjaxTable.test.js tests/Unit/ConfirmationDialog.test.js tests/Unit/ExcelTable.test.js"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

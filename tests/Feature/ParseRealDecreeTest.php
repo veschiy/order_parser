@@ -65,6 +65,7 @@ HTML;
         $this->assertSame('СЕРГІЄНКО Олександр Адамович', $decree->awardees[0]->fullName);
         $this->assertSame('підполковник', $decree->awardees[0]->rank);
         $this->assertSame('орден Богдана Хмельницького ІІ ступеня', $decree->awardees[0]->award);
+        $this->assertSame('орден Богдана Хмельницького І ступеня', $decree->awardees[1]->award);
         $this->assertSame('майор', $decree->awardees[1]->rank);
     }
 

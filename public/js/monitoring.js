@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 downloadLink.remove();
                 window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
             } catch (error) {
+                console.error('CSV export request failed:', error);
                 if (status) {
                     status.textContent = 'Не вдалося експортувати CSV. Спробуйте ще раз.';
                     status.classList.remove('hidden');

@@ -59,6 +59,27 @@ final class ParseController extends Controller
                 ->withErrors(['urls_file' => 'Завантажте текстовий файл зі списком URL.']);
         }
 
+        $urls = $this->readUploadedUrls($file);
+        $validationError = $this->validateUploadedUrls($urls);
+
+        if ($validationError !== null) {
+            return redirect()
+                ->route('parse.index')
+                ->withErrors(['urls_file' => $validationError]);
+        }
+
+        $summary = $this->processUploadedUrls($urls);
+
+        return redirect()
+            ->route('parse.index')
+            ->with('status', $this->formatSummary($summary));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function readUploadedUrls(UploadedFile $file): array
+    {
         $contents = $file->get();
         if (is_string($contents)) {
             $contents = preg_replace('/^\xEF\xBB\xBF/', '', $contents) ?? $contents;
@@ -70,20 +91,33 @@ final class ParseController extends Controller
             static fn (string $url): bool => $url !== '',
         ));
 
+        return $urls;
+    }
+
+    /**
+     * @param  list<string>  $urls
+     */
+    private function validateUploadedUrls(array $urls): ?string
+    {
         if ($urls === [] || count($urls) > 200) {
-            return redirect()
-                ->route('parse.index')
-                ->withErrors(['urls_file' => 'Файл має містити від 1 до 200 URL-адрес, по одній на рядок.']);
+            return 'Файл має містити від 1 до 200 URL-адрес, по одній на рядок.';
         }
 
         foreach ($urls as $url) {
             if (! $this->isAllowedFileUrl($url)) {
-                return redirect()
-                    ->route('parse.index')
-                    ->withErrors(['urls_file' => 'Дозволені лише HTTPS-посилання на president.gov.ua.']);
+                return 'Дозволені лише HTTPS-посилання на president.gov.ua.';
             }
         }
 
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $urls
+     * @return array{mode: string, source_url: string, items_found: int, items_parsed: int, orders_created: int, awardees_created: int, orders_processed: int, awardees_processed: int, errors: list<string>}
+     */
+    private function processUploadedUrls(array $urls): array
+    {
         $summary = [
             'mode' => 'file',
             'source_url' => 'Uploaded URL list',
@@ -109,9 +143,7 @@ final class ParseController extends Controller
             }
         }
 
-        return redirect()
-            ->route('parse.index')
-            ->with('status', $this->formatSummary($summary));
+        return $summary;
     }
 
     private function isAllowedFileUrl(string $url): bool

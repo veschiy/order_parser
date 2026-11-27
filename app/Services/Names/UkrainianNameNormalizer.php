@@ -259,8 +259,8 @@ final class UkrainianNameNormalizer implements NameNormalizer
             }
         }
 
-        $result ??= $this->applyLowercaseEndingRules($part)
-            ?? $this->applyLowercaseSoftSignRules($part);
+        $result ??= $this->applyLowercaseEndingRules($part);
+        $result ??= $this->applyLowercaseSoftSignRules($part);
 
         if ($result === null && $index === 0) {
             $result = $this->applyLowercaseSurnameRules($part);

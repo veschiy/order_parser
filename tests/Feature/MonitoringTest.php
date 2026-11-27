@@ -424,6 +424,45 @@ CSV;
             ->assertUnprocessable();
     }
 
+    public function test_export_rejects_oversized_raw_selection(): void
+    {
+        $rawIds = '['.str_repeat(' ', 20_000).'1]';
+
+        $this->post(route('monitoring.export'), ['record_ids' => $rawIds])
+            ->assertUnprocessable();
+    }
+
+    public function test_export_accepts_raw_selection_at_the_byte_limit(): void
+    {
+        $record = MonitoringRecord::query()->create(['full_name' => 'Byte Limit Person']);
+        $id = (string) $record->id;
+        $rawIds = '['.str_repeat(' ', 20_000 - strlen($id) - 2).$id.']';
+
+        $response = $this->post(route('monitoring.export'), ['record_ids' => $rawIds]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('Byte Limit Person', $response->streamedContent());
+    }
+
+    public function test_export_rejects_selections_above_the_supported_item_limit(): void
+    {
+        $ids = range(1, 501);
+
+        $this->post(route('monitoring.export'), ['record_ids' => json_encode($ids)])
+            ->assertUnprocessable();
+    }
+
+    public function test_export_accepts_a_selection_at_the_item_limit(): void
+    {
+        $record = MonitoringRecord::query()->create(['full_name' => 'Selection Limit Person']);
+        $ids = array_fill(0, 500, $record->id);
+
+        $response = $this->post(route('monitoring.export'), ['record_ids' => json_encode($ids)]);
+
+        $response->assertOk();
+        $this->assertStringContainsString('Selection Limit Person', $response->streamedContent());
+    }
+
     public function test_export_respects_search_and_links_preserve_it(): void
     {
         MonitoringRecord::query()->create(['full_name' => 'Visible Person']);

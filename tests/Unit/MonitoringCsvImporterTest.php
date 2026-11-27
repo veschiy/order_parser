@@ -90,6 +90,15 @@ CSV;
         $this->assertSame('нагрудний знак "Золотий хрест"', $second->award);
     }
 
+    public function test_imports_a_record_when_its_date_text_contains_no_dates(): void
+    {
+        $count = $this->importer->import('1;Коваль Петро Іванович;дата невідома;орден');
+
+        $this->assertSame(1, $count);
+        $record = MonitoringRecord::query()->firstOrFail();
+        $this->assertNull($record->submission_date);
+    }
+
     public function test_handles_bom_and_empty_rows(): void
     {
         $csv = "\xEF\xBB\xBF"."Аркуш,ПІБ,ІПН,Дата подання,Нагорода\n\n1,Іванов Іван,123,,Орден\n   \n";
