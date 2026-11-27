@@ -303,6 +303,7 @@ final readonly class UkrainianNameNormalizer implements NameNormalizer
             'павла' => 'павло',
             'данила' => 'данило',
             'дмитра' => 'дмитро',
+            'петра' => 'петро',
             'євгенія' => 'євгеній',
             'андрія' => 'андрій',
             'юрія' => 'юрій',
