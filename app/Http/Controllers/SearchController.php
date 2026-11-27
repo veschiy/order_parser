@@ -74,6 +74,7 @@ final class SearchController extends Controller
         return response()->json([
             'data' => $results->map(fn ($result): array => [
                 'id' => $result->id,
+                'order_id' => $result->order_id,
                 'full_name' => $result->full_name,
                 'rank' => $result->rank ?? '—',
                 'award' => $result->award ?? '—',

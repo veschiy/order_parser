@@ -60,6 +60,7 @@ final class SearchTest extends TestCase
 
         $this->assertSame(1, $data['pagination']['total']);
         $this->assertSame('ІВАНЕНКО ІВАН', $data['data'][0]['full_name']);
+        $this->assertSame($order->id, $data['data'][0]['order_id']);
     }
 
     #[Test]

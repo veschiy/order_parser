@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-4 py-3 text-slate-100" data-value="${row.full_name}">${row.full_name}</td>
                 <td class="px-4 py-3 text-slate-300" data-value="${row.rank}">${row.rank}</td>
                 <td class="px-4 py-3 text-slate-300" data-value="${row.award}">${row.award}</td>
-                <td class="px-4 py-3 text-indigo-300" data-value="${row.order_display}">${row.order_display}</td>
+                <td class="px-4 py-3" data-value="${row.order_display}"><a href="/orders/${row.order_id}" class="text-indigo-300 hover:text-indigo-200 hover:underline">${row.order_display}</a></td>
             </tr>`;
     };
 
