@@ -25,6 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
         defaultParams: currentSearch ? { q: currentSearch } : {},
         defaultSort: 'id',
         defaultDirection: 'asc',
+        filterColumnMap: {
+            2: 'award',
+        },
         renderRow(row) {
             const rank = row.rank === '—' ? '' : row.rank;
 

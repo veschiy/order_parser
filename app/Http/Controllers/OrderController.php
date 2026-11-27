@@ -287,6 +287,23 @@ final class OrderController extends Controller
             );
         }
 
+        $filtersRaw = $request->input('filters', []);
+        /** @var array<string> $filters */
+        $filters = is_array($filtersRaw) ? array_filter($filtersRaw, is_string(...)) : [];
+
+        foreach ($filters as $filter) {
+            $parts = explode(':', $filter, 2);
+            if (count($parts) !== 2 || $parts[0] !== 'award') {
+                continue;
+            }
+
+            $values = $parts[1] === '' ? [] : explode(',', $parts[1]);
+            $hasEmpty = in_array('__empty__', $values, true);
+            $selectedAwards = array_values(array_filter($values, fn (string $value): bool => $value !== '__empty__'));
+            $allAwardees = $allAwardees->filter(fn (Awardee $awardee): bool => ($hasEmpty && ($awardee->award === null || $awardee->award === ''))
+                || in_array($awardee->award, $selectedAwards, true));
+        }
+
         $allAwardees = $allAwardees->sortBy(fn (Awardee $awardee) => match ($sort) {
             'full_name' => $awardee->full_name,
             'rank' => $awardee->rank ?? '',
@@ -306,5 +323,34 @@ final class OrderController extends Controller
             ]),
             'pagination' => PaginationResponse::fromPaginator($paginator),
         ]);
+    }
+
+    public function showAwardeesDistinctJson(int $id, Request $request): JsonResponse
+    {
+        $column = $request->string('column')->toString();
+        if ($column !== 'award') {
+            return response()->json(['values' => []]);
+        }
+
+        $order = Order::withTrashed()->with('awardees')->findOrFail($id);
+        $search = trim($request->string('q')->toString());
+        $awardees = collect($order->awardees);
+
+        if ($search !== '') {
+            $awardees = $awardees->filter(fn (Awardee $awardee): bool => mb_stripos($awardee->full_name, $search, 0, 'UTF-8') !== false
+                || mb_stripos($awardee->rank ?? '', $search, 0, 'UTF-8') !== false
+                || mb_stripos($awardee->award ?? '', $search, 0, 'UTF-8') !== false
+            );
+        }
+
+        $values = $awardees->pluck('award')
+            ->filter(fn (mixed $award): bool => $award !== null && $award !== '')
+            ->unique()
+            ->sort(SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
+        $values[] = '__empty__';
+
+        return response()->json(['values' => $values]);
     }
 }

@@ -109,10 +109,15 @@
                         </th>
                         <th class="px-4 py-3 text-left font-medium text-slate-300" data-col-index="2" data-type="text">
                             <div class="flex items-center text-left justify-between gap-1">
-                                <button type="button" data-action="sort" class="sort-trigger flex items-center gap-1 hover:text-white group">
-                                    <span class="col-title">Нагорода</span>
-                                    <span class="sort-icon text-slate-500 group-hover:text-slate-300 text-xs">↕</span>
-                                </button>
+                                <span class="col-title">Нагорода</span>
+                                <div class="flex items-center gap-1">
+                                    <button type="button" data-action="sort" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Сортувати">
+                                        <span class="sort-icon text-slate-500 text-xs">↕</span>
+                                    </button>
+                                    <button type="button" data-action="filter" class="inline-flex items-center justify-center rounded-md p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 transition" title="Фільтр">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                                    </button>
+                                </div>
                             </div>
                         </th>
                     </tr>
