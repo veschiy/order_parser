@@ -5,13 +5,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!orderId) return;
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const searchInput = document.getElementById('awardeesSearchInput');
+    const currentSearch = searchInput?.value.trim() || '';
 
-    new AjaxTable('awardeesTable', {
+    const table = new AjaxTable('awardeesTable', {
         url: `/orders/${orderId}/awardees/json`,
         paginationSelector: '#awardeesTable-pagination',
         emptyMessageSelector: '#awardeesTable-empty',
         loadingSelector: '#awardeesTable-loading',
         countSelector: '#awardeesTable-count',
+        defaultParams: currentSearch ? { q: currentSearch } : {},
         defaultSort: 'id',
         defaultDirection: 'asc',
         renderRow(row) {
@@ -41,6 +44,42 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         },
     });
+
+    const searchForm = document.getElementById('awardeesSearchForm');
+    const resetLink = document.getElementById('awardeesSearchReset');
+    const emptyMessage = document.querySelector('#awardeesTable-empty p');
+
+    if (searchForm) {
+        searchForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            const query = searchInput?.value.trim() || '';
+            table.defaultParams = query ? { q: query } : {};
+            table.currentPage = 1;
+            table.load();
+
+            resetLink?.classList.toggle('hidden', !query);
+            if (emptyMessage) {
+                emptyMessage.textContent = query
+                    ? `За запитом «${query}» нічого не знайдено.`
+                    : 'Список нагороджених ще не розібрано.';
+            }
+        });
+    }
+
+    if (resetLink) {
+        resetLink.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (searchInput) searchInput.value = '';
+            table.defaultParams = {};
+            table.currentPage = 1;
+            table.load();
+            resetLink.classList.add('hidden');
+            if (emptyMessage) {
+                emptyMessage.textContent = 'Список нагороджених ще не розібрано.';
+            }
+        });
+    }
 
     function initAwardeeEdit() {
         document.addEventListener('click', (e) => {

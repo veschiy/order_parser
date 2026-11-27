@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Awardee;
 use App\Models\Order;
 use App\Services\Monitoring\MonitoringEvaluationCache;
 use App\Services\PaginationResponse;
@@ -30,7 +31,7 @@ final class OrderController extends Controller
         ]);
     }
 
-    public function show(int $id): View
+    public function show(int $id, Request $request): View
     {
         $order = Order::withTrashed()
             ->with('awardees')
@@ -38,6 +39,7 @@ final class OrderController extends Controller
 
         return view('orders.show', [
             'order' => $order,
+            'search' => trim($request->string('q')->toString()),
             'paginator' => $this->paginateAwardees(
                 $order,
                 is_string(request('page')) ? (int) request('page') : 1,
@@ -272,18 +274,28 @@ final class OrderController extends Controller
 
         $perPage = $request->integer('perPage', 25);
         $page = max(1, $request->integer('page', 1));
+        $search = trim($request->string('q')->toString());
 
         $sort = $request->string('sort')->toString() ?: 'id';
         $direction = $request->string('direction')->toString() ?: 'asc';
 
-        $awardees = collect($order->awardees)->sortBy(fn ($awardee) => match ($sort) {
+        $allAwardees = collect($order->awardees);
+        if ($search !== '') {
+            $allAwardees = $allAwardees->filter(fn (Awardee $awardee): bool => mb_stripos($awardee->full_name, $search, 0, 'UTF-8') !== false
+                || mb_stripos($awardee->rank ?? '', $search, 0, 'UTF-8') !== false
+                || mb_stripos($awardee->award ?? '', $search, 0, 'UTF-8') !== false
+            );
+        }
+
+        $allAwardees = $allAwardees->sortBy(fn (Awardee $awardee) => match ($sort) {
             'full_name' => $awardee->full_name,
             'rank' => $awardee->rank ?? '',
             'award' => $awardee->award ?? '',
             default => $awardee->id,
-        }, $direction === 'desc' ? 3 : 0)->forPage($page, $perPage)->values();
+        }, $direction === 'desc' ? 3 : 0);
+        $awardees = $allAwardees->forPage($page, $perPage)->values();
 
-        $paginator = new LengthAwarePaginator($awardees, $order->awardees->count(), $perPage, $page);
+        $paginator = new LengthAwarePaginator($awardees, $allAwardees->count(), $perPage, $page);
 
         return response()->json([
             'data' => $awardees->map(fn ($awardee): array => [

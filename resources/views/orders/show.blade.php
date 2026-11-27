@@ -45,6 +45,30 @@
             </div>
         </div>
 
+        <div class="mb-4 flex flex-col gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div class="text-xs text-slate-400">
+                Відображається: <span id="awardeesTable-count" class="font-semibold text-slate-200">0</span> із {{ $order->awardees->count() }}
+            </div>
+
+            <form id="awardeesSearchForm" class="flex items-center gap-2">
+                <label for="awardeesSearchInput" class="sr-only">Швидкий пошук</label>
+                <input
+                    type="search"
+                    name="q"
+                    id="awardeesSearchInput"
+                    value="{{ $search }}"
+                    placeholder="Швидкий пошук..."
+                    class="w-48 rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 sm:w-64"
+                >
+                <button type="submit" class="rounded-xl bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:bg-slate-700">
+                    Пошук
+                </button>
+                <a href="#" id="awardeesSearchReset" class="rounded-xl border border-slate-700 px-3 py-1.5 text-sm text-slate-400 transition hover:text-white {{ $search !== '' ? '' : 'hidden' }}">
+                    Скинути
+                </a>
+            </form>
+        </div>
+
         <div class="relative">
             <div id="awardeesTable-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm rounded-xl pointer-events-auto">
                 <div class="text-center">
@@ -54,7 +78,13 @@
             </div>
 
             <div id="awardeesTable-empty" class="hidden">
-                <p class="text-sm text-slate-400">Список нагороджених ще не розібрано.</p>
+                <p class="text-sm text-slate-400">
+                    @if ($search !== '')
+                        За запитом «{{ $search }}» нічого не знайдено.
+                    @else
+                        Список нагороджених ще не розібрано.
+                    @endif
+                </p>
             </div>
 
             <div class="overflow-x-auto">
