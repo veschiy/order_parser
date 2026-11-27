@@ -15,10 +15,10 @@ class NativeAppServiceProvider implements ProvidesPhpIni
      * Executed once the native application has been booted.
      * Use this method to open windows, register global shortcuts, etc.
      */
-    public function boot(NormalizeAwardeeNamesOnAppVersion $nameNormalizer): void
+    public function boot(): void
     {
         Artisan::call('migrate', ['--force' => true]);
-        $nameNormalizer->runIfAppVersionChanged();
+        app(NormalizeAwardeeNamesOnAppVersion::class)->runIfAppVersionChanged();
 
         Window::open()
             ->title('Order Parser')

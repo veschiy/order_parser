@@ -16,6 +16,14 @@ beforeEach(function (): void {
     Cache::store('database')->forget('awardees.normalized_names_version');
 });
 
+it('configures a filename for the daily log channel', function (): void {
+    $logPath = config('logging.log_path');
+
+    expect(is_string($logPath) && $logPath !== '')->toBeTrue();
+
+    expect(config('logging.channels.daily.path'))->toBe($logPath);
+});
+
 it('normalizes names once for each app version', function (): void {
     $order = Order::query()->create([
         'document_url' => 'https://example.com/decree',
