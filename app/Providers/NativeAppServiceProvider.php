@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\Names\NormalizeAwardeeNamesOnAppVersion;
 use Illuminate\Support\Facades\Artisan;
 use Native\Desktop\Contracts\ProvidesPhpIni;
 use Native\Desktop\Facades\Window;
@@ -14,12 +15,13 @@ class NativeAppServiceProvider implements ProvidesPhpIni
      * Executed once the native application has been booted.
      * Use this method to open windows, register global shortcuts, etc.
      */
-    public function boot(): void
+    public function boot(NormalizeAwardeeNamesOnAppVersion $nameNormalizer): void
     {
         Artisan::call('migrate', ['--force' => true]);
+        $nameNormalizer->runIfAppVersionChanged();
 
         Window::open()
-            ->title('Order Parser 2.0')
+            ->title('Order Parser')
             ->width(1600)
             ->height(1000)
             ->minWidth(960)
