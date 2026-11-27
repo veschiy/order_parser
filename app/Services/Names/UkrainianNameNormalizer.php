@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Names;
 
-final class UkrainianNameNormalizer implements NameNormalizer
+use Shevchenko\Language\GrammaticalGender;
+use Shevchenko\Shevchenko;
+
+final readonly class UkrainianNameNormalizer implements NameNormalizer
 {
-    public function __construct(private readonly UkrainianNominativeCandidateFinder $candidateFinder = new UkrainianNominativeCandidateFinder) {}
+    public function __construct(private UkrainianNominativeCandidateFinder $candidateFinder = new UkrainianNominativeCandidateFinder) {}
 
     public function toNominative(string $name): string
     {
@@ -154,11 +157,14 @@ final class UkrainianNameNormalizer implements NameNormalizer
             try {
                 $shevchenko = new Shevchenko;
                 $candidate = mb_strtolower($stem.'КО', 'UTF-8');
-
-                if ($shevchenko->inAccusative([
+                $result = $shevchenko->inAccusative([
                     'familyName' => $candidate,
                     'gender' => GrammaticalGender::MASCULINE,
-                ])['familyName'] === mb_strtolower($part, 'UTF-8')) {
+                ]);
+
+                if (isset($result['familyName'])
+                    && is_string($result['familyName'])
+                    && $result['familyName'] === mb_strtolower($part, 'UTF-8')) {
                     return mb_strtoupper($candidate, 'UTF-8');
                 }
             } catch (\Throwable) {
