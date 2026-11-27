@@ -25,4 +25,36 @@ final class EditAwardeeTest extends TestCase
         $response->assertOk()->assertJson(['full_name' => "НОВЕ ІМ'Я"]);
         $this->assertDatabaseHas('awardees', ['id' => $awardee->id, 'full_name' => "НОВЕ ІМ'Я"]);
     }
+
+    public function test_awardee_rank_can_be_edited_and_cleared(): void
+    {
+        $order = Order::query()->create(['document_url' => 'https://example.com/order', 'parsed_at' => now()]);
+        $awardee = Awardee::query()->create([
+            'order_id' => $order->id,
+            'full_name' => 'БАКАЛ Олександр Вікторович',
+            'rank' => 'солдат',
+        ]);
+
+        $this->patchJson(route('awardees.update', ['awardee' => $awardee->id]), [
+            'rank' => '  капітан  ',
+        ])
+            ->assertOk()
+            ->assertJsonPath('rank', 'капітан');
+
+        $this->assertDatabaseHas('awardees', [
+            'id' => $awardee->id,
+            'rank' => 'капітан',
+        ]);
+
+        $this->patchJson(route('awardees.update', ['awardee' => $awardee->id]), [
+            'rank' => null,
+        ])
+            ->assertOk()
+            ->assertJsonPath('rank', null);
+
+        $this->assertDatabaseHas('awardees', [
+            'id' => $awardee->id,
+            'rank' => null,
+        ]);
+    }
 }
