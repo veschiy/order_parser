@@ -1,11 +1,14 @@
 <?php
 
+use App\Exceptions\AwardeeNameNormalizationFailedException;
+use App\Jobs\NormalizeAwardeeNamesForAppVersion;
 use App\Models\Awardee;
 use App\Models\Order;
 use App\Services\Names\NormalizeAwardeeNamesOnAppVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -55,16 +58,29 @@ it('normalizes names once for each app version', function (): void {
     expect($awardee->refresh()->full_name)->toBe('БАКАЛ Олександр Вікторович');
 });
 
+it('queues name normalization on the database worker', function (): void {
+    Queue::fake();
+
+    (new NormalizeAwardeeNamesOnAppVersion)->dispatchIfAppVersionChanged();
+
+    Queue::assertPushed(NormalizeAwardeeNamesForAppVersion::class, [
+        'version' => '2.0.0',
+        'connection' => 'database',
+        'queue' => 'default',
+    ]);
+});
+
 it('does not record the version when normalization fails', function (): void {
     Artisan::shouldReceive('call')
-        ->twice()
+        ->once()
         ->with('awardees:normalize-names', ['--apply' => true])
         ->andReturn(1);
+    Artisan::shouldReceive('output')->once()->andReturn('normalization failed');
 
     $normalizer = new NormalizeAwardeeNamesOnAppVersion;
 
-    $normalizer->runIfAppVersionChanged();
-    $normalizer->runIfAppVersionChanged();
+    expect(fn () => $normalizer->runIfAppVersionChanged())
+        ->toThrow(AwardeeNameNormalizationFailedException::class, 'normalization failed');
 
     expect(Cache::store('database')->get('awardees.normalized_names_version'))->toBeNull();
 });

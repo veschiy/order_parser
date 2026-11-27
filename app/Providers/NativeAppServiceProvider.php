@@ -18,7 +18,6 @@ class NativeAppServiceProvider implements ProvidesPhpIni
     public function boot(): void
     {
         Artisan::call('migrate', ['--force' => true]);
-        app(NormalizeAwardeeNamesOnAppVersion::class)->runIfAppVersionChanged();
 
         Window::open()
             ->title('Order Parser')
@@ -28,6 +27,8 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             ->minHeight(640)
             ->maximized()
             ->hideMenu();
+
+        app(NormalizeAwardeeNamesOnAppVersion::class)->dispatchIfAppVersionChanged();
     }
 
     /**
