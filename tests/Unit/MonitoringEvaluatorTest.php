@@ -434,6 +434,47 @@ final class MonitoringEvaluatorTest extends TestCase
         $this->assertSame($order2->id, $evaluation->bestMatch?->awardee->order_id);
     }
 
+    public function test_candidate_awardee_groups_are_reindexed_as_a_list(): void
+    {
+        $order = Order::query()->create([
+            'document_url' => 'https://example.com/order-1',
+            'parsed_at' => now(),
+        ]);
+
+        $awardee = Awardee::query()->create([
+            'order_id' => $order->id,
+            'full_name' => 'Бакал Олександр Вікторович',
+        ]);
+
+        $method = new \ReflectionMethod($this->evaluator, 'candidateAwardeesByRecord');
+        $candidateAwardeesByRecord = $method->invoke(
+            $this->evaluator,
+            1,
+            ['ба ві ол' => [2]],
+            ['exact:бакал олександр вікторович' => [2]],
+        );
+
+        if (! is_array($candidateAwardeesByRecord)) {
+            $this->fail('Expected candidate awardees to be returned as an array.');
+        }
+
+        $this->assertSame([0, 1], array_keys($candidateAwardeesByRecord));
+
+        $matchedAwardees = $candidateAwardeesByRecord[1] ?? null;
+        if (! is_array($matchedAwardees)) {
+            $this->fail('Expected the matching record to have an awardee list.');
+        }
+
+        $this->assertSame([$awardee->id], array_keys($matchedAwardees));
+
+        $matchedAwardee = $matchedAwardees[$awardee->id] ?? null;
+        if (! $matchedAwardee instanceof Awardee) {
+            $this->fail('Expected the matching candidate to be an awardee.');
+        }
+
+        $this->assertSame($awardee->id, $matchedAwardee->id);
+    }
+
     public function test_bulk_evaluation_preserves_matching_and_order(): void
     {
         $order = Order::query()->create([

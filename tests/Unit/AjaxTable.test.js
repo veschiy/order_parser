@@ -114,6 +114,80 @@ test('AjaxTable filter options escape database values in labels and attributes',
     }
 });
 
+test('AjaxTable loads only after explicit initialization', async () => {
+    const originalDocument = globalThis.document;
+    const originalFetch = globalThis.fetch;
+    const originalWindow = globalThis.window;
+    const elements = new Map();
+    let fetchCalls = 0;
+
+    globalThis.document = {
+        addEventListener() {},
+        body: { appendChild() {} },
+        createElement: () => ({ addEventListener() {}, classList: { add() {}, remove() {} } }),
+        getElementById(id) {
+            if (!elements.has(id)) {
+                elements.set(id, { addEventListener() {} });
+            }
+
+            return elements.get(id);
+        },
+        querySelector: () => null,
+        querySelectorAll: () => [],
+    };
+    globalThis.window = { location: { origin: 'https://example.test' } };
+    globalThis.fetch = async () => {
+        fetchCalls++;
+
+        return { ok: true, json: async () => ({ data: [], pagination: {} }) };
+    };
+
+    try {
+        const table = new AjaxTable('testTable', { url: '/test', renderRow: () => '' });
+        assert.equal(fetchCalls, 0);
+
+        await table.initialize();
+
+        assert.equal(fetchCalls, 1);
+        assert.equal(table.isLoading, false);
+    } finally {
+        if (originalDocument === undefined) {
+            delete globalThis.document;
+        } else {
+            globalThis.document = originalDocument;
+        }
+        if (originalWindow === undefined) {
+            delete globalThis.window;
+        } else {
+            globalThis.window = originalWindow;
+        }
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test('AjaxTable renders page gaps and the matching navigation links', () => {
+    const originalDocument = globalThis.document;
+    const container = { innerHTML: '', querySelectorAll: () => [] };
+    const table = Object.create(AjaxTable.prototype);
+    Object.assign(table, { paginationSelector: '#pagination', currentPage: 1 });
+    globalThis.document = { querySelector: () => container };
+
+    try {
+        table.renderPagination({ current_page: 5, last_page: 12, total: 120, from: 41, to: 50 });
+
+        assert.match(container.innerHTML, /data-page="4">Назад/);
+        assert.match(container.innerHTML, /data-page="6">Далі/);
+        assert.match(container.innerHTML, /bg-indigo-600[^>]*>5<\/span>/);
+        assert.equal(container.innerHTML.match(/>…<\/span>/g)?.length, 2);
+    } finally {
+        if (originalDocument === undefined) {
+            delete globalThis.document;
+        } else {
+            globalThis.document = originalDocument;
+        }
+    }
+});
+
 test('AjaxTable load swallows request failures and clears its loading state', async () => {
     const originalDocument = globalThis.document;
     const originalFetch = globalThis.fetch;

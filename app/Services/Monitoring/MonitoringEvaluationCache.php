@@ -180,6 +180,15 @@ final readonly class MonitoringEvaluationCache
         $matches = array_map(function (MonitoringMatch $match): array {
             $order = $match->awardee->order;
             $publishedAt = $order?->getRawOriginal('published_at');
+            $orderData = null;
+
+            if ($order !== null) {
+                $orderData = [
+                    'id' => $order->id,
+                    'number' => $order->number,
+                    'published_at' => is_string($publishedAt) ? $publishedAt : null,
+                ];
+            }
 
             return [
                 'awardee' => [
@@ -187,11 +196,7 @@ final readonly class MonitoringEvaluationCache
                     'order_id' => $match->awardee->order_id,
                     'award' => $match->awardee->award,
                 ],
-                'order' => $order === null ? null : [
-                    'id' => $order->id,
-                    'number' => $order->number,
-                    'published_at' => is_string($publishedAt) ? $publishedAt : null,
-                ],
+                'order' => $orderData,
                 'nameMatched' => $match->nameMatched,
                 'rankMatched' => $match->rankMatched,
                 'awardMatched' => $match->awardMatched,

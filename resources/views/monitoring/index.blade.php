@@ -150,10 +150,10 @@
                                 </svg>
                                 Експорт у CSV
                             </span>
-                            <span data-export-loading class="hidden items-center gap-1.5" role="status">
+                            <output data-export-loading class="hidden items-center gap-1.5">
                                 <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></span>
                                 Формування CSV...
-                            </span>
+                            </output>
                         </a>
                         <form method="POST" action="{{ route('monitoring.clear') }}" data-confirm="Видалити всі записи моніторингу?" class="inline-block">
                             @csrf
@@ -166,7 +166,7 @@
                             </button>
                         </form>
                     </div>
-                    <p data-monitoring-export-status class="mt-2 hidden text-sm text-rose-300" role="status" aria-live="polite"></p>
+                    <output data-monitoring-export-status class="mt-2 hidden text-sm text-rose-300 block" aria-live="polite"></output>
                 @endif
             </div>
 

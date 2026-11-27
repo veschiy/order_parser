@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const requiresConfirmation = (form) => {
         const methodOverride = form.querySelector('input[name="_method"]')?.value;
 
-        return form.hasAttribute('data-confirm') || methodOverride?.toUpperCase() === 'DELETE';
+        return form.dataset.confirm !== undefined || methodOverride?.toUpperCase() === 'DELETE';
     };
 
     const showConfirmation = (form, submitter) => {

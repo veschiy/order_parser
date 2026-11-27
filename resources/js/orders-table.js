@@ -50,6 +50,7 @@ globalThis.document?.addEventListener('DOMContentLoaded', () => {
             };
         },
     });
+    void table.initialize();
 
     const resetBtn = document.getElementById('ordersResetFiltersBtn');
     if (resetBtn) {

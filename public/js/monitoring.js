@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const blob = await response.blob();
                 const objectUrl = URL.createObjectURL(blob);
                 const downloadLink = document.createElement('a');
-                const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/i)?.[1] || 'monitoring_export.csv';
+                const filename = /filename="?([^";]+)"?/i.exec(response.headers.get('Content-Disposition') ?? '')?.[1] || 'monitoring_export.csv';
                 downloadLink.href = objectUrl;
                 downloadLink.download = filename;
                 document.body.appendChild(downloadLink);

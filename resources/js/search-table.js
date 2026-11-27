@@ -34,6 +34,7 @@ globalThis.document?.addEventListener('DOMContentLoaded', () => {
             defaultParams: { q: currentQuery },
             renderRow: renderSearchRow,
         });
+        void ajaxTable.initialize();
     }
 
     if (searchForm) {
@@ -54,6 +55,7 @@ globalThis.document?.addEventListener('DOMContentLoaded', () => {
                     defaultParams: { q },
                     renderRow: renderSearchRow,
                 });
+                void ajaxTable.initialize();
             }
         });
     }

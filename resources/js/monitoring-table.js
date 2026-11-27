@@ -114,6 +114,7 @@ globalThis.document?.addEventListener('DOMContentLoaded', () => {
             };
         },
     });
+    void ajaxTable.initialize();
 
     const searchForm = document.getElementById('monitoringSearchForm');
     if (searchForm) {

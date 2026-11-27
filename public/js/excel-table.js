@@ -162,7 +162,7 @@ class ExcelTable {
     getCellText(row, colIndex) {
         const cell = row.children[colIndex];
         if (!cell) return '';
-        if (cell.dataset && cell.dataset.value !== undefined) {
+        if (cell.dataset?.value !== undefined) {
             return cell.dataset.value.trim();
         }
         return cell.innerText.trim();
@@ -185,40 +185,56 @@ class ExcelTable {
 
         const th = this.table.querySelector(`thead th[data-col-index="${colIndex}"]`);
         const type = th?.dataset?.type || 'text';
-
-        let direction = 'asc';
-        if (explicitDir) {
-            direction = explicitDir;
-        } else if (this.currentSort.colIndex === colIndex) {
-            direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
-        }
-
+        const direction = this.getSortDirection(colIndex, explicitDir);
         this.currentSort = { colIndex, direction };
 
-        rows.sort((a, b) => {
-            const valA = this.getCellText(a, colIndex);
-            const valB = this.getCellText(b, colIndex);
-
-            if (type === 'number') {
-                const numA = Number.parseFloat(valA) || 0;
-                const numB = Number.parseFloat(valB) || 0;
-                return direction === 'asc' ? numA - numB : numB - numA;
-            }
-
-            if (type === 'date') {
-                if (!valA && !valB) return 0;
-                if (!valA) return direction === 'asc' ? 1 : -1;
-                if (!valB) return direction === 'asc' ? -1 : 1;
-                return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-            }
-
-            return direction === 'asc'
-                ? valA.localeCompare(valB, 'uk', { sensitivity: 'base' })
-                : valB.localeCompare(valA, 'uk', { sensitivity: 'base' });
-        });
+        rows.sort((a, b) => this.compareRows(a, b, colIndex, type, direction));
 
         rows.forEach(r => tbody.appendChild(r));
+        this.updateSortIcons(colIndex, direction);
 
+        if (this.activeFilterColIndex !== null) {
+            this.closeFilterMenu();
+        }
+    }
+
+    getSortDirection(colIndex, explicitDir) {
+        if (explicitDir) return explicitDir;
+        if (this.currentSort.colIndex === colIndex) {
+            return this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+        }
+        return 'asc';
+    }
+
+    compareRows(a, b, colIndex, type, direction) {
+        const valueA = this.getCellText(a, colIndex);
+        const valueB = this.getCellText(b, colIndex);
+
+        if (type === 'number') return this.compareNumbers(valueA, valueB, direction);
+        if (type === 'date') return this.compareDates(valueA, valueB, direction);
+        return this.compareText(valueA, valueB, direction);
+    }
+
+    compareNumbers(valueA, valueB, direction) {
+        const numberA = Number.parseFloat(valueA) || 0;
+        const numberB = Number.parseFloat(valueB) || 0;
+        return direction === 'asc' ? numberA - numberB : numberB - numberA;
+    }
+
+    compareDates(valueA, valueB, direction) {
+        if (!valueA && !valueB) return 0;
+        if (!valueA) return direction === 'asc' ? 1 : -1;
+        if (!valueB) return direction === 'asc' ? -1 : 1;
+        return direction === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
+    }
+
+    compareText(valueA, valueB, direction) {
+        return direction === 'asc'
+            ? valueA.localeCompare(valueB, 'uk', { sensitivity: 'base' })
+            : valueB.localeCompare(valueA, 'uk', { sensitivity: 'base' });
+    }
+
+    updateSortIcons(colIndex, direction) {
         this.table.querySelectorAll('thead th[data-col-index]').forEach(header => {
             const idx = Number.parseInt(header.dataset.colIndex, 10);
             const icon = header.querySelector('.sort-icon') || header.querySelector('[data-sort-icon]');
@@ -233,10 +249,6 @@ class ExcelTable {
                 icon.classList.add('text-slate-500');
             }
         });
-
-        if (this.activeFilterColIndex !== null) {
-            this.closeFilterMenu();
-        }
     }
 
     toggleFilterMenu(buttonEl, colIndex) {
@@ -346,9 +358,7 @@ class ExcelTable {
     }
 
     closeFilterMenu() {
-        if (this.dropdown) {
-            this.dropdown.classList.add('hidden');
-        }
+        this.dropdown?.classList.add('hidden');
         this.activeFilterColIndex = null;
     }
 
@@ -409,54 +419,48 @@ class ExcelTable {
 
     renderFilters() {
         this.saveFilters();
-        const rows = this.getRows();
-        let visibleCount = 0;
         const activeCols = Object.keys(this.columnFilters).map(Number);
-
-        rows.forEach(row => {
-            const matches = activeCols.every(colIndex => {
-                const allowedSet = this.columnFilters[colIndex];
-                if (!allowedSet) return true;
-
-                const cellVal = this.getCellText(row, colIndex);
-                return allowedSet.has(cellVal);
-            });
-
-            if (matches) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
-            }
-        });
+        const visibleCount = this.filterRows(activeCols);
 
         this.updateRowCount(visibleCount);
+        this.updateFilterButtons();
+        this.updateResetButton(activeCols.length > 0);
+    }
 
-        // Update header filter buttons active status
-        this.table.querySelectorAll('thead th[data-col-index]').forEach(th => {
-            const idx = Number.parseInt(th.dataset.colIndex, 10);
-            const btn = th.querySelector('[data-action="filter"], .filter-btn');
-            const isFiltered = this.columnFilters[idx] !== undefined;
-            if (btn) {
-                if (isFiltered) {
-                    btn.classList.add('text-indigo-400', 'bg-indigo-950/80');
-                    btn.classList.remove('text-slate-400');
-                } else {
-                    btn.classList.remove('text-indigo-400', 'bg-indigo-950/80');
-                    btn.classList.add('text-slate-400');
-                }
-            }
+    filterRows(activeCols) {
+        let visibleCount = 0;
+
+        this.getRows().forEach(row => {
+            const matches = activeCols.every(colIndex => this.rowMatchesFilter(row, colIndex));
+
+            row.style.display = matches ? '' : 'none';
+            visibleCount += Number(matches);
         });
 
-        // Show/Hide reset button
+        return visibleCount;
+    }
+
+    rowMatchesFilter(row, colIndex) {
+        const allowedValues = this.columnFilters[colIndex];
+
+        return !allowedValues || allowedValues.has(this.getCellText(row, colIndex));
+    }
+
+    updateFilterButtons() {
+        this.table.querySelectorAll('thead th[data-col-index]').forEach(th => {
+            const colIndex = Number.parseInt(th.dataset.colIndex, 10);
+            const filterButton = th.querySelector('[data-action="filter"], .filter-btn');
+            const isFiltered = this.columnFilters[colIndex] !== undefined;
+
+            filterButton?.classList.toggle('text-indigo-400', isFiltered);
+            filterButton?.classList.toggle('bg-indigo-950/80', isFiltered);
+            filterButton?.classList.toggle('text-slate-400', !isFiltered);
+        });
+    }
+
+    updateResetButton(hasActiveFilters) {
         const resetBtn = document.querySelector(`[data-excel-reset="${this.table.id}"]`) || document.getElementById('resetAllFiltersBtn');
-        if (resetBtn) {
-            if (activeCols.length > 0) {
-                resetBtn.classList.remove('hidden');
-            } else {
-                resetBtn.classList.add('hidden');
-            }
-        }
+        resetBtn?.classList.toggle('hidden', !hasActiveFilters);
     }
 
     updateRowCount(count = null) {
@@ -473,10 +477,12 @@ class ExcelTable {
 // Auto-initialize tables (exclude #monitoringTable — it uses AjaxTable with server-side filters)
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-excel-table]').forEach(table => {
-        new ExcelTable(table);
+        const instance = new ExcelTable(table);
+        window.excelTables.set(instance.tableId, instance);
     });
 });
 
 if (typeof window !== 'undefined') {
     window.ExcelTable = ExcelTable;
+    window.excelTables ??= new Map();
 }

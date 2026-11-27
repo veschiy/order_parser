@@ -45,7 +45,10 @@ export class AjaxTable {
         this.bindSortHeaders();
         this.bindFilterHeaders();
         this.initFilterDropdown();
-        void this.load();
+    }
+
+    initialize() {
+        return this.load();
     }
 
     buildParams(overrides = {}) {
@@ -100,14 +103,14 @@ export class AjaxTable {
     showLoading() {
         if (this.loadingSelector) {
             const el = document.querySelector(this.loadingSelector);
-            if (el) el.classList.remove('hidden');
+            el?.classList.remove('hidden');
         }
     }
 
     hideLoading() {
         if (this.loadingSelector) {
             const el = document.querySelector(this.loadingSelector);
-            if (el) el.classList.add('hidden');
+            el?.classList.add('hidden');
         }
     }
 
@@ -161,9 +164,9 @@ export class AjaxTable {
 
         if (data.length === 0) {
             tbody.innerHTML = '';
-            if (emptyEl) emptyEl.classList.remove('hidden');
+            emptyEl?.classList.remove('hidden');
         } else {
-            if (emptyEl) emptyEl.classList.add('hidden');
+            emptyEl?.classList.add('hidden');
 
             const html = data.map(row => this.renderRow(row)).join('');
             tbody.innerHTML = html;
@@ -196,53 +199,65 @@ export class AjaxTable {
             return;
         }
 
-        const range = 2;
-        const toShow = {};
-
-        if (last_page <= range * 2 + 3) {
-            for (let i = 1; i <= last_page; i++) toShow[i] = true;
-        } else {
-            toShow[1] = true;
-            toShow[last_page] = true;
-            for (let i = Math.max(1, current_page - range); i <= Math.min(last_page, current_page + range); i++) {
-                toShow[i] = true;
-            }
-        }
-
-        const shown = Object.keys(toShow).map(Number).sort((a, b) => a - b);
-        const elements = [];
-        let prevPage = null;
-
-        for (const value of shown) {
-            if (prevPage !== null && value > prevPage + 1) {
-                elements.push('<span class="rounded-lg px-1 py-1.5 text-sm font-medium text-slate-500">…</span>');
-            }
-            if (value === current_page) {
-                elements.push(`<span class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white">${value}</span>`);
-            } else {
-                elements.push(`<a href="#" class="ajax-page-link rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-slate-700" data-page="${value}">${value}</a>`);
-            }
-            prevPage = value;
-        }
-
-        const backBtn = current_page === 1
-            ? '<span class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-500 cursor-not-allowed">Назад</span>'
-            : `<a href="#" class="ajax-page-link rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-slate-700" data-page="${current_page - 1}">Назад</a>`;
-
-        const nextBtn = current_page === last_page
-            ? '<span class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-500 cursor-not-allowed">Далі</span>'
-            : `<a href="#" class="ajax-page-link rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-slate-700" data-page="${current_page + 1}">Далі</a>`;
+        const pageNumbers = this.renderPaginationPages(current_page, last_page);
+        const backBtn = this.renderPaginationButton('Назад', current_page - 1, current_page !== 1);
+        const nextBtn = this.renderPaginationButton('Далі', current_page + 1, current_page !== last_page);
 
         container.innerHTML = `
             <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
                 <p class="text-sm text-slate-400">Показано ${from}–${to} із ${total} записів</p>
                 <div class="flex flex-wrap items-center gap-1">
                     ${backBtn}
-                    ${elements.join('')}
+                    ${pageNumbers}
                     ${nextBtn}
                 </div>
             </div>`;
 
+        this.bindPaginationLinks(container);
+    }
+
+    renderPaginationPages(currentPage, lastPage) {
+        const pages = new Set([1, lastPage]);
+        if (lastPage <= 7) {
+            for (let page = 1; page <= lastPage; page++) pages.add(page);
+        } else {
+            for (let page = Math.max(1, currentPage - 2); page <= Math.min(lastPage, currentPage + 2); page++) {
+                pages.add(page);
+            }
+        }
+
+        const shownPages = [...pages].sort((a, b) => a - b);
+        const elements = [];
+        let previousPage = null;
+
+        for (const page of shownPages) {
+            if (previousPage !== null && page > previousPage + 1) {
+                elements.push('<span class="rounded-lg px-1 py-1.5 text-sm font-medium text-slate-500">…</span>');
+            }
+            elements.push(this.renderPageNumber(page, currentPage));
+            previousPage = page;
+        }
+
+        return elements.join('');
+    }
+
+    renderPageNumber(page, currentPage) {
+        if (page === currentPage) {
+            return `<span class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white">${page}</span>`;
+        }
+
+        return `<a href="#" class="ajax-page-link rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-slate-700" data-page="${page}">${page}</a>`;
+    }
+
+    renderPaginationButton(label, page, enabled) {
+        if (!enabled) {
+            return `<span class="rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-500 cursor-not-allowed">${label}</span>`;
+        }
+
+        return `<a href="#" class="ajax-page-link rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-slate-700" data-page="${page}">${label}</a>`;
+    }
+
+    bindPaginationLinks(container) {
         container.querySelectorAll('.ajax-page-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -448,7 +463,7 @@ export class AjaxTable {
         }
 
         // Fetch distinct values from server
-        this.loadDistinctValues(colIndex, columnName, button);
+        void this.loadDistinctValues(colIndex, columnName, button);
     }
 
     async loadDistinctValues(colIndex, columnName, button) {
@@ -626,7 +641,7 @@ export class AjaxTable {
         const allValues = this.columnFilterAllValues[colIndex];
 
         // If all values selected (same as all available) — no filter, show everything
-        if (allValues && selectedValues.size === allValues.size && this.isSubsetOf(selectedValues, allValues)) {
+        if (selectedValues.size === allValues?.size && this.isSubsetOf(selectedValues, allValues)) {
             delete this.columnFilters[colIndex];
         }
         // If nothing selected — store empty set (will produce empty table)
@@ -688,14 +703,7 @@ export class AjaxTable {
             // all values are selected, the icon should be dull (no filtering).
             let isActive = false;
             if (filterSet !== undefined) {
-                if (filterSet.size === 0) {
-                    // All unchecked — active filter (empty result)
-                    isActive = true;
-                } else if (allValues && filterSet.size < allValues.size) {
-                    // Some unchecked — active filter
-                    isActive = true;
-                }
-                // else: all checked — not active (dull icon)
+                isActive = filterSet.size === 0 || filterSet.size < (allValues?.size ?? 0);
             }
             // else: no filter entry — not active (dull icon, all shown)
 

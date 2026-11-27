@@ -212,7 +212,7 @@ final readonly class DecreeParser
         }
 
         $rank = trim(implode(' ', $cleanRankParts));
-        $rank = preg_replace('/\s+(?:а|у)\s+(?:Національній|Державній|Спеціальній|Державній\s+прикордонній).+$/u', '', $rank) ?? $rank;
+        $rank = preg_replace('/\s+[ау]\s+(?:Національній|Державній|Спеціальній|Державній\s+прикордонній).+$/u', '', $rank) ?? $rank;
 
         return trim($rank);
     }

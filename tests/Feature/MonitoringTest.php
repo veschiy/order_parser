@@ -151,6 +151,16 @@ final class MonitoringTest extends TestCase
         $response->assertDontSee('>ІПН<');
     }
 
+    public function test_monitoring_export_status_controls_use_output_elements(): void
+    {
+        MonitoringRecord::query()->create(['full_name' => 'Особа для експорту']);
+
+        $this->get(route('monitoring.index'))
+            ->assertOk()
+            ->assertSeeHtml('<output data-export-loading')
+            ->assertSeeHtml('<output data-monitoring-export-status');
+    }
+
     public function test_monitoring_loads_vite_assets_and_new_records_in_development(): void
     {
         $fullName = 'Нова Особа';
@@ -421,6 +431,12 @@ CSV;
     public function test_export_rejects_invalid_record_selection(): void
     {
         $this->postJson(route('monitoring.export'), ['record_ids' => '[1, "invalid"]'])
+            ->assertUnprocessable();
+    }
+
+    public function test_export_rejects_malformed_record_selection_json(): void
+    {
+        $this->postJson(route('monitoring.export'), ['record_ids' => '[1,'])
             ->assertUnprocessable();
     }
 

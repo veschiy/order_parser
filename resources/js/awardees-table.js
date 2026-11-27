@@ -66,6 +66,7 @@ globalThis.document?.addEventListener('DOMContentLoaded', () => {
             };
         },
     });
+    void table.initialize();
 
     const searchForm = document.getElementById('awardeesSearchForm');
     const resetLink = document.getElementById('awardeesSearchReset');

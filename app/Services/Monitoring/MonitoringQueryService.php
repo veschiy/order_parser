@@ -116,24 +116,21 @@ final class MonitoringQueryService
             return ['0', '1', '2', '3', '4', '__empty__'];
         }
 
+        $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
         if ($column === 'matches') {
             ['query' => $matchQuery] = $this->buildFilteredQuery($search);
             $evaluations = $evaluationCache->forRecords($matchQuery->get());
-
-            return $this->buildDecreeDisplays($evaluations);
+            $values = $this->buildDecreeDisplays($evaluations);
+        } elseif (in_array($column, $allowedColumns, true)) {
+            ['query' => $query] = $this->buildFilteredQuery($search);
+            /** @var list<string> $values */
+            $values = $query->distinct()->pluck($column)->filter()
+                ->map($formatValue)
+                ->sort()->values()->toArray();
+            $values[] = '__empty__';
+        } else {
+            $values = [];
         }
-
-        $allowedColumns = ['sheet', 'rank', 'full_name', 'submission_date', 'award'];
-        if (! in_array($column, $allowedColumns, true)) {
-            return [];
-        }
-
-        ['query' => $query] = $this->buildFilteredQuery($search);
-        /** @var list<string> $values */
-        $values = $query->distinct()->pluck($column)->filter()
-            ->map($formatValue)
-            ->sort()->values()->toArray();
-        $values[] = '__empty__';
 
         return $values;
     }

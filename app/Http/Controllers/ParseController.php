@@ -86,12 +86,11 @@ final class ParseController extends Controller
         }
 
         $lines = is_string($contents) ? preg_split('/\R/', $contents) : false;
-        $urls = array_values(array_filter(
+
+        return array_values(array_filter(
             array_map(trim(...), $lines ?: []),
             static fn (string $url): bool => $url !== '',
         ));
-
-        return $urls;
     }
 
     /**

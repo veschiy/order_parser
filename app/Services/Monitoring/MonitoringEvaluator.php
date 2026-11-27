@@ -45,6 +45,30 @@ final readonly class MonitoringEvaluator
             return new Collection;
         }
 
+        $recordIndexes = $this->indexRecordsByName($records);
+        $candidateAwardeesByRecord = $this->candidateAwardeesByRecord(
+            $records->count(),
+            $recordIndexes['prefix'],
+            $recordIndexes['name'],
+        );
+
+        $evaluations = new Collection;
+
+        foreach ($records as $recordIndex => $record) {
+            $candidates = $candidateAwardeesByRecord[$recordIndex];
+            ksort($candidates);
+            $evaluations->push($this->evaluate($record, $candidates));
+        }
+
+        return $evaluations;
+    }
+
+    /**
+     * @param  Collection<int, MonitoringRecord>  $records
+     * @return array{prefix: array<string, list<int>>, name: array<string, list<int>>}
+     */
+    private function indexRecordsByName(Collection $records): array
+    {
         $recordIndexesByNameKey = [];
         $recordIndexesByPrefixKey = [];
 
@@ -56,33 +80,47 @@ final readonly class MonitoringEvaluator
             }
         }
 
-        $candidateAwardeesByRecord = array_fill(0, $records->count(), []);
+        return [
+            'prefix' => $recordIndexesByPrefixKey,
+            'name' => $recordIndexesByNameKey,
+        ];
+    }
+
+    /**
+     * @param  array<string, list<int>>  $recordIndexesByPrefixKey
+     * @param  array<string, list<int>>  $recordIndexesByNameKey
+     * @return list<array<int, Awardee>>
+     */
+    private function candidateAwardeesByRecord(int $recordCount, array $recordIndexesByPrefixKey, array $recordIndexesByNameKey): array
+    {
+        $candidateAwardeesByRecord = array_fill(0, $recordCount, []);
 
         $this->activeAwardees()->chunkById(self::AWARDEE_CHUNK_SIZE, function (Collection $awardees) use (&$candidateAwardeesByRecord, $recordIndexesByPrefixKey, $recordIndexesByNameKey): void {
             foreach ($awardees as $awardee) {
-                $prefixKey = $this->namePrefixKey($awardee->full_name);
-
-                if (! isset($recordIndexesByPrefixKey[$prefixKey])) {
-                    continue;
-                }
-
-                foreach ($this->nameKeys($awardee->full_name) as $key) {
-                    foreach ($recordIndexesByNameKey[$key] ?? [] as $recordIndex) {
-                        $candidateAwardeesByRecord[$recordIndex][$awardee->id] = $awardee;
-                    }
-                }
+                $this->indexAwardeeCandidates($awardee, $recordIndexesByPrefixKey, $recordIndexesByNameKey, $candidateAwardeesByRecord);
             }
         });
 
-        $evaluations = new Collection;
+        return array_values($candidateAwardeesByRecord);
+    }
 
-        foreach ($records as $recordIndex => $record) {
-            $candidates = $candidateAwardeesByRecord[$recordIndex];
-            ksort($candidates);
-            $evaluations->push($this->evaluate($record, $candidates));
+    /**
+     * @param  array<string, list<int>>  $recordIndexesByPrefixKey
+     * @param  array<string, list<int>>  $recordIndexesByNameKey
+     * @param  array<int, array<int, Awardee>>  $candidateAwardeesByRecord
+     */
+    private function indexAwardeeCandidates(Awardee $awardee, array $recordIndexesByPrefixKey, array $recordIndexesByNameKey, array &$candidateAwardeesByRecord): void
+    {
+        $prefixKey = $this->namePrefixKey($awardee->full_name);
+        if (! isset($recordIndexesByPrefixKey[$prefixKey])) {
+            return;
         }
 
-        return $evaluations;
+        foreach ($this->nameKeys($awardee->full_name) as $key) {
+            foreach ($recordIndexesByNameKey[$key] ?? [] as $recordIndex) {
+                $candidateAwardeesByRecord[$recordIndex][$awardee->id] = $awardee;
+            }
+        }
     }
 
     /**
@@ -205,26 +243,17 @@ final readonly class MonitoringEvaluator
         $lowerMonitored = mb_strtolower($monitoredName, 'UTF-8');
         $lowerAwardee = mb_strtolower($awardeeName, 'UTF-8');
 
-        if ($lowerMonitored === $lowerAwardee) {
-            return true;
-        }
-
         $cleanMonitored = preg_replace(self::WHITESPACE_PATTERN, ' ', $lowerMonitored) ?? $lowerMonitored;
         $cleanAwardee = preg_replace(self::WHITESPACE_PATTERN, ' ', $lowerAwardee) ?? $lowerAwardee;
 
-        if ($cleanMonitored === $cleanAwardee) {
+        if ($lowerMonitored === $lowerAwardee || $cleanMonitored === $cleanAwardee) {
             return true;
         }
 
         $normMonitored = mb_strtolower($this->normalizer->toNominative($monitoredName), 'UTF-8');
         $normAwardee = mb_strtolower($this->normalizer->toNominative($awardeeName), 'UTF-8');
 
-        $exactNormalizedMatch = $normMonitored === $normAwardee;
-        if ($exactNormalizedMatch) {
-            return true;
-        }
-
-        return $this->tokensMatch($normMonitored, $normAwardee);
+        return $normMonitored === $normAwardee || $this->tokensMatch($normMonitored, $normAwardee);
     }
 
     private function tokensMatch(string $normMonitored, string $normAwardee): bool
@@ -256,15 +285,9 @@ final readonly class MonitoringEvaluator
         $normMonitored = $this->normalizeAward($monitoredAward);
         $normAwardee = $this->normalizeAward($awardeeAward);
 
-        if ($normMonitored === '' || $normAwardee === '') {
-            return false;
-        }
-
-        if ($normMonitored === $normAwardee) {
-            return true;
-        }
-
-        return $this->awardsContainEachOther($normMonitored, $normAwardee);
+        return $normMonitored !== ''
+            && $normAwardee !== ''
+            && ($normMonitored === $normAwardee || $this->awardsContainEachOther($normMonitored, $normAwardee));
     }
 
     private function awardsContainEachOther(string $normMonitored, string $normAwardee): bool

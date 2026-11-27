@@ -110,4 +110,17 @@ CSV;
         $this->assertSame('Іванов Іван', $record->full_name);
         $this->assertNull($record->submission_date);
     }
+
+    public function test_converts_windows_1251_csv_to_utf8(): void
+    {
+        $name = 'Коваль Петро Іванович';
+        $csv = mb_convert_encoding("Аркуш;ПІБ;Нагорода\n1;{$name};Орден", 'Windows-1251', 'UTF-8');
+
+        $count = $this->importer->import($csv);
+
+        $this->assertSame(1, $count);
+        $record = MonitoringRecord::query()->firstOrFail();
+        $this->assertSame($name, $record->full_name);
+        $this->assertSame('Орден', $record->award);
+    }
 }
