@@ -27,6 +27,13 @@ final class UkrainianNameNormalizerTest extends TestCase
         $this->assertSame('ГРИСЮК Петро Миколайович', $normalizer->toNominative('ГРИСЮК Петра Миколайовича'));
     }
 
+    public function test_kyrylo_is_restored_from_genitive_given_name(): void
+    {
+        $normalizer = new UkrainianNameNormalizer;
+
+        $this->assertSame('Кирило Миколайович', $normalizer->toNominative('Кирила Миколайовича'));
+    }
+
     public function test_ordered_fallbacks_preserve_case_and_hyphenated_name_parts(): void
     {
         $normalizer = new UkrainianNameNormalizer;
